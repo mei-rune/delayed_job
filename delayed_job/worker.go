@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,10 +23,10 @@ const (
 var (
 	default_priority            = flag.Int("default_priority", DEFAULT_DEFAULT_PRIORITY, "the default priority of job")
 	default_queue_name          = flag.String("default_queue_name", "", "the default queue name")
-	delay_jobs                  = flag.Bool("delay_jobs", false, "can delay job")
+	delay_jobs                  = flag.Bool("delay_jobs", true, "can delay job")
 	name_prefix                 = flag.String("name_prefix", "tpt_worker", "the prefix of worker name")
-	default_min_priority        = flag.Int("min_priority", 0, "the min priority")
-	default_max_priority        = flag.Int("max_priority", 0, "the max priority")
+	default_min_priority        = flag.Int("min_priority", -1, "the min priority")
+	default_max_priority        = flag.Int("max_priority", -1, "the max priority")
 	default_max_run_time        = flag.Duration("max_run_time", 0, "the max run time")
 	default_sleep_delay         = flag.Duration("sleep_delay", 0, "the sleep delay")
 	default_read_ahead          = flag.Int("read_ahead", 10, "the read ahead")
@@ -33,6 +34,8 @@ var (
 	default_exit_on_complete    = flag.Bool("exit_on_complete", false, "exit worker while jobs complete")
 	default_destroy_failed_jobs = flag.Bool("destroy_failed_jobs", false, "the failed jobs are destroyed after too many attempts")
 )
+
+var jobs_is_empty = errors.New("jobs is empty in the db")
 
 func deserializationError(e error) error {
 	return errors.New("[deserialization]" + e.Error())
@@ -59,6 +62,23 @@ type worker struct {
 	exit_on_complete    bool
 
 	name string
+
+	shutdown chan int
+	wait     sync.WaitGroup
+}
+
+func newWorker(backend *dbBackend, options map[string]interface{}) *worker {
+	w := &worker{backend: backend,
+		shutdown: make(chan int)}
+	w.initialize(options)
+	go w.serve()
+	w.wait.Add(1)
+	return w
+}
+
+func (self *worker) Close() {
+	self.shutdown <- 0
+	self.wait.Wait()
 }
 
 func (self *worker) initialize(options map[string]interface{}) {
@@ -121,29 +141,39 @@ func (self *worker) lifecycle() {
 }
 
 func (self *worker) serve() {
+	defer func() {
+		self.wait.Done()
+	}()
+
 	self.say("Starting job worker")
 
 	//self.before_execute()
 	//defer self.after_execute()
 
-	for {
-		now := time.Now()
-
-		success, failure, e := self.work_off(10)
-		if nil != e {
-			log.Println(e)
-			break
+	is_running := true
+	for is_running {
+		select {
+		case <-self.shutdown:
+			is_running = false
+		case <-time.After(self.sleep_delay):
 		}
+		for is_running {
+			now := time.Now()
 
-		if 0 == success {
-			if self.exit_on_complete {
-				self.say("No more jobs available. Exiting")
+			success, failure, e := self.work_off(10)
+			if nil != e {
+				log.Println(e)
+				break
+			}
+
+			if 0 == success {
+				if self.exit_on_complete {
+					self.say("No more jobs available. Exiting")
+				}
 				break
 			} else {
-				time.Sleep(self.sleep_delay)
+				self.say(success, "jobs processed at ", float64(success)/time.Now().Sub(now).Seconds(), " j/s, ", failure, " failed")
 			}
-		} else {
-			self.say(success, "jobs processed at ", float64(success)/time.Now().Sub(now).Seconds(), " j/s, ", failure, " failed")
 		}
 	}
 }
@@ -156,7 +186,10 @@ func (self *worker) work_off(num int) (int, int, error) {
 	for i := 0; i < num; i++ {
 		ok, e := self.reserve_and_run_one_job()
 		if nil != e {
-			return 0, 0, e
+			if jobs_is_empty == e {
+				return success, failure, nil
+			}
+			return success, failure, e
 		}
 
 		if ok {
@@ -176,6 +209,11 @@ func (self *worker) reserve_and_run_one_job() (bool, error) {
 	if nil != e {
 		return false, e
 	}
+
+	if nil == job {
+		return false, jobs_is_empty
+	}
+
 	return self.run(job)
 }
 
