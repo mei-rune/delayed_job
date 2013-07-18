@@ -218,8 +218,7 @@ func (self *worker) run(job *Job) (bool, error) {
 	if nil != e {
 		if isDeserializationError(e) {
 			self.job_say(job, "FAILED (", job.attempts, " prior attempts) with ", e)
-			job.last_error = e.Error()
-			e = self.failed(job)
+			e = self.failed(job, e)
 		} else {
 			e = self.handle_failed_job(job, e)
 		}
@@ -231,11 +230,11 @@ func (self *worker) run(job *Job) (bool, error) {
 	return true, e // did work
 }
 
-func (self *worker) failed(job *Job) error {
+func (self *worker) failed(job *Job, e error) error {
 	if self.destroy_failed_jobs {
 		return job.destroyIt()
 	} else {
-		return job.failIt(job.last_error)
+		return job.failIt(e.Error())
 	}
 }
 
@@ -262,22 +261,21 @@ func (self *worker) get_max_attempts(job *Job) int {
 }
 
 func (self *worker) handle_failed_job(job *Job, e error) error {
-	job.last_error = e.Error()
 	self.job_say(job, "FAILED (", job.attempts, " prior attempts) with ", e)
-	return self.reschedule(job, time.Time{})
+	return self.reschedule(job, time.Time{}, e)
 }
 
 // Reschedule the job in the future (when a job fails).
 // Uses an exponential scale depending on the number of failed attempts.
-func (self *worker) reschedule(job *Job, next_time time.Time) error {
+func (self *worker) reschedule(job *Job, next_time time.Time, e error) error {
 	attempts := job.attempts + 1
 	if attempts < self.get_max_attempts(job) {
 		if next_time.IsZero() {
 			next_time = job.reschedule_at()
 		}
-		return job.rescheduleIt(next_time, job.last_error)
+		return job.rescheduleIt(next_time, e.Error())
 	} else {
 		self.job_say(job, "REMOVED permanently because of ", job.attempts, " consecutive failures")
-		return self.failed(job)
+		return self.failed(job, e)
 	}
 }
