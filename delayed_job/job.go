@@ -43,11 +43,12 @@ type Job struct {
 	created_at time.Time
 	updated_at time.Time
 
+	changed_attributes map[string]interface{}
 	handler_attributes map[string]interface{}
 	handler_object     Handler
 }
 
-func newJob(backend *dbBackend, priority, attempts int, queue string, run_at time.Time, args map[string]interface{}) (*Job, error) {
+func newJob(backend *dbBackend, priority int, queue string, run_at time.Time, args map[string]interface{}) (*Job, error) {
 	defaultValue := generate_id()
 	id := stringWithDefault(args, "_uid", defaultValue)
 	if 0 == len(id) {
@@ -60,7 +61,6 @@ func newJob(backend *dbBackend, priority, attempts int, queue string, run_at tim
 	}
 	j := &Job{backend: backend,
 		priority:   priority,
-		attempts:   attempts,
 		queue:      queue,
 		handler:    string(s),
 		handler_id: id,
@@ -159,21 +159,64 @@ func (self *Job) max_attempts() int {
 	return -1
 }
 
-func (self *Job) rescheduleIt(next_time time.Time) error {
+func stringifiedHander(params map[string]interface{}) error {
+	handler, ok := params["handler"]
+	if !ok {
+		return nil
+	}
+
+	if nil == handler {
+		return nil
+	}
+
+	if _, ok := handler.(string); ok {
+		return nil
+	}
+
+	bs, e := json.MarshalIndent(handler, "", "  ")
+	if nil != e {
+		return e
+	}
+	params["handler"] = string(bs)
+	return nil
+}
+
+func (self *Job) will_update_attributes() map[string]interface{} {
+	if nil == self.changed_attributes {
+		self.changed_attributes = make(map[string]interface{}, 8)
+	}
+	return self.changed_attributes
+}
+
+func (self *Job) rescheduleIt(next_time time.Time, err string) error {
 	self.attempts += 1
 	self.run_at = next_time
 	self.locked_at = time.Time{}
 	self.locked_by = ""
-	return self.backend.update(self.id, map[string]interface{}{"attempts": self.attempts + 1,
-		"run_at":    next_time,
-		"locked_at": nil,
-		"locked_by": nil})
+	self.last_error = err
+
+	changed := self.will_update_attributes()
+
+	e := stringifiedHander(changed)
+	if nil != e {
+		return e
+	}
+	changed["attempts"] = self.attempts
+	changed["run_at"] = next_time
+	changed["locked_at"] = nil
+	changed["locked_by"] = nil
+	changed["last_error"] = err
+
+	e = self.backend.update(self.id, changed)
+	self.changed_attributes = nil
+	return e
 }
 
-func (self *Job) failIt() error {
+func (self *Job) failIt(e string) error {
 	now := self.backend.db_time_now()
 	self.failed_at = now
-	return self.backend.update(self.id, map[string]interface{}{"failed_at": now})
+	self.last_error = e
+	return self.backend.update(self.id, map[string]interface{}{"failed_at": now, "last_error": e})
 }
 
 func (self *Job) destroyIt() error {

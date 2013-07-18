@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS tpt_delayed_jobs (
 
 func TestEnqueue(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
-		e := backend.enqueue(1, 12, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -83,8 +83,8 @@ func TestEnqueue(t *testing.T) {
 		if job.priority != 1 {
 			t.Error("excepted priority is 1, actual is ", job.priority)
 		}
-		if job.attempts != 12 {
-			t.Error("excepted attempts is 12, actual is ", job.attempts)
+		if job.attempts != 0 {
+			t.Error("excepted attempts is 0, actual is ", job.attempts)
 		}
 		if queue.Valid && queue.String != "aa" {
 			t.Error("excepted queue is 'aa', actual is ", queue.String)
@@ -122,12 +122,12 @@ func TestEnqueue(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
-		e := backend.enqueue(1, 12, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
 			return
 		}
-		w := &worker{min_priority: -1, max_priority: -1, name: "aa_pid:123"}
+		w := &worker{min_priority: -1, max_priority: -1, name: "aa_pid:123", max_run_time: 1 * time.Minute}
 		job, e := backend.reserve(w)
 		if nil != e {
 			t.Error(e)
@@ -168,8 +168,8 @@ func TestGet(t *testing.T) {
 		if job.priority != 1 {
 			t.Error("excepted priority is 1, actual is ", job.priority)
 		}
-		if job.attempts != 12 {
-			t.Error("excepted attempts is 12, actual is ", job.attempts)
+		if job.attempts != 0 {
+			t.Error("excepted attempts is 0, actual is ", job.attempts)
 		}
 		if job.queue != "aa" {
 			t.Error("excepted queue is 'aa', actual is ", job.queue)
@@ -193,7 +193,7 @@ func TestGet(t *testing.T) {
 			t.Error("excepted failed_at is invalid, actual is ", job.failed_at)
 		}
 
-		if "aa_pid:123" != job.locked_by {
+		if "" != job.locked_by {
 			t.Error("excepted locked_by is invalid, actual is ", job.locked_by)
 		}
 
@@ -207,7 +207,7 @@ func TestGet(t *testing.T) {
 
 func TestGetWithLocked(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
-		e := backend.enqueue(1, 12, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -219,7 +219,35 @@ func TestGetWithLocked(t *testing.T) {
 			return
 		}
 
-		w := &worker{min_priority: -1, max_priority: -1, name: "aa_pid:123"}
+		w := &worker{min_priority: -1, max_priority: -1, name: "aa_pid:123", max_run_time: 1 * time.Minute}
+		job, e := backend.reserve(w)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		if nil != job {
+			t.Error("excepted job is nil, actual is not nil")
+			return
+		}
+	})
+}
+
+func TestGetWithFailed(t *testing.T) {
+	backendTest(t, func(backend *dbBackend) {
+		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		_, e = backend.db.Exec("UPDATE tpt_delayed_jobs SET failed_at = now(), last_error = 'aa'")
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		w := &worker{min_priority: -1, max_priority: -1, name: "aa_pid:123", max_run_time: 1 * time.Minute}
 		job, e := backend.reserve(w)
 		if nil != e {
 			t.Error(e)
@@ -235,7 +263,7 @@ func TestGetWithLocked(t *testing.T) {
 
 func TestLockedInGet(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
-		e := backend.enqueue(1, 12, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -256,7 +284,7 @@ func TestLockedInGet(t *testing.T) {
 			test_ch_for_lock <- 1
 		}()
 
-		w := &worker{min_priority: -1, max_priority: -1, name: "aa_pid:123"}
+		w := &worker{min_priority: -1, max_priority: -1, name: "aa_pid:123", max_run_time: 1 * time.Minute}
 		job, e := backend.reserve(w)
 		if nil != e {
 			t.Error(e)
@@ -267,5 +295,210 @@ func TestLockedInGet(t *testing.T) {
 			t.Error("excepted job is nil, actual is not nil")
 			return
 		}
+	})
+}
+
+func TestFailedInGet(t *testing.T) {
+	backendTest(t, func(backend *dbBackend) {
+		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		is_test_for_lock = true
+		defer func() {
+			is_test_for_lock = false
+		}()
+
+		go func() {
+			<-test_ch_for_lock
+			_, e := backend.db.Exec("UPDATE tpt_delayed_jobs SET failed_at = now(), last_error = 'aa'")
+			if nil != e {
+				t.Error(e)
+				return
+			}
+			test_ch_for_lock <- 1
+		}()
+
+		w := &worker{min_priority: -1, max_priority: -1, name: "aa_pid:123", max_run_time: 1 * time.Minute}
+		job, e := backend.reserve(w)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		if nil != job {
+			t.Error("excepted job is nil, actual is not nil")
+			return
+		}
+	})
+}
+
+func TestDestory(t *testing.T) {
+	backendTest(t, func(backend *dbBackend) {
+		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		if nil != e {
+			t.Error(e)
+			return
+		}
+		w := &worker{min_priority: -1, max_priority: -1, name: "aa_pid:123", max_run_time: 1 * time.Minute}
+		job, e := backend.reserve(w)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		if nil == job {
+			t.Error("excepted job is not nil, actual is nil")
+			return
+		}
+
+		job.destroyIt()
+
+		count := int64(-1)
+		e = backend.db.QueryRow("SELECT count(*) FROM tpt_delayed_jobs").Scan(&count)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		if count != 0 {
+			t.Error("excepted job is empty after destory it, actual is ", count)
+			return
+		}
+
+	})
+}
+
+func TestFailIt(t *testing.T) {
+	backendTest(t, func(backend *dbBackend) {
+		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		if nil != e {
+			t.Error(e)
+			return
+		}
+		w := &worker{min_priority: -1, max_priority: -1, name: "aa_pid:123", max_run_time: 1 * time.Minute}
+		job, e := backend.reserve(w)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		if nil == job {
+			t.Error("excepted job is not nil, actual is nil")
+			return
+		}
+
+		job.failIt("1234")
+
+		row := backend.db.QueryRow("SELECT failed_at, last_error FROM tpt_delayed_jobs where id = " + strconv.FormatInt(job.id, 10))
+
+		var failed_at NullTime
+		var last_error sql.NullString
+
+		e = row.Scan(&failed_at, &last_error)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		if !failed_at.Valid {
+			t.Error("excepted failed_at is not empty, actual is invalid")
+		}
+
+		if !last_error.Valid {
+			t.Error("excepted last_error is not empty, actual is invalid")
+		}
+
+		if "1234" != last_error.String {
+			t.Error("excepted last_error is '1234', and actual is ", last_error.String)
+		}
+
+		if math.Abs(float64(failed_at.Time.Unix()-time.Now().Unix())) > 10 {
+			t.Error("excepted failed_at is now, actual is", failed_at.Time)
+		}
+	})
+}
+
+func TestRescheduleIt(t *testing.T) {
+	backendTest(t, func(backend *dbBackend) {
+		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		if nil != e {
+			t.Error(e)
+			return
+		}
+		w := &worker{min_priority: -1, max_priority: -1, name: "aa_pid:123", max_run_time: 1 * time.Minute}
+		job, e := backend.reserve(w)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		if nil == job {
+			t.Error("excepted job is not nil, actual is nil")
+			return
+		}
+		now := backend.db_time_now()
+		job.will_update_attributes()["handler"] = map[string]interface{}{"type": "test", "aa": "testsss"}
+		e = job.rescheduleIt(now, "throw s")
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		row := backend.db.QueryRow("SELECT attempts, run_at, locked_at, locked_by, handler, last_error FROM tpt_delayed_jobs where id = " + strconv.FormatInt(job.id, 10))
+
+		var attempts int64
+		var run_at NullTime
+		var locked_at NullTime
+		var locked_by sql.NullString
+		var handler sql.NullString
+		var last_error sql.NullString
+
+		e = row.Scan(&attempts, &run_at, &locked_at, &locked_by, &handler, &last_error)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		if !run_at.Valid {
+			t.Error("excepted run_at is valid, actual is invalid")
+		}
+		if locked_at.Valid {
+			t.Error("excepted locked_at is invalid, actual is valid")
+		}
+		if locked_by.Valid {
+			t.Error("excepted locked_by is invalid, actual is valid")
+		}
+
+		if !handler.Valid {
+			t.Error("excepted handler is not empty, actual is invalid")
+		}
+
+		if !last_error.Valid {
+			t.Error("excepted last_error is not empty, actual is invalid")
+		}
+
+		if 1 != attempts {
+			t.Error("excepted attempts is '1', and actual is ", attempts)
+		}
+
+		if run_at.Time == now {
+			t.Error("excepted run_at is ", run_at.Time, ", actual is", now)
+		}
+
+		if !strings.Contains(handler.String, "\"type\": \"test\"") {
+			t.Error("excepted handler contains '\"type\": \"test\"', actual is ", handler.String)
+		}
+
+		if !strings.Contains(handler.String, "\"aa\": \"testsss\"") {
+			t.Error("excepted handler is '\"aa\": \"testsss\"', actual is ", handler.String)
+		}
+
+		if last_error.String != "throw s" {
+			t.Error("excepted last_error is 'throw s', actual is ", last_error.String)
+		}
+
 	})
 }

@@ -11,24 +11,16 @@ import (
 	"time"
 )
 
-const (
-	DEFAULT_SLEEP_DELAY      = 5
-	DEFAULT_MAX_ATTEMPTS     = 25
-	DEFAULT_MAX_RUN_TIME     = 4 * time.Hour
-	DEFAULT_DEFAULT_PRIORITY = 0
-	DEFAULT_DELAY_JOBS       = true
-	DEFAULT_READ_AHEAD       = 5
-)
-
 var (
-	default_priority            = flag.Int("default_priority", DEFAULT_DEFAULT_PRIORITY, "the default priority of job")
+	default_priority            = flag.Int("default_priority", 0, "the default priority of job")
 	default_queue_name          = flag.String("default_queue_name", "", "the default queue name")
 	delay_jobs                  = flag.Bool("delay_jobs", true, "can delay job")
 	name_prefix                 = flag.String("name_prefix", "tpt_worker", "the prefix of worker name")
 	default_min_priority        = flag.Int("min_priority", -1, "the min priority")
 	default_max_priority        = flag.Int("max_priority", -1, "the max priority")
-	default_max_run_time        = flag.Duration("max_run_time", 0, "the max run time")
-	default_sleep_delay         = flag.Duration("sleep_delay", 0, "the sleep delay")
+	default_max_attempts        = flag.Int("max_attempts", 25, "the max attempts")
+	default_max_run_time        = flag.Duration("max_run_time", 1*time.Minute, "the max run time")
+	default_sleep_delay         = flag.Duration("sleep_delay", 10*time.Second, "the sleep delay")
 	default_read_ahead          = flag.Int("read_ahead", 10, "the read ahead")
 	default_queues              = flag.String("queues", "", "the default queue name")
 	default_exit_on_complete    = flag.Bool("exit_on_complete", false, "exit worker while jobs complete")
@@ -84,6 +76,7 @@ func (self *worker) Close() {
 func (self *worker) initialize(options map[string]interface{}) {
 	self.min_priority = intWithDefault(options, "min_priority", *default_min_priority)
 	self.max_priority = intWithDefault(options, "max_priority", *default_max_priority)
+	self.max_attempts = intWithDefault(options, "max_attempts", *default_max_attempts)
 	self.max_run_time = durationWithDefault(options, "max_run_time", *default_max_run_time)
 	self.sleep_delay = durationWithDefault(options, "sleep_delay", *default_sleep_delay)
 	self.read_ahead = intWithDefault(options, "read_ahead", *default_read_ahead)
@@ -152,11 +145,6 @@ func (self *worker) serve() {
 
 	is_running := true
 	for is_running {
-		select {
-		case <-self.shutdown:
-			is_running = false
-		case <-time.After(self.sleep_delay):
-		}
 		for is_running {
 			now := time.Now()
 
@@ -174,6 +162,12 @@ func (self *worker) serve() {
 			} else {
 				self.say(success, "jobs processed at ", float64(success)/time.Now().Sub(now).Seconds(), " j/s, ", failure, " failed")
 			}
+		}
+
+		select {
+		case <-self.shutdown:
+			is_running = false
+		case <-time.After(self.sleep_delay):
 		}
 	}
 }
@@ -241,13 +235,13 @@ func (self *worker) failed(job *Job) error {
 	if self.destroy_failed_jobs {
 		return job.destroyIt()
 	} else {
-		return job.failIt()
+		return job.failIt(job.last_error)
 	}
 }
 
 func (self *worker) job_say(job *Job, text ...interface{}) {
 	args := make([]interface{}, 0, 3+len(text))
-	args = append(args, "Job ", job.name, " (id=", job.id, ") ")
+	args = append(args, "Job ", job.name(), " (id=", job.id, ") ")
 	args = append(args, text...)
 	self.say(args...)
 }
@@ -281,7 +275,7 @@ func (self *worker) reschedule(job *Job, next_time time.Time) error {
 		if next_time.IsZero() {
 			next_time = job.reschedule_at()
 		}
-		return job.rescheduleIt(next_time)
+		return job.rescheduleIt(next_time, job.last_error)
 	} else {
 		self.job_say(job, "REMOVED permanently because of ", job.attempts, " consecutive failures")
 		return self.failed(job)

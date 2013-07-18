@@ -74,8 +74,8 @@ func (self *dbBackend) Close() {
 	self.db.Close()
 }
 
-func (self *dbBackend) enqueue(priority, attempts int, queue string, run_at time.Time, args map[string]interface{}) error {
-	job, e := newJob(self, priority, attempts, queue, run_at, args)
+func (self *dbBackend) enqueue(priority int, queue string, run_at time.Time, args map[string]interface{}) error {
+	job, e := newJob(self, priority, queue, run_at, args)
 	if nil != e {
 		return e
 	}
@@ -188,9 +188,9 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 		var c int64
 		var result sql.Result
 		if self.isNumericParams {
-			result, e = self.db.Exec("UPDATE tpt_delayed_jobs SET locked_at = $1, locked_by = $2 WHERE id = $3", now, w.name, job.id)
+			result, e = self.db.Exec("UPDATE tpt_delayed_jobs SET locked_at = $1, locked_by = $2 WHERE id = $3 AND (locked_at IS NULL OR locked_at < $4 OR locked_by = $5) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
 		} else {
-			result, e = self.db.Exec("UPDATE tpt_delayed_jobs SET locked_at = ?, locked_by = ? WHERE id = ?", now, w.name, job.id)
+			result, e = self.db.Exec("UPDATE tpt_delayed_jobs SET locked_at = ?, locked_by = ? WHERE id = ? AND (locked_at IS NULL OR locked_at < ? OR locked_by = ?) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
 		}
 		if nil != e {
 			return nil, e
@@ -326,14 +326,19 @@ func (self *dbBackend) update(id int64, attributes map[string]interface{}) error
 			buffer.WriteString(", ")
 		}
 		buffer.WriteString(k)
-		if self.isNumericParams {
-			buffer.WriteString(" = $")
-			buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
-		} else {
-			buffer.WriteString(" = ?")
-		}
 
-		params = append(params, v)
+		if nil == v {
+			buffer.WriteString(" = NULL")
+		} else {
+			if self.isNumericParams {
+				buffer.WriteString(" = $")
+				buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
+			} else {
+				buffer.WriteString(" = ?")
+			}
+
+			params = append(params, v)
+		}
 	}
 
 	if 0 != len(params) {
@@ -355,6 +360,8 @@ func (self *dbBackend) update(id int64, attributes map[string]interface{}) error
 	}
 	params = append(params, id)
 
+	//fmt.Println(buffer.String())
+	//fmt.Println(params)
 	_, e := self.db.Exec(buffer.String(), params...)
 	if nil != e && sql.ErrNoRows != e {
 		return e
