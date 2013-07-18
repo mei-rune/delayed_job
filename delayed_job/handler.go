@@ -17,6 +17,8 @@ func newHandler(options map[string]interface{}) (Handler, error) {
 	switch t {
 	case "test":
 		return newTest(options)
+	case "web":
+		return newWebHandler(options)
 	}
 	return nil, errors.New("'" + t + "' is unsupported handler")
 }
