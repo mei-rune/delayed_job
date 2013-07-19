@@ -77,6 +77,28 @@ func durationWithDefault(args map[string]interface{}, key string, defaultValue t
 		return i
 	}
 }
+
+func timeWithDefault(args map[string]interface{}, key string, defaultValue time.Time) time.Time {
+	v, ok := args[key]
+	if !ok {
+		return defaultValue
+	}
+	switch value := v.(type) {
+	case time.Time:
+		return value
+	case string:
+		for _, layout := range []string{} {
+			t, e := time.Parse(value, layout)
+			if nil == e {
+				return t
+			}
+		}
+		return defaultValue
+	default:
+		return defaultValue
+	}
+}
+
 func stringWithDefault(args map[string]interface{}, key string, defaultValue string) string {
 	v, ok := args[key]
 	if !ok {

@@ -38,6 +38,7 @@ func isDeserializationError(e error) bool {
 }
 
 type worker struct {
+	ctx     map[string]interface{}
 	backend *dbBackend
 
 	min_priority int

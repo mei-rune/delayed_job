@@ -110,9 +110,13 @@ func (self *Job) payload_object() (Handler, error) {
 		return nil, e
 	}
 
-	self.handler_object, e = newHandler(options)
+	if nil == self.backend {
+		return nil, errors.New("the backend of job is nil")
+	}
+
+	self.handler_object, e = newHandler(self.backend.ctx, options)
 	if nil != e {
-		return nil, e
+		return nil, errors.New("create job handler failed, " + e.Error())
 	}
 	return self.handler_object, nil
 }

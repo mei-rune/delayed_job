@@ -36,7 +36,7 @@ func TestWebHandler(t *testing.T) {
 			}))
 			defer srv.Close()
 
-			handler, e := newHandler(map[string]interface{}{"type": "web",
+			handler, e := newHandler(nil, map[string]interface{}{"type": "web",
 				"method":     test.method,
 				"url":        srv.URL + test.url,
 				"body":       test.body,

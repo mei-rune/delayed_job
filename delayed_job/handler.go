@@ -8,19 +8,22 @@ type Handler interface {
 	Perform() error
 }
 
-func newHandler(options map[string]interface{}) (Handler, error) {
+type MakeHandler func(ctx, options map[string]interface{}) (Handler, error)
+
+var Handlers = map[string]MakeHandler{}
+
+func newHandler(ctx, options map[string]interface{}) (Handler, error) {
 	t := stringWithDefault(options, "type", "")
 	if 0 == len(t) {
 		return nil, errors.New("'type' is required.")
 	}
 
-	switch t {
-	case "test":
-		return newTest(options)
-	case "web":
-		return newWebHandler(options)
+	makeHandler := Handlers[t]
+	if nil == makeHandler {
+		return nil, errors.New("'" + t + "' is unsupported handler")
 	}
-	return nil, errors.New("'" + t + "' is unsupported handler")
+
+	return makeHandler(ctx, options)
 }
 
 var test_chan = make(chan map[string]interface{}, 100)
@@ -37,6 +40,10 @@ func (self testHandler) Perform() error {
 	return errors.New(e)
 }
 
-func newTest(options map[string]interface{}) (Handler, error) {
+func newTest(ctx, options map[string]interface{}) (Handler, error) {
 	return testHandler(options), nil
+}
+
+func init() {
+	Handlers["test"] = newTest
 }

@@ -20,7 +20,11 @@ type webHandler struct {
 	header map[string]interface{}
 }
 
-func newWebHandler(params map[string]interface{}) (Handler, error) {
+func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
+	if nil == params {
+		return nil, errors.New("params is nil")
+	}
+
 	method := stringWithDefault(params, "method", "")
 	if 0 == len(method) {
 		return nil, errors.New("'method' is required.")
@@ -102,4 +106,8 @@ func (self *webHandler) Perform() error {
 	}
 
 	return nil
+}
+
+func init() {
+	Handlers["web"] = newWebHandler
 }

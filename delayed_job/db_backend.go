@@ -57,6 +57,7 @@ func (n NullTime) Value() (driver.Value, error) {
 // A job object that is persisted to the database.
 // Contains the work object as a YAML field.
 type dbBackend struct {
+	ctx             map[string]interface{}
 	drv             string
 	db              *sql.DB
 	isNumericParams bool
@@ -287,32 +288,50 @@ func (self *dbBackend) db_time_now() time.Time {
 	return time.Now()
 }
 
-func (self *dbBackend) create(job *Job) error {
+func (self *dbBackend) create(jobs ...*Job) error {
 	var e error
 	now := self.db_time_now()
 
-	// var queue sql.NullString
-	// if 0 == len(job.queue) {
-	// 	queue.Valid = false
-	// } else {
-	// 	queue.Valid = true
-	// 	queue.String = job.queue
-	// }
-
-	//1         2         3      4        5           NULL        6       NULL       NULL       NULL       7           8
-	//priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at
-	if self.isNumericParams {
-		_, e = self.db.Exec("INSERT INTO tpt_delayed_jobs(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NULL, $6, NULL, NULL, NULL, $7, $8)",
-			job.priority, job.attempts, job.queue, job.handler, job.handler_id, now, now, now)
-	} else {
-		_, e = self.db.Exec("INSERT INTO tpt_delayed_jobs(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)",
-			job.priority, job.attempts, job.queue, job.handler, job.handler_id, now, now, now)
-	}
+	tx, e := self.db.Begin()
 	if nil != e {
 		return e
 	}
+	isCommited := false
+	defer func() {
+		if !isCommited {
+			tx.Rollback()
+		}
+	}()
 
-	return nil
+	for _, job := range jobs {
+		if job.run_at.IsZero() {
+			job.run_at = now
+		}
+
+		// var queue sql.NullString
+		// if 0 == len(job.queue) {
+		// 	queue.Valid = false
+		// } else {
+		// 	queue.Valid = true
+		// 	queue.String = job.queue
+		// }
+
+		//1         2         3      4        5           NULL        6       NULL       NULL       NULL       7           8
+		//priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at
+		if self.isNumericParams {
+			_, e = tx.Exec("INSERT INTO tpt_delayed_jobs(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NULL, $6, NULL, NULL, NULL, $7, $8)",
+				job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
+		} else {
+			_, e = tx.Exec("INSERT INTO tpt_delayed_jobs(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)",
+				job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
+		}
+		if nil != e {
+			return e
+		}
+	}
+
+	isCommited = true
+	return tx.Commit()
 }
 
 func (self *dbBackend) update(id int64, attributes map[string]interface{}) error {
