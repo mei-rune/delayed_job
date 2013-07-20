@@ -2,9 +2,14 @@ language: go
 go: 1.1
 install:
   - export PATH=$PATH:$HOME/gopath/bin
+  - go get github.com/fd/go-shellwords/shellwords
+  - go get github.com/garyburd/redigo/redis
+  - go get github.com/lib/pq
 services:
   - redis-server
+  - postgres 
+
+before_script:
+  - psql -c 'CREATE USER tpt WITH PASSWORD \'extreme\';create database tpt_data with OWNER = tpt;' -U postgres
 script:
-  - pwd
-  - ls
   - go test -v
