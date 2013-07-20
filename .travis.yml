@@ -10,6 +10,7 @@ services:
   - postgres 
 
 before_script:
-  - psql -c "CREATE USER tpt WITH PASSWORD 'extreme';create database tpt_data with OWNER = tpt;" -U postgres
+  - psql -c "CREATE USER tpt WITH PASSWORD 'extreme';" -U postgres
+  - psql -c "create database tpt_data with OWNER = tpt;" -U postgres
 script:
   - go test -v
