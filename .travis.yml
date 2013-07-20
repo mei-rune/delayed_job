@@ -1,0 +1,8 @@
+language: go
+go: 1.1
+install:
+  - export PATH=$PATH:$HOME/gopath/bin
+services:
+  - redis-server
+script:
+  - go test delayed_job -v
