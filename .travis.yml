@@ -7,4 +7,4 @@ services:
 script:
   - pwd
   - ls
-  - go test delayed_job -v
+  - go test -v
