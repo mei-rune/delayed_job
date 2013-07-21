@@ -1,6 +1,7 @@
 package delayed_job
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/fd/go-shellwords/shellwords"
@@ -75,6 +76,37 @@ func newRedisArguments(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7 string) []
 	}
 }
 
+func replacePlaceHolders(cmd []string, arguments interface{}) ([]string, error) {
+
+	holder := newValueHolder(arguments)
+
+	for i := 0; i < len(cmd); i++ {
+		if 1 >= len(cmd[i]) {
+			continue
+		}
+
+		if "$$" == cmd[i] {
+			bs, e := json.Marshal(arguments)
+			if nil != e {
+				return nil, e
+			}
+			cmd[i] = string(bs)
+			continue
+		}
+
+		if '$' != cmd[i][0] {
+			continue
+		}
+
+		o, e := holder.simpleValue(cmd[i][1:])
+		if nil != e {
+			return nil, e
+		}
+		cmd[i] = fmt.Sprint(o)
+	}
+	return cmd, nil
+}
+
 func newRedisHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if nil == ctx {
 		return nil, errors.New("ctx is nil")
@@ -95,6 +127,8 @@ func newRedisHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("'redis' in the ctx is nil")
 	}
 
+	args := params["arguments"]
+
 	var array []string
 	var e error
 	o, ok = params["command"]
@@ -103,6 +137,11 @@ func newRedisHandler(ctx, params map[string]interface{}) (Handler, error) {
 	}
 
 	array, e = toStrings(params)
+	if nil != e {
+		return nil, e
+	}
+
+	array, e = replacePlaceHolders(array, args)
 	if nil != e {
 		return nil, e
 	}
@@ -127,6 +166,11 @@ commands_label:
 				return nil, e
 			}
 
+			cmd, e = replacePlaceHolders(cmd, args)
+			if nil != e {
+				return nil, e
+			}
+
 			commands = append(commands, cmd)
 		}
 		return &redisHandler{client: client, commands: commands}, nil
@@ -140,6 +184,12 @@ commands_label:
 			if nil != e {
 				return nil, e
 			}
+
+			cmd, e = replacePlaceHolders(cmd, args)
+			if nil != e {
+				return nil, e
+			}
+
 			commands = append(commands, cmd)
 		}
 		return &redisHandler{client: client, commands: commands}, nil

@@ -40,7 +40,7 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if 0 == len(url) {
 		return nil, errors.New("'url' is required.")
 	}
-	body := params["body"]
+	body := params["arguments"]
 
 	header := map[string]interface{}{}
 	for k, v := range params {

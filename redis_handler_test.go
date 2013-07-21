@@ -89,7 +89,35 @@ func TestRedisHandler(t *testing.T) {
 			[]string{"SET", "a2", "1224"},
 			[]string{"SET", "a3", "1225"},
 			[]string{"SET", "a4", "1226"},
-			[]string{"SET", "a5", "1227"}}}}} {
+			[]string{"SET", "a5", "1227"}}}},
+
+		[]map[string]interface{}{{"arguments": map[string]interface{}{"a1": "1223", "a2": "1224"},
+			"commands": []interface{}{[]string{"SET", "a1", "$a1"},
+				[]string{"SET", "a2", "$a2"},
+				[]string{"SET", "a3", "1225"},
+				[]string{"SET", "a4", "1226"},
+				[]string{"SET", "a5", "1227"}}}},
+
+		[]map[string]interface{}{{"arguments": map[string]string{"a1": "1223", "a2": "1224"},
+			"commands": []interface{}{[]string{"SET", "a1", "$a1"},
+				[]string{"SET", "a2", "$a2"},
+				[]string{"SET", "a3", "1225"},
+				[]string{"SET", "a4", "1226"},
+				[]string{"SET", "a5", "1227"}}}},
+
+		[]map[string]interface{}{{"arguments": []interface{}{map[string]string{"a1": "1223", "a2": "1224"}},
+			"commands": []interface{}{[]string{"SET", "a1", "$[0].a1"},
+				[]string{"SET", "a2", "$[0].a2"},
+				[]string{"SET", "a3", "1225"},
+				[]string{"SET", "a4", "1226"},
+				[]string{"SET", "a5", "1227"}}}},
+
+		[]map[string]interface{}{{"arguments": []interface{}{"1223", map[string]interface{}{"a1": "1223", "a2": "1224"}},
+			"commands": []interface{}{[]string{"SET", "a1", "$[0]"},
+				[]string{"SET", "a2", "$[1].a2"},
+				[]string{"SET", "a3", "1225"},
+				[]string{"SET", "a4", "1226"},
+				[]string{"SET", "a5", "1227"}}}}} {
 
 		redisTest(t, func(client *redis_keeper, c redis.Conn) {
 			for _, args := range test {

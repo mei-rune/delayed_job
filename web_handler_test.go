@@ -39,7 +39,7 @@ func TestWebHandler(t *testing.T) {
 			handler, e := newHandler(nil, map[string]interface{}{"type": "web",
 				"method":     test.method,
 				"url":        srv.URL + test.url,
-				"body":       test.body,
+				"arguments":  test.body,
 				"head.x":     test.head1,
 				"head.aaddd": test.head2})
 			if nil != e {

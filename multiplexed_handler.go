@@ -37,6 +37,7 @@ func newMultiplexedHandler(ctx, params map[string]interface{}) (Handler, error) 
 	gqueue := stringWithDefault(params, "queue", *default_queue_name)
 	gmax_attempts := intWithDefault(params, "max_attempts", *default_max_attempts)
 	grun_at := timeWithDefault(params, "run_at", time.Time{})
+	args := params["arguments"]
 
 	o, ok = params["rules"]
 	if !ok || nil == o {
@@ -67,6 +68,12 @@ func newMultiplexedHandler(ctx, params map[string]interface{}) (Handler, error) 
 		j, e := newJob(backend, priority, queue, run_at, options)
 		if nil != e {
 			return nil, e
+		}
+
+		if nil != args {
+			if _, ok = options["arguments"]; !ok {
+				options["arguments"] = args
+			}
 		}
 
 		rules = append(rules, j)
