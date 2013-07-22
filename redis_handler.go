@@ -204,4 +204,5 @@ func (self *redisHandler) Perform() error {
 
 func init() {
 	Handlers["redis"] = newRedisHandler
+	Handlers["redis_command"] = newRedisHandler
 }

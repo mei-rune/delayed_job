@@ -216,7 +216,7 @@ func newSyslogHandler(ctx, params map[string]interface{}) (Handler, error) {
 		var buffer bytes.Buffer
 		e = t.Execute(&buffer, args)
 		if nil != e {
-			return nil, e
+			return nil, errors.New("execute template failed, " + e.Error())
 		}
 		content = buffer.String()
 	}
