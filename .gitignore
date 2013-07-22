@@ -31,3 +31,4 @@ ipch/
 *.opensdf
 *.orig
 tools/gyp
+run_test.bat
