@@ -484,7 +484,7 @@ func TestRescheduleIt(t *testing.T) {
 			t.Error("excepted attempts is '1', and actual is ", attempts)
 		}
 
-		if run_at.Time == now {
+		if run_at.Time.Unix() != now.Unix() {
 			t.Error("excepted run_at is ", run_at.Time, ", actual is", now)
 		}
 
