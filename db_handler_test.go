@@ -65,7 +65,7 @@ func TestDbHandlerConnectOkAndDbError(t *testing.T) {
 }
 
 func TestDbHandlerAuthError(t *testing.T) {
-	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "a", "drv": "postgres", "url": "host=127.0.0.1 dbname=tpt_data user=tpt password=wwextreme sslmode=disable"})
+	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "a", "drv": "postgres", "url": "host=127.0.0.1 dbname=tpt_data user=tpsst password=wwextreme sslmode=disable"})
 	if nil != e {
 		t.Error(e)
 		return
