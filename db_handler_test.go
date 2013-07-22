@@ -2,6 +2,7 @@ package delayed_job
 
 import (
 	"database/sql"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -65,7 +66,7 @@ func TestDbHandlerConnectOkAndDbError(t *testing.T) {
 }
 
 func TestDbHandlerAuthError(t *testing.T) {
-	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "a", "drv": "postgres", "url": "host=127.0.0.1 dbname=tpt_data user=tpsst password=wwextreme sslmode=disable"})
+	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "select 2", "drv": "postgres", "url": "host=127.0.0.1 dbname=tpt_data user=tpsst password=wwextreme sslmode=disable"})
 	if nil != e {
 		t.Error(e)
 		return
@@ -77,8 +78,10 @@ func TestDbHandlerAuthError(t *testing.T) {
 		return
 	}
 
-	if !strings.Contains(e.Error(), "Password") {
-		t.Error("excepted error contains [Password], but actual is", e)
+	if "windows" == runtime.GOOS {
+		if !strings.Contains(e.Error(), "Password") {
+			t.Error("excepted error contains [Password], but actual is", e)
+		}
 	}
 }
 
