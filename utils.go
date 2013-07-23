@@ -115,6 +115,13 @@ func stringsWithDefault(args map[string]interface{}, key string, defaultValue []
 	if !ok {
 		return defaultValue
 	}
+	if ii, ok := v.([]interface{}); ok {
+		ss := make([]string, len(ii))
+		for i, s := range ii {
+			ss[i] = fmt.Sprint(s)
+		}
+		return ss
+	}
 	if ss, ok := v.([]string); ok {
 		return ss
 	}
