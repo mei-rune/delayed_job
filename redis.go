@@ -23,18 +23,18 @@ type redis_request struct {
 	commands [][]string
 }
 
-type redis_keeper struct {
+type redis_gateway struct {
 	Address string
 	c       chan *redis_request
 	status  int32
 	wait    sync.WaitGroup
 }
 
-func (self *redis_keeper) isRunning() bool {
+func (self *redis_gateway) isRunning() bool {
 	return 1 == atomic.LoadInt32(&self.status)
 }
 
-func (self *redis_keeper) serve() {
+func (self *redis_gateway) serve() {
 	defer func() {
 		close(self.c)
 		self.wait.Done()
@@ -65,7 +65,7 @@ func (self *redis_keeper) serve() {
 	}
 }
 
-func (self *redis_keeper) runOnce() {
+func (self *redis_gateway) runOnce() {
 	defer func() {
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
@@ -116,7 +116,7 @@ func (self *redis_keeper) runOnce() {
 	}
 }
 
-func (self *redis_keeper) execute(c redis.Conn, commands [][]string) error {
+func (self *redis_gateway) execute(c redis.Conn, commands [][]string) error {
 	switch len(commands) {
 	case 0:
 		return nil
@@ -149,7 +149,7 @@ func (self *redis_keeper) execute(c redis.Conn, commands [][]string) error {
 	}
 }
 
-func (self *redis_keeper) redis_send(c redis.Conn, cmd []string) (err error) {
+func (self *redis_gateway) redis_send(c redis.Conn, cmd []string) (err error) {
 	switch len(cmd) {
 	case 1:
 		err = c.Send(cmd[0])
@@ -169,7 +169,7 @@ func (self *redis_keeper) redis_send(c redis.Conn, cmd []string) (err error) {
 	return err
 }
 
-func (self *redis_keeper) redis_do(c redis.Conn, cmd []string) (err error) {
+func (self *redis_gateway) redis_do(c redis.Conn, cmd []string) (err error) {
 	switch len(cmd) {
 	case 1:
 		_, err = c.Do(cmd[0])
@@ -189,23 +189,24 @@ func (self *redis_keeper) redis_do(c redis.Conn, cmd []string) (err error) {
 	return err
 }
 
-func (self *redis_keeper) Close() {
+func (self *redis_gateway) Close() error {
 	atomic.StoreInt32(&self.status, 0)
 	self.wait.Wait()
+	return nil
 }
 
-func (self *redis_keeper) Send(commands [][]string) {
+func (self *redis_gateway) Send(commands [][]string) {
 	self.c <- &redis_request{commands: commands}
 }
 
-func (self *redis_keeper) Call(commands [][]string) error {
+func (self *redis_gateway) Call(commands [][]string) error {
 	c := make(chan error)
 	self.c <- &redis_request{c: c, commands: commands}
 	return <-c
 }
 
-func newRedis(address string) (*redis_keeper, error) {
-	client := &redis_keeper{Address: address, c: make(chan *redis_request, 3000), status: 1}
+func newRedis(address string) (*redis_gateway, error) {
+	client := &redis_gateway{Address: address, c: make(chan *redis_request, 3000), status: 1}
 	go client.serve()
 	client.wait.Add(1)
 	return client, nil

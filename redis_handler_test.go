@@ -39,7 +39,7 @@ func TestRedisHandlerParameterError(t *testing.T) {
 		t.Error("excepted error is 'params is nil', but actual is", e)
 	}
 
-	var client *redis_keeper = nil
+	var client *redis_gateway = nil
 	_, e = newRedisHandler(map[string]interface{}{"redis": client},
 		map[string]interface{}{"rules": []interface{}{}})
 	if nil == e {
@@ -48,7 +48,7 @@ func TestRedisHandlerParameterError(t *testing.T) {
 		t.Error("excepted error is ''redis' in the ctx is nil', but actual is", e)
 	}
 
-	redisTest(t, func(client *redis_keeper, c redis.Conn) {
+	redisTest(t, func(client *redis_gateway, c redis.Conn) {
 		_, e := newRedisHandler(map[string]interface{}{"redis": client},
 			map[string]interface{}{"rules": []interface{}{}})
 		if nil == e {
@@ -119,7 +119,7 @@ func TestRedisHandler(t *testing.T) {
 				[]string{"SET", "a4", "1226"},
 				[]string{"SET", "a5", "1227"}}}}} {
 
-		redisTest(t, func(client *redis_keeper, c redis.Conn) {
+		redisTest(t, func(client *redis_gateway, c redis.Conn) {
 			for _, args := range test {
 				handler, e := newRedisHandler(map[string]interface{}{"redis": client}, args)
 				if nil != e {
@@ -182,7 +182,7 @@ func TestRedisHandlerFailed(t *testing.T) {
 			[]interface{}{"SET", "a4", "1226"},
 			[]interface{}{"SET", "a5", "1227"}}}} {
 
-		redisTest(t, func(client *redis_keeper, c redis.Conn) {
+		redisTest(t, func(client *redis_gateway, c redis.Conn) {
 			handler, e := newRedisHandler(map[string]interface{}{"redis": client}, test)
 			if nil != e {
 				t.Error(e)

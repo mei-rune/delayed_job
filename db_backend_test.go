@@ -10,7 +10,7 @@ import (
 )
 
 func backendTest(t *testing.T, cb func(backend *dbBackend)) {
-	backend, e := newBackend(*db_drv, *db_url)
+	backend, e := newBackend(*db_drv, *db_url, nil)
 	if nil != e {
 		t.Error(e)
 		return

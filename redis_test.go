@@ -15,7 +15,7 @@ func clearRedis(t *testing.T, c redis.Conn, key string) {
 	}
 }
 
-func redisTest(t *testing.T, cb func(client *redis_keeper, c redis.Conn)) {
+func redisTest(t *testing.T, cb func(client *redis_gateway, c redis.Conn)) {
 	redis_client, err := newRedis(*redisAddress)
 	if nil != err {
 		t.Error(err)
@@ -48,7 +48,7 @@ func checkResult(t *testing.T, c redis.Conn, cmd, key, excepted string) {
 }
 
 func TestRedis(t *testing.T) {
-	redisTest(t, func(redis_client *redis_keeper, c redis.Conn) {
+	redisTest(t, func(redis_client *redis_gateway, c redis.Conn) {
 		redis_client.c <- &redis_request{commands: [][]string{{"SET", "a1", "1223"}}}
 		redis_client.c <- &redis_request{commands: [][]string{{"SET", "a2", "1224"}}}
 		redis_client.Send([][]string{{"SET", "a3", "1225"}})
@@ -66,7 +66,7 @@ func TestRedis(t *testing.T) {
 }
 
 func TestRedisEmpty(t *testing.T) {
-	redisTest(t, func(redis_client *redis_keeper, c redis.Conn) {
+	redisTest(t, func(redis_client *redis_gateway, c redis.Conn) {
 		redis_client.c <- &redis_request{commands: [][]string{}}
 		redis_client.Send([][]string{{}})
 

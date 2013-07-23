@@ -63,16 +63,17 @@ type dbBackend struct {
 	isNumericParams bool
 }
 
-func newBackend(drv, url string) (*dbBackend, error) {
+func newBackend(drv, url string, ctx map[string]interface{}) (*dbBackend, error) {
 	db, e := sql.Open(drv, url)
 	if nil != e {
 		return nil, e
 	}
-	return &dbBackend{drv: drv, db: db, isNumericParams: IsNumericParams(drv)}, nil
+	return &dbBackend{ctx: ctx, drv: drv, db: db, isNumericParams: IsNumericParams(drv)}, nil
 }
 
-func (self *dbBackend) Close() {
+func (self *dbBackend) Close() error {
 	self.db.Close()
+	return nil
 }
 
 func (self *dbBackend) enqueue(priority int, queue string, run_at time.Time, args map[string]interface{}) error {

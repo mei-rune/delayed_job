@@ -144,8 +144,8 @@ func (self *Job) reschedule_at() time.Time {
 	return self.backend.db_time_now().Add(duration)
 
 default_duration:
-	attempts := time.Duration(self.attempts*10) * time.Second
-	return self.backend.db_time_now().Add(attempts).Add(5 + time.Second)
+	duration = time.Duration(self.attempts*10) * time.Second
+	return self.backend.db_time_now().Add(duration).Add(5 + time.Second)
 }
 
 func (self *Job) max_attempts() int {

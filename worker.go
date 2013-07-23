@@ -3,6 +3,7 @@ package delayed_job
 import (
 	"errors"
 	"flag"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -58,20 +59,54 @@ type worker struct {
 
 	shutdown chan int
 	wait     sync.WaitGroup
+
+	closes []io.Closer
 }
 
-func newWorker(backend *dbBackend, options map[string]interface{}) *worker {
-	w := &worker{backend: backend,
+func newWorker(options map[string]interface{}) (*worker, error) {
+	ctx := map[string]interface{}{}
+	backend, e := newBackend(*db_drv, *db_url, ctx)
+	if nil != e {
+		return nil, e
+	}
+
+	redis_client, e := newRedis(*redisAddress)
+	if nil != e {
+		return nil, e
+	}
+
+	ctx["redis"] = redis_client
+	ctx["backend"] = backend
+
+	w := &worker{ctx: ctx,
+		backend:  backend,
 		shutdown: make(chan int)}
 	w.initialize(options)
-	go w.serve()
+
+	w.closes = append(w.closes, redis_client)
+	w.closes = append(w.closes, backend)
+	return w, nil
+}
+
+func (w *worker) RunForever() {
 	w.wait.Add(1)
-	return w
+	w.serve()
+}
+
+func (w *worker) start() {
+	w.wait.Add(1)
+	go w.serve()
 }
 
 func (self *worker) Close() {
 	self.shutdown <- 0
 	self.wait.Wait()
+
+	if nil != self.closes {
+		for _, cl := range self.closes {
+			cl.Close()
+		}
+	}
 }
 
 func (self *worker) initialize(options map[string]interface{}) {

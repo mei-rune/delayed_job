@@ -8,7 +8,7 @@ import (
 )
 
 type redisHandler struct {
-	client   *redis_keeper
+	client   *redis_gateway
 	commands [][]string
 }
 
@@ -119,7 +119,7 @@ func newRedisHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if !ok {
 		return nil, errors.New("'redis' in the ctx is required")
 	}
-	client, ok := o.(*redis_keeper)
+	client, ok := o.(*redis_gateway)
 	if !ok {
 		return nil, fmt.Errorf("'redis' in the ctx is not a *Redis - %T", o)
 	}

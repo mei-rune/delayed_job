@@ -8,11 +8,41 @@ import (
 )
 
 func workTest(t *testing.T, cb func(w *worker, backend *dbBackend)) {
-	backendTest(t, func(backend *dbBackend) {
-		w := newWorker(backend, map[string]interface{}{})
-		defer w.Close()
-		cb(w, backend)
-	})
+	w, e := newWorker(map[string]interface{}{})
+	if nil != e {
+		t.Error(e)
+		return
+	}
+	defer w.Close()
+
+	_, e = w.backend.db.Exec(`
+DROP TABLE IF EXISTS tpt_delayed_jobs;
+
+CREATE TABLE IF NOT EXISTS tpt_delayed_jobs (
+  id                BIGSERIAL  PRIMARY KEY,
+  priority          int DEFAULT 0,
+  attempts          int DEFAULT 0,
+  queue             varchar(200),
+  handler           text  NOT NULL,
+  handler_id        varchar(200)  NOT NULL,
+  last_error        varchar(2000),
+  run_at            timestamp with time zone,
+  locked_at         timestamp with time zone,
+  failed_at         timestamp with time zone,
+  locked_by         varchar(200),
+  created_at        timestamp with time zone  NOT NULL,
+  updated_at        timestamp with time zone NOT NULL,
+
+  CONSTRAINT tpt_delayed_jobs_unique_handler_id UNIQUE (handler_id)
+);`)
+	if nil != e {
+		t.Error(e)
+		return
+	}
+
+	w.start()
+
+	cb(w, w.backend)
 }
 
 func TestWorker(t *testing.T) {
@@ -54,10 +84,9 @@ func TestRunError(t *testing.T) {
 		}
 
 		time.Sleep(1 * time.Second)
-
 		select {
 		case <-test_chan:
-		default:
+		case <-time.After(1 * time.Second):
 			t.Error("not recv")
 		}
 
