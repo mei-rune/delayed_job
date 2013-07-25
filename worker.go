@@ -117,9 +117,9 @@ func (self *worker) initialize(options map[string]interface{}) {
 	self.sleep_delay = durationWithDefault(options, "sleep_delay", *default_sleep_delay)
 	self.read_ahead = intWithDefault(options, "read_ahead", *default_read_ahead)
 	if 0 == len(*default_queues) {
-		self.queues = stringsWithDefault(options, "queues", nil)
+		self.queues = stringsWithDefault(options, "queues", ",", nil)
 	} else {
-		self.queues = stringsWithDefault(options, "queues", strings.Split(*default_queues, ","))
+		self.queues = stringsWithDefault(options, "queues", ",", strings.Split(*default_queues, ","))
 	}
 
 	self.exit_on_complete = boolWithDefault(options, "exit_on_complete", *default_exit_on_complete)

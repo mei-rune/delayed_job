@@ -87,7 +87,16 @@ func timeWithDefault(args map[string]interface{}, key string, defaultValue time.
 	case time.Time:
 		return value
 	case string:
-		for _, layout := range []string{} {
+		for _, layout := range []string{time.ANSIC,
+			time.UnixDate,
+			time.RubyDate,
+			time.RFC822,
+			time.RFC822Z,
+			time.RFC850,
+			time.RFC1123,
+			time.RFC1123Z,
+			time.RFC3339,
+			time.RFC3339Nano} {
 			t, e := time.Parse(value, layout)
 			if nil == e {
 				return t
@@ -110,7 +119,7 @@ func stringWithDefault(args map[string]interface{}, key string, defaultValue str
 	return fmt.Sprint(v)
 }
 
-func stringsWithDefault(args map[string]interface{}, key string, defaultValue []string) []string {
+func stringsWithDefault(args map[string]interface{}, key, sep string, defaultValue []string) []string {
 	v, ok := args[key]
 	if !ok {
 		return defaultValue
@@ -126,7 +135,10 @@ func stringsWithDefault(args map[string]interface{}, key string, defaultValue []
 		return ss
 	}
 	if s, ok := v.(string); ok && 0 != len(s) {
-		return strings.Split(s, ",")
+		if 0 == len(sep) {
+			return []string{s}
+		}
+		return strings.Split(s, sep)
 	}
 	return defaultValue
 }

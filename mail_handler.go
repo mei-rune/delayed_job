@@ -160,7 +160,7 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		subject = buffer.String()
 	}
 
-	from, e := addressWith(params, "from")
+	from, e := addressWith(params, "from_address")
 	if nil != e {
 		return nil, e
 	}
@@ -168,7 +168,7 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		from = &mail.Address{}
 	}
 
-	to, e := addressesWith(params, "to")
+	to, e := addressesWith(params, "to_address")
 	if nil != e {
 		return nil, e
 	}
@@ -176,12 +176,12 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("'to' is missing.")
 	}
 
-	cc, e := addressesWith(params, "cc")
+	cc, e := addressesWith(params, "cc_address")
 	if nil != e {
 		return nil, e
 	}
 
-	bcc, e := addressesWith(params, "bcc")
+	bcc, e := addressesWith(params, "bcc_address")
 	if nil != e {
 		return nil, e
 	}
