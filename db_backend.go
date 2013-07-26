@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"flag"
+	"fmt"
 	_ "github.com/lib/pq"
 	"strconv"
 	"time"
@@ -14,8 +16,12 @@ var (
 	db_url = flag.String("data_db.url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
 	db_drv = flag.String("data_db.name", "postgres", "the db driver")
 
+	table_name = flag.String("data_db.table", "delayed_jobs", "the table name for jobs")
+
 	is_test_for_lock = false
 	test_ch_for_lock = make(chan int)
+
+	select_sql_string = "SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM " + *table_name + " "
 )
 
 func IsNumericParams(drv string) bool {
@@ -93,9 +99,9 @@ func (self *dbBackend) enqueue(priority int, queue string, run_at time.Time, arg
 func (self *dbBackend) clearLocks(worker_name string) error {
 	var e error
 	if self.isNumericParams {
-		_, e = self.db.Exec("UPDATE tpt_delayed_jobs SET locked_by = NULL, locked_at = NULL WHERE locked_by = $1", worker_name)
+		_, e = self.db.Exec("UPDATE "+*table_name+" SET locked_by = NULL, locked_at = NULL WHERE locked_by = $1", worker_name)
 	} else {
-		_, e = self.db.Exec("UPDATE tpt_delayed_jobs SET locked_by = NULL, locked_at = NULL WHERE locked_by = ?", worker_name)
+		_, e = self.db.Exec("UPDATE "+*table_name+" SET locked_by = NULL, locked_at = NULL WHERE locked_by = ?", worker_name)
 	}
 	return e
 }
@@ -103,8 +109,8 @@ func (self *dbBackend) clearLocks(worker_name string) error {
 func (self *dbBackend) reserve(w *worker) (*Job, error) {
 	var buffer bytes.Buffer
 
-	//buffer.WriteString("SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM tpt_delayed_jobs")
-	buffer.WriteString("SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM tpt_delayed_jobs")
+	//buffer.WriteString("SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM "+ *table_name+"")
+	buffer.WriteString(select_sql_string)
 	if self.isNumericParams {
 		buffer.WriteString(" WHERE (run_at <= $1 AND (locked_at IS NULL OR locked_at < $2) OR locked_by = $3) AND failed_at IS NULL")
 	} else {
@@ -190,9 +196,9 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 		var c int64
 		var result sql.Result
 		if self.isNumericParams {
-			result, e = self.db.Exec("UPDATE tpt_delayed_jobs SET locked_at = $1, locked_by = $2 WHERE id = $3 AND (locked_at IS NULL OR locked_at < $4 OR locked_by = $5) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
+			result, e = self.db.Exec("UPDATE "+*table_name+" SET locked_at = $1, locked_by = $2 WHERE id = $3 AND (locked_at IS NULL OR locked_at < $4 OR locked_by = $5) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
 		} else {
-			result, e = self.db.Exec("UPDATE tpt_delayed_jobs SET locked_at = ?, locked_by = ? WHERE id = ? AND (locked_at IS NULL OR locked_at < ? OR locked_by = ?) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
+			result, e = self.db.Exec("UPDATE "+*table_name+" SET locked_at = ?, locked_by = ? WHERE id = ? AND (locked_at IS NULL OR locked_at < ? OR locked_by = ?) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
 		}
 		if nil != e {
 			return nil, e
@@ -255,7 +261,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 	//   // Note: active_record would attempt to generate UPDATE...LIMIT like sql for postgres if we use a .limit() filter, but it would not use
 	//   // 'FOR UPDATE' and we would have many locking conflicts
 	//   subquery_sql      = ready_scope.limit(1).lock(true).select('id').to_sql
-	//   reserved          = self.find_by_sql(["UPDATE tpt_delayed_jobs SET locked_at = ?, locked_by = ? WHERE id IN (select id from tpt_delayed_jobs " + buffer.+") RETURNING *", now, worker.name])
+	//   reserved          = self.find_by_sql(["UPDATE "+ *table_name+" SET locked_at = ?, locked_by = ? WHERE id IN (select id from "+ *table_name+" " + buffer.+") RETURNING *", now, worker.name])
 	//   reserved[0]
 	// case "MySQL", "Mysql2":
 	//   // This works on MySQL and possibly some other DBs that support UPDATE...LIMIT. It uses separate queries to lock and return the job
@@ -268,7 +274,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 	//   // select("id") doesn't generate a subquery, so force a subquery
 	//   subquery_sql = "SELECT id FROM (//{subsubquery_sql}) AS x"
 	//   quoted_table_name = self.connection.quote_table_name(self.table_name)
-	//   sql = ["UPDATE tpt_delayed_jobs SET locked_at = ?, locked_by = ? WHERE id IN (//{subquery_sql})", now, worker.name]
+	//   sql = ["UPDATE "+ *table_name+" SET locked_at = ?, locked_by = ? WHERE id IN (//{subquery_sql})", now, worker.name]
 	//   count = self.connection.execute(sanitize_sql(sql))
 	//   return nil if count == 0
 	//   // MSSQL JDBC doesn't support OUTPUT INSERTED.* for returning a result set, so query locked row
@@ -320,10 +326,10 @@ func (self *dbBackend) create(jobs ...*Job) error {
 		//1         2         3      4        5           NULL        6       NULL       NULL       NULL       7           8
 		//priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at
 		if self.isNumericParams {
-			_, e = tx.Exec("INSERT INTO tpt_delayed_jobs(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NULL, $6, NULL, NULL, NULL, $7, $8)",
+			_, e = tx.Exec("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NULL, $6, NULL, NULL, NULL, $7, $8)",
 				job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
 		} else {
-			_, e = tx.Exec("INSERT INTO tpt_delayed_jobs(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)",
+			_, e = tx.Exec("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)",
 				job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
 		}
 		if nil != e {
@@ -339,13 +345,22 @@ func (self *dbBackend) update(id int64, attributes map[string]interface{}) error
 	var buffer bytes.Buffer
 	params := make([]interface{}, 0, len(attributes))
 
-	buffer.WriteString("UPDATE tpt_delayed_jobs SET ")
+	buffer.WriteString("UPDATE ")
+	buffer.WriteString(*table_name)
+	buffer.WriteString(" SET ")
+	is_first := true
 
 	for k, v := range attributes {
-		if 0 != len(params) {
+		if '@' != k[0] {
+			continue
+		}
+
+		if is_first {
+			is_first = false
+		} else {
 			buffer.WriteString(", ")
 		}
-		buffer.WriteString(k)
+		buffer.WriteString(k[1:])
 
 		if nil == v {
 			buffer.WriteString(" = NULL")
@@ -361,7 +376,9 @@ func (self *dbBackend) update(id int64, attributes map[string]interface{}) error
 		}
 	}
 
-	if 0 != len(params) {
+	if is_first {
+		is_first = false
+	} else {
 		buffer.WriteString(", ")
 	}
 	if self.isNumericParams {
@@ -392,13 +409,278 @@ func (self *dbBackend) update(id int64, attributes map[string]interface{}) error
 func (self *dbBackend) destroy(id int64) error {
 	var e error
 	if self.isNumericParams {
-		_, e = self.db.Exec("DELETE FROM tpt_delayed_jobs WHERE id = $1", id)
+		_, e = self.db.Exec("DELETE FROM "+*table_name+" WHERE id = $1", id)
 	} else {
-		_, e = self.db.Exec("DELETE FROM tpt_delayed_jobs WHERE id = ?", id)
+		_, e = self.db.Exec("DELETE FROM "+*table_name+" WHERE id = ?", id)
 	}
 
 	if nil != e && sql.ErrNoRows != e {
 		return e
 	}
 	return nil
+}
+
+func buildSQL(isNumericParams bool, params map[string]interface{}) (string, []interface{}, error) {
+	if nil == params || 0 == len(params) {
+		return "", []interface{}{}, nil
+	}
+
+	buffer := bytes.NewBuffer(make([]byte, 0, 900))
+	arguments := make([]interface{}, 0, len(params))
+	is_first := true
+	for k, v := range params {
+		if '@' != k[0] {
+			continue
+		}
+		if is_first {
+			is_first = false
+			buffer.WriteString(" WHERE ")
+		} else if 0 != len(arguments) {
+			buffer.WriteString(" AND ")
+		}
+
+		buffer.WriteString(k[1:])
+		if nil == v {
+			buffer.WriteString(" IS NULL")
+			continue
+		}
+
+		if "[notnull]" == v {
+			buffer.WriteString(" IS NOT NULL")
+			continue
+		}
+
+		if isNumericParams {
+			buffer.WriteString(" = $ ")
+			buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
+		} else {
+			buffer.WriteString(" = ? ")
+		}
+	}
+
+	if groupBy, ok := params["group_by"]; ok {
+		if nil == groupBy {
+			return "", nil, errors.New("groupBy is empty.")
+		}
+
+		s := fmt.Sprint(groupBy)
+		if 0 == len(s) {
+			return "", nil, errors.New("groupBy is empty.")
+		}
+
+		buffer.WriteString(" GROUP BY ")
+		buffer.WriteString(s)
+	}
+
+	if having_v, ok := params["having"]; ok {
+		if nil == having_v {
+			return "", nil, errors.New("having is empty.")
+		}
+
+		having := fmt.Sprint(having_v)
+		if 0 == len(having) {
+			return "", nil, errors.New("having is empty.")
+		}
+
+		buffer.WriteString(" HAVING ")
+		buffer.WriteString(having)
+	}
+
+	if order_v, ok := params["order_by"]; ok {
+		if nil == order_v {
+			return "", nil, errors.New("order is empty.")
+		}
+
+		order := fmt.Sprint(order_v)
+		if 0 == len(order) {
+			return "", nil, errors.New("order is empty.")
+		}
+
+		buffer.WriteString(" ORDER BY ")
+		buffer.WriteString(order)
+	}
+
+	if limit_v, ok := params["limit"]; ok {
+		if nil == limit_v {
+			return "", nil, errors.New("limit is not a number, actual value is nil")
+		}
+		limit := fmt.Sprint(limit_v)
+		i, e := strconv.ParseInt(limit, 10, 64)
+		if nil != e {
+			return "", nil, fmt.Errorf("limit is not a number, actual value is '" + limit + "'")
+		}
+		if i <= 0 {
+			return "", nil, fmt.Errorf("limit must is geater zero, actual value is '" + limit + "'")
+		}
+
+		if offset_v, ok := params["offset"]; ok {
+			if nil == offset_v {
+				return "", nil, errors.New("offset is not a number, actual value is nil")
+			}
+			offset := fmt.Sprint(offset_v)
+			i, e = strconv.ParseInt(offset, 10, 64)
+			if nil != e {
+				return "", nil, fmt.Errorf("offset is not a number, actual value is '" + offset + "'")
+			}
+
+			if i < 0 {
+				return "", nil, fmt.Errorf("offset must is geater(or equals) zero, actual value is '" + offset + "'")
+			}
+
+			buffer.WriteString(" LIMIT ")
+			buffer.WriteString(offset)
+			buffer.WriteString(" , ")
+			buffer.WriteString(limit)
+		} else {
+			buffer.WriteString(" LIMIT ")
+			buffer.WriteString(limit)
+		}
+	}
+
+	return buffer.String(), arguments, nil
+}
+
+func (self *dbBackend) count(params map[string]interface{}) (int64, error) {
+	query, arguments, e := buildSQL(self.isNumericParams, params)
+	if nil != e {
+		return 0, e
+	}
+
+	count := int64(0)
+	e = self.db.QueryRow("SELECT count(*) FROM "+*table_name+query, arguments...).Scan(&count)
+	if nil != e {
+		if sql.ErrNoRows == e {
+			return 0, nil
+		}
+		return 0, e
+	}
+	return count, nil
+}
+
+func (self *dbBackend) where(params map[string]interface{}) ([]map[string]interface{}, error) {
+	query, arguments, e := buildSQL(self.isNumericParams, params)
+	if nil != e {
+		return nil, e
+	}
+
+	//fmt.Println(select_sql_string + query)
+	rows, e := self.db.Query(select_sql_string+query, arguments...)
+	if nil != e {
+		if sql.ErrNoRows == e {
+			return nil, nil
+		}
+		return nil, e
+	}
+	defer rows.Close()
+
+	var results []map[string]interface{}
+	for rows.Next() {
+		var id int64
+		var priority int
+		var attempts int
+		var handler string
+		var handler_id string
+		var created_at time.Time
+		var updated_at time.Time
+
+		var queue sql.NullString
+		var last_error sql.NullString
+		var run_at NullTime
+		var locked_at NullTime
+		var failed_at NullTime
+		var locked_by sql.NullString
+
+		e = rows.Scan(
+			&id,
+			&priority,
+			&attempts,
+			&queue,
+			&handler,
+			&handler_id,
+			&last_error,
+			&run_at,
+			&locked_at,
+			&failed_at,
+			&locked_by,
+			&created_at,
+			&updated_at)
+		if nil != e {
+			return nil, e
+		}
+
+		result := map[string]interface{}{"id": id,
+			"priority":   priority,
+			"attempts":   attempts,
+			"handler":    handler,
+			"handler_id": handler_id,
+			"created_at": created_at,
+			"updated_at": updated_at}
+
+		// var queue sql.NullString
+		// var last_error sql.NullString
+		// var run_at NullTime
+		// var locked_at NullTime
+		// var failed_at NullTime
+		// var locked_by sql.NullString
+
+		if queue.Valid {
+			result["queue"] = queue.String
+		}
+
+		if last_error.Valid {
+			result["last_error"] = last_error.String
+			if 20 < len(last_error.String) {
+				result["last_error_summary"] = last_error.String[0:20] + "..."
+			} else {
+				result["last_error_summary"] = last_error.String
+			}
+		}
+
+		if run_at.Valid {
+			result["run_at"] = run_at.Time
+		}
+
+		if locked_at.Valid {
+			result["locked_at"] = locked_at.Time
+		}
+
+		if failed_at.Valid {
+			result["failed"] = true
+			result["failed_at"] = failed_at.Time
+		} else {
+			result["failed"] = false
+		}
+
+		if locked_by.Valid {
+			result["locked_by"] = locked_by.String
+		}
+
+		results = append(results, result)
+	}
+
+	e = rows.Err()
+	if nil != e {
+		return nil, e
+	}
+	return results, nil
+}
+
+// func (self *dbBackend) all() ([]map[string]interface{}, error) {
+// 	return self.where("")
+// }
+
+// func (self *dbBackend) failed() ([]map[string]interface{}, error) {
+// 	return self.where("failed_at IS NOT NULL")
+// }
+
+// func (self *dbBackend) active() ([]map[string]interface{}, error) {
+// 	return self.where("failed_at IS NULL AND locked_by IS NOT NULL")
+// }
+
+// func (self *dbBackend) queued() ([]map[string]interface{}, error) {
+// 	return self.where("failed_at IS NULL AND locked_by IS NULL")
+// }
+
+func (self *dbBackend) retry(id int64) error {
+	return self.update(id, map[string]interface{}{"@failed_at": nil})
 }

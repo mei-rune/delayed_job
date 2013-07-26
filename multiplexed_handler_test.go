@@ -61,7 +61,7 @@ func TestMultiplexedHandler(t *testing.T) {
 		}
 
 		count := int64(-1)
-		e = backend.db.QueryRow("SELECT count(*) FROM tpt_delayed_jobs").Scan(&count)
+		e = backend.db.QueryRow("SELECT count(*) FROM " + *table_name).Scan(&count)
 		if nil != e {
 			t.Error(e)
 			return
@@ -101,12 +101,12 @@ func TestMultiplexedHandler2(t *testing.T) {
 			}
 		}
 
-		assertCount(t, "SELECT count(*) FROM tpt_delayed_jobs", 2)
-		assertCount(t, "SELECT count(*) FROM tpt_delayed_jobs where priority = 23", 1)
-		assertCount(t, "SELECT count(*) FROM tpt_delayed_jobs where queue = 'aa'", 1)
-		assertCount(t, "SELECT count(*) FROM tpt_delayed_jobs where queue = 'cc'", 1)
-		assertCount(t, "SELECT count(*) FROM tpt_delayed_jobs where priority = 21", 1)
-		assertCount(t, "SELECT count(*) FROM tpt_delayed_jobs where priority = 21 and queue = 'aa'", 1)
-		assertCount(t, "SELECT count(*) FROM tpt_delayed_jobs where priority = 23 and queue = 'cc'", 1)
+		assertCount(t, "SELECT count(*) FROM "+*table_name, 2)
+		assertCount(t, "SELECT count(*) FROM "+*table_name+" where priority = 23", 1)
+		assertCount(t, "SELECT count(*) FROM "+*table_name+" where queue = 'aa'", 1)
+		assertCount(t, "SELECT count(*) FROM "+*table_name+" where queue = 'cc'", 1)
+		assertCount(t, "SELECT count(*) FROM "+*table_name+" where priority = 21", 1)
+		assertCount(t, "SELECT count(*) FROM "+*table_name+" where priority = 21 and queue = 'aa'", 1)
+		assertCount(t, "SELECT count(*) FROM "+*table_name+" where priority = 23 and queue = 'cc'", 1)
 	})
 }

@@ -2,6 +2,7 @@ package delayed_job
 
 import (
 	"errors"
+	"expvar"
 	"flag"
 	"io"
 	"log"
@@ -28,6 +29,7 @@ var (
 	default_destroy_failed_jobs = flag.Bool("destroy_failed_jobs", false, "the failed jobs are destroyed after too many attempts")
 )
 
+var work_error = expvar.NewString("worker")
 var jobs_is_empty = errors.New("jobs is empty in the db")
 
 func deserializationError(e error) error {
@@ -187,6 +189,7 @@ func (self *worker) serve() {
 			success, failure, e := self.work_off(10)
 			if nil != e {
 				log.Println(e)
+				work_error.Set(e.Error())
 				break
 			}
 
@@ -198,6 +201,8 @@ func (self *worker) serve() {
 			} else {
 				self.say(success, "jobs processed at ", float64(success)/time.Now().Sub(now).Seconds(), " j/s, ", failure, " failed")
 			}
+
+			work_error.Set("")
 		}
 
 		select {

@@ -18,9 +18,9 @@ func backendTest(t *testing.T, cb func(backend *dbBackend)) {
 	defer backend.Close()
 
 	_, e = backend.db.Exec(`
-DROP TABLE IF EXISTS tpt_delayed_jobs;
+DROP TABLE IF EXISTS ` + *table_name + `;
 
-CREATE TABLE IF NOT EXISTS tpt_delayed_jobs (
+CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
   id                BIGSERIAL  PRIMARY KEY,
   priority          int DEFAULT 0,
   attempts          int DEFAULT 0,
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS tpt_delayed_jobs (
   created_at        timestamp with time zone  NOT NULL,
   updated_at        timestamp with time zone NOT NULL,
 
-  CONSTRAINT tpt_delayed_jobs_unique_handler_id UNIQUE (handler_id)
+  CONSTRAINT ` + *table_name + `_unique_handler_id UNIQUE (handler_id)
 );`)
 	if nil != e {
 		t.Error(e)
@@ -51,7 +51,7 @@ func TestEnqueue(t *testing.T) {
 			t.Error(e)
 			return
 		}
-		row := backend.db.QueryRow("SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM tpt_delayed_jobs")
+		row := backend.db.QueryRow("SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM " + *table_name)
 
 		job := &Job{}
 		var queue sql.NullString
@@ -139,7 +139,7 @@ func TestGet(t *testing.T) {
 			return
 		}
 
-		row := backend.db.QueryRow("SELECT locked_at, locked_by FROM tpt_delayed_jobs where id = " + strconv.FormatInt(job.id, 10))
+		row := backend.db.QueryRow("SELECT locked_at, locked_by FROM " + *table_name + " where id = " + strconv.FormatInt(job.id, 10))
 
 		var locked_at NullTime
 		var locked_by sql.NullString
@@ -213,7 +213,7 @@ func TestGetWithLocked(t *testing.T) {
 			return
 		}
 
-		_, e = backend.db.Exec("UPDATE tpt_delayed_jobs SET locked_at = now(), locked_by = 'aa'")
+		_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = now(), locked_by = 'aa'")
 		if nil != e {
 			t.Error(e)
 			return
@@ -241,7 +241,7 @@ func TestGetWithFailed(t *testing.T) {
 			return
 		}
 
-		_, e = backend.db.Exec("UPDATE tpt_delayed_jobs SET failed_at = now(), last_error = 'aa'")
+		_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = now(), last_error = 'aa'")
 		if nil != e {
 			t.Error(e)
 			return
@@ -277,7 +277,7 @@ func TestLockedInGet(t *testing.T) {
 		go func() {
 			<-test_ch_for_lock
 
-			_, e := backend.db.Exec("UPDATE tpt_delayed_jobs SET locked_at = now(), locked_by = 'aa'")
+			_, e := backend.db.Exec("UPDATE " + *table_name + " SET locked_at = now(), locked_by = 'aa'")
 			if nil != e {
 				t.Error(e)
 			}
@@ -313,7 +313,7 @@ func TestFailedInGet(t *testing.T) {
 
 		go func() {
 			<-test_ch_for_lock
-			_, e := backend.db.Exec("UPDATE tpt_delayed_jobs SET failed_at = now(), last_error = 'aa'")
+			_, e := backend.db.Exec("UPDATE " + *table_name + " SET failed_at = now(), last_error = 'aa'")
 			if nil != e {
 				t.Error(e)
 				return
@@ -357,7 +357,7 @@ func TestDestory(t *testing.T) {
 		job.destroyIt()
 
 		count := int64(-1)
-		e = backend.db.QueryRow("SELECT count(*) FROM tpt_delayed_jobs").Scan(&count)
+		e = backend.db.QueryRow("SELECT count(*) FROM " + *table_name + "").Scan(&count)
 		if nil != e {
 			t.Error(e)
 			return
@@ -392,7 +392,7 @@ func TestFailIt(t *testing.T) {
 
 		job.failIt("1234")
 
-		row := backend.db.QueryRow("SELECT failed_at, last_error FROM tpt_delayed_jobs where id = " + strconv.FormatInt(job.id, 10))
+		row := backend.db.QueryRow("SELECT failed_at, last_error FROM " + *table_name + " where id = " + strconv.FormatInt(job.id, 10))
 
 		var failed_at NullTime
 		var last_error sql.NullString
@@ -440,14 +440,14 @@ func TestRescheduleIt(t *testing.T) {
 			return
 		}
 		now := backend.db_time_now()
-		job.will_update_attributes()["handler"] = map[string]interface{}{"type": "test", "aa": "testsss"}
+		job.will_update_attributes()["@handler"] = map[string]interface{}{"type": "test", "aa": "testsss"}
 		e = job.rescheduleIt(now, "throw s")
 		if nil != e {
 			t.Error(e)
 			return
 		}
 
-		row := backend.db.QueryRow("SELECT attempts, run_at, locked_at, locked_by, handler, last_error FROM tpt_delayed_jobs where id = " + strconv.FormatInt(job.id, 10))
+		row := backend.db.QueryRow("SELECT attempts, run_at, locked_at, locked_by, handler, last_error FROM " + *table_name + " where id = " + strconv.FormatInt(job.id, 10))
 
 		var attempts int64
 		var run_at NullTime

@@ -16,9 +16,9 @@ func workTest(t *testing.T, cb func(w *worker, backend *dbBackend)) {
 	defer w.Close()
 
 	_, e = w.backend.db.Exec(`
-DROP TABLE IF EXISTS tpt_delayed_jobs;
+DROP TABLE IF EXISTS ` + *table_name + `;
 
-CREATE TABLE IF NOT EXISTS tpt_delayed_jobs (
+CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
   id                BIGSERIAL  PRIMARY KEY,
   priority          int DEFAULT 0,
   attempts          int DEFAULT 0,
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS tpt_delayed_jobs (
   created_at        timestamp with time zone  NOT NULL,
   updated_at        timestamp with time zone NOT NULL,
 
-  CONSTRAINT tpt_delayed_jobs_unique_handler_id UNIQUE (handler_id)
+  CONSTRAINT ` + *table_name + `_unique_handler_id UNIQUE (handler_id)
 );`)
 	if nil != e {
 		t.Error(e)
@@ -90,7 +90,7 @@ func TestRunError(t *testing.T) {
 			t.Error("not recv")
 		}
 
-		row := backend.db.QueryRow("SELECT attempts, run_at, locked_at, locked_by, handler, last_error FROM tpt_delayed_jobs")
+		row := backend.db.QueryRow("SELECT attempts, run_at, locked_at, locked_by, handler, last_error FROM " + *table_name)
 
 		var attempts int64
 		var run_at NullTime
@@ -159,7 +159,7 @@ func TestRunFailed(t *testing.T) {
 			t.Error("not recv")
 		}
 
-		row := backend.db.QueryRow("SELECT attempts, run_at, locked_at, locked_by, handler, last_error FROM tpt_delayed_jobs")
+		row := backend.db.QueryRow("SELECT attempts, run_at, locked_at, locked_by, handler, last_error FROM " + *table_name)
 
 		var attempts int64
 		var run_at NullTime
@@ -229,7 +229,7 @@ func TestRunFailedAndDestoryIt(t *testing.T) {
 		}
 
 		var count int64
-		e = backend.db.QueryRow("SELECT count(*) FROM tpt_delayed_jobs").Scan(&count)
+		e = backend.db.QueryRow("SELECT count(*) FROM " + *table_name).Scan(&count)
 		if nil != e {
 			t.Error(e)
 			return

@@ -164,7 +164,7 @@ func (self *Job) max_attempts() int {
 }
 
 func stringifiedHander(params map[string]interface{}) error {
-	handler, ok := params["handler"]
+	handler, ok := params["@handler"]
 	if !ok {
 		return nil
 	}
@@ -181,7 +181,7 @@ func stringifiedHander(params map[string]interface{}) error {
 	if nil != e {
 		return e
 	}
-	params["handler"] = string(bs)
+	params["@handler"] = string(bs)
 	return nil
 }
 
@@ -205,11 +205,11 @@ func (self *Job) rescheduleIt(next_time time.Time, err string) error {
 	if nil != e {
 		return e
 	}
-	changed["attempts"] = self.attempts
-	changed["run_at"] = next_time
-	changed["locked_at"] = nil
-	changed["locked_by"] = nil
-	changed["last_error"] = err
+	changed["@attempts"] = self.attempts
+	changed["@run_at"] = next_time
+	changed["@locked_at"] = nil
+	changed["@locked_by"] = nil
+	changed["@last_error"] = err
 
 	e = self.backend.update(self.id, changed)
 	self.changed_attributes = nil
@@ -220,7 +220,7 @@ func (self *Job) failIt(e string) error {
 	now := self.backend.db_time_now()
 	self.failed_at = now
 	self.last_error = e
-	return self.backend.update(self.id, map[string]interface{}{"failed_at": now, "last_error": e})
+	return self.backend.update(self.id, map[string]interface{}{"@failed_at": now, "@last_error": e})
 }
 
 func (self *Job) destroyIt() error {
