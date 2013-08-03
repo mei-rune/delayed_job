@@ -48,7 +48,7 @@ type Job struct {
 	handler_object     Handler
 }
 
-func newJob(backend *dbBackend, priority int, queue string, run_at time.Time, args map[string]interface{}) (*Job, error) {
+func newJob(backend *dbBackend, priority int, queue string, run_at time.Time, args map[string]interface{}, is_valid_payload_object bool) (*Job, error) {
 	defaultValue := generate_id()
 	id := stringWithDefault(args, "_uid", defaultValue)
 	if 0 == len(id) {
@@ -60,15 +60,18 @@ func newJob(backend *dbBackend, priority int, queue string, run_at time.Time, ar
 		return nil, deserializationError(e)
 	}
 	j := &Job{backend: backend,
-		priority:   priority,
-		queue:      queue,
-		handler:    string(s),
-		handler_id: id,
-		run_at:     run_at}
+		priority:           priority,
+		queue:              queue,
+		handler:            string(s),
+		handler_id:         id,
+		run_at:             run_at,
+		handler_attributes: args}
 
-	_, e = j.payload_object()
-	if nil != e {
-		return nil, e
+	if is_valid_payload_object {
+		_, e = j.payload_object()
+		if nil != e {
+			return nil, e
+		}
 	}
 	return j, nil
 }
@@ -81,6 +84,9 @@ func (self *Job) name() string {
 	options, e := self.attributes()
 	if nil == e && nil != options {
 		if v, ok := options["display_name"]; ok {
+			return fmt.Sprint(v)
+		}
+		if v, ok := options["name"]; ok {
 			return fmt.Sprint(v)
 		}
 	}

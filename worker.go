@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 )
 
@@ -319,4 +320,45 @@ func (self *worker) reschedule(job *Job, next_time time.Time, e error) error {
 		self.job_say(job, "REMOVED permanently because of ", job.attempts, " consecutive failures")
 		return self.failed(job, e)
 	}
+}
+
+type TestWorker struct {
+	*worker
+}
+
+func (self *TestWorker) WorkOff(num int) (int, int, error) {
+	return self.work_off(num)
+}
+
+func WorkTest(t *testing.T, cb func(w *TestWorker)) {
+	w, e := newWorker(map[string]interface{}{})
+	if nil != e {
+		t.Error(e)
+		return
+	}
+
+	_, e = w.backend.db.Exec(`
+DROP TABLE IF EXISTS ` + *table_name + `;
+
+CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
+  id                BIGSERIAL  PRIMARY KEY,
+  priority          int DEFAULT 0,
+  attempts          int DEFAULT 0,
+  queue             varchar(200),
+  handler           text  NOT NULL,
+  handler_id        varchar(200),
+  last_error        varchar(2000),
+  run_at            timestamp with time zone,
+  locked_at         timestamp with time zone,
+  failed_at         timestamp with time zone,
+  locked_by         varchar(200),
+  created_at        timestamp with time zone  NOT NULL,
+  updated_at        timestamp with time zone NOT NULL
+);`)
+	if nil != e {
+		t.Error(e)
+		return
+	}
+
+	cb(&TestWorker{w})
 }

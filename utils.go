@@ -113,6 +113,9 @@ func stringWithDefault(args map[string]interface{}, key string, defaultValue str
 	if !ok {
 		return defaultValue
 	}
+	if nil == v {
+		return defaultValue
+	}
 	if s, ok := v.(string); ok && 0 != len(s) {
 		return s
 	}

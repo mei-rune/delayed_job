@@ -33,6 +33,7 @@ func newMultiplexedHandler(ctx, params map[string]interface{}) (Handler, error) 
 		return nil, errors.New("backend in the ctx is nil")
 	}
 
+	is_valid_rule := boolWithDefault(params, "is_valid_rule", false)
 	gpriority := intWithDefault(params, "priority", *default_priority)
 	gqueue := stringWithDefault(params, "queue", *default_queue_name)
 	gmax_attempts := intWithDefault(params, "max_attempts", *default_max_attempts)
@@ -65,15 +66,16 @@ func newMultiplexedHandler(ctx, params map[string]interface{}) (Handler, error) 
 			options["max_attempts"] = gmax_attempts
 		}
 		run_at := timeWithDefault(options, "run_at", grun_at)
-		j, e := newJob(backend, priority, queue, run_at, options)
-		if nil != e {
-			return nil, e
-		}
 
 		if nil != args {
 			if _, ok = options["arguments"]; !ok {
 				options["arguments"] = args
 			}
+		}
+
+		j, e := newJob(backend, priority, queue, run_at, options, is_valid_rule)
+		if nil != e {
+			return nil, fmt.Errorf("rules[%d] is invalid, %v", idx, e)
 		}
 
 		rules = append(rules, j)

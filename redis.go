@@ -35,14 +35,15 @@ func (self *redis_gateway) isRunning() bool {
 }
 
 func (self *redis_gateway) serve() {
+	is_running := int32(1)
 	defer func() {
 		close(self.c)
 		self.wait.Done()
 		log.Println("redis client is exit.")
+		atomic.StoreInt32(&is_running, 0)
 	}()
 
 	ticker := time.NewTicker(1 * time.Second)
-
 	go func() {
 		defer func() {
 			if o := recover(); nil != o {
@@ -52,9 +53,10 @@ func (self *redis_gateway) serve() {
 			ticker.Stop()
 		}()
 
-		for self.isRunning() {
-			<-ticker.C
+		<-ticker.C
+		for 1 == atomic.LoadInt32(&is_running) {
 			self.c <- nil
+			<-ticker.C
 		}
 	}()
 

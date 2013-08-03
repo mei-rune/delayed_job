@@ -31,6 +31,9 @@ func toStrings(v interface{}) ([]string, error) {
 		}
 		cmd := make([]string, 0, len(s))
 		for _, h := range s {
+			if nil == h {
+				break
+			}
 			cmd = append(cmd, fmt.Sprint(h))
 		}
 		return cmd, nil
@@ -88,7 +91,7 @@ func replacePlaceHolders(cmd []string, arguments interface{}) ([]string, error) 
 		if "$$" == cmd[i] {
 			bs, e := json.Marshal(arguments)
 			if nil != e {
-				return nil, e
+				return nil, errors.New("replace '$$' failed, " + e.Error())
 			}
 			cmd[i] = string(bs)
 			continue
@@ -100,7 +103,7 @@ func replacePlaceHolders(cmd []string, arguments interface{}) ([]string, error) 
 
 		o, e := holder.simpleValue(cmd[i][1:])
 		if nil != e {
-			return nil, e
+			return nil, errors.New("replace '" + cmd[i] + "' failed, " + e.Error())
 		}
 		cmd[i] = fmt.Sprint(o)
 	}

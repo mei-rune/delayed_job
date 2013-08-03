@@ -3,6 +3,8 @@ package delayed_job
 import (
 	"fmt"
 	"github.com/garyburd/redigo/redis"
+	"net/http"
+	_ "net/http/pprof"
 	"testing"
 	"time"
 )
@@ -16,6 +18,9 @@ func clearRedis(t *testing.T, c redis.Conn, key string) {
 }
 
 func redisTest(t *testing.T, cb func(client *redis_gateway, c redis.Conn)) {
+	go func() {
+		http.ListenAndServe(":7890", nil)
+	}()
 	redis_client, err := newRedis(*redisAddress)
 	if nil != err {
 		t.Error(err)

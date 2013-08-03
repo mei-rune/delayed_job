@@ -26,16 +26,14 @@ CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
   attempts          int DEFAULT 0,
   queue             varchar(200),
   handler           text  NOT NULL,
-  handler_id        varchar(200)  NOT NULL,
+  handler_id        varchar(200),
   last_error        varchar(2000),
   run_at            timestamp with time zone,
   locked_at         timestamp with time zone,
   failed_at         timestamp with time zone,
   locked_by         varchar(200),
   created_at        timestamp with time zone  NOT NULL,
-  updated_at        timestamp with time zone NOT NULL,
-
-  CONSTRAINT ` + *table_name + `_unique_handler_id UNIQUE (handler_id)
+  updated_at        timestamp with time zone NOT NULL
 );`)
 	if nil != e {
 		t.Error(e)

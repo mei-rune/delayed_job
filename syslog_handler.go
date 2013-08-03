@@ -14,7 +14,6 @@ import (
 
 var (
 	Hostname, _      = os.Hostname()
-	default_to       = flag.String("syslog.to", "127.0.0.1:514", "the destination of syslog message.")
 	default_facility = flag.String("syslog.facility", "user", "the facility of syslog message.")
 	default_severity = flag.String("syslog.severity", "info", "the severity of syslog message.")
 	default_tag      = flag.String("syslog.tag", "tpt", "the tag of syslog message.")
@@ -146,7 +145,7 @@ func message_printf(facility int,
 }
 
 type syslogHandler struct {
-	to      *net.UDPAddr
+	to      []*net.UDPAddr
 	message string
 }
 
@@ -160,14 +159,20 @@ func newSyslogHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("params is nil")
 	}
 
-	to := stringWithDefault(params, "to", *default_to)
-	if 0 == len(to) {
-		return nil, errors.New("'to' is required.")
+	to := stringsWithDefault(params, "to_address", ",", nil)
+	if nil == to || 0 == len(to) {
+		return nil, errors.New("'to_address' is required.")
 	}
 
-	to_addr, e := net.ResolveUDPAddr("udp", to)
-	if nil != e {
-		return nil, errors.New("'to' is invalid, " + e.Error())
+	to_addr := make([]*net.UDPAddr, 0, len(to))
+	for _, t := range to {
+		addr, e := net.ResolveUDPAddr("udp", t)
+		if nil == e && nil != addr {
+			to_addr = append(to_addr, addr)
+		}
+	}
+	if 0 == len(to_addr) {
+		return nil, errors.New("'to_address' is empty or invalid.")
 	}
 
 	facility_s := stringWithDefault(params, "facility", *default_facility)
@@ -230,12 +235,35 @@ func newSyslogHandler(ctx, params map[string]interface{}) (Handler, error) {
 }
 
 func (self *syslogHandler) Perform() error {
-	c, e := net.DialUDP("udp", nil, self.to)
+	buf := bytes.NewBuffer(make([]byte, 0, 1000))
+	hasOk := false
+	for _, to := range self.to {
+		e := self.send(to)
+		if nil == e {
+			hasOk = true
+		} else {
+			buf.WriteString(e.Error())
+			buf.WriteString("\r\n")
+		}
+	}
+	if hasOk {
+		return nil
+	}
+
+	if buf.Len() > 2 {
+		buf.Truncate(buf.Len() - 2)
+	}
+	return errors.New(buf.String())
+}
+
+func (self *syslogHandler) send(to *net.UDPAddr) error {
+	c, e := net.DialUDP("udp", nil, to)
 	if nil != e {
 		return e
 	}
 	defer c.Close()
 
+	fmt.Println(c.RemoteAddr(), self.message)
 	_, e = c.Write([]byte(self.message))
 	return e
 }

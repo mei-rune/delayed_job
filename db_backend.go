@@ -13,10 +13,10 @@ import (
 )
 
 var (
-	db_url = flag.String("data_db.url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
-	db_drv = flag.String("data_db.name", "postgres", "the db driver")
+	db_url = flag.String("db.url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
+	db_drv = flag.String("db.name", "postgres", "the db driver")
 
-	table_name = flag.String("data_db.table", "delayed_jobs", "the table name for jobs")
+	table_name = flag.String("db.table", "delayed_jobs", "the table name for jobs")
 
 	is_test_for_lock = false
 	test_ch_for_lock = make(chan int)
@@ -83,7 +83,7 @@ func (self *dbBackend) Close() error {
 }
 
 func (self *dbBackend) enqueue(priority int, queue string, run_at time.Time, args map[string]interface{}) error {
-	job, e := newJob(self, priority, queue, run_at, args)
+	job, e := newJob(self, priority, queue, run_at, args, true)
 	if nil != e {
 		return e
 	}
@@ -164,6 +164,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 	for rows.Next() {
 		job := &Job{}
 		var queue sql.NullString
+		var handler_id sql.NullString
 		var last_error sql.NullString
 		var run_at NullTime
 		var locked_at NullTime
@@ -176,7 +177,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 			&job.attempts,
 			&queue,
 			&job.handler,
-			&job.handler_id,
+			&handler_id,
 			&last_error,
 			&run_at,
 			&locked_at,
@@ -212,6 +213,10 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 		if c > 0 {
 			if queue.Valid {
 				job.queue = queue.String
+			}
+
+			if handler_id.Valid {
+				job.handler_id = handler_id.String
 			}
 
 			if last_error.Valid {
@@ -579,7 +584,7 @@ func (self *dbBackend) where(params map[string]interface{}) ([]map[string]interf
 		var priority int
 		var attempts int
 		var handler string
-		var handler_id string
+		var handler_id sql.NullString
 		var created_at time.Time
 		var updated_at time.Time
 
