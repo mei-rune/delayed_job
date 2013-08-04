@@ -4,22 +4,12 @@ import (
 	"bytes"
 	"crypto/md5"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"net/mail"
 	"net/smtp"
 	"time"
 )
-
-var default_mail_auth_type = flag.String("mail.auth.type", "", "the auth type of smtp")
-var default_mail_auth_user = flag.String("mail.auth.user", "", "the auth user of smtp")
-var default_mail_auth_identity = flag.String("mail.auth.identity", "", "the auth identity of smtp")
-var default_mail_auth_password = flag.String("mail.auth.password", "", "the auth password of smtp")
-var default_mail_auth_host = flag.String("mail.auth.host", "", "the auth host of smtp")
-
-var default_smtp_server = flag.String("mail.smtp.server", "", "the address of smtp server")
-var default_mail_address = flag.String("mail.from", "", "the from address of mail")
 
 const crlf = "\r\n"
 
@@ -44,9 +34,6 @@ func toMailString(addr *mail.Address) string {
 // http://tools.ietf.org/html/rfc2821
 func (self *MailMessage) Bytes() []byte {
 	from := toMailString(&self.From)
-	if from == "" {
-		from = *default_mail_address
-	}
 
 	buf := bytes.NewBuffer(make([]byte, 0, 10240))
 	write := func(what string, recipients []*mail.Address) {
@@ -95,7 +82,7 @@ func (self *MailMessage) Bytes() []byte {
 
 func (self *MailMessage) Send(smtp_server string, auth smtp.Auth) error {
 	if nil == self.To || 0 == len(self.To) {
-		return errors.New("'to' is missing.")
+		return errors.New("'to_address' is missing.")
 	}
 
 	if 0 == len(smtp_server) {
@@ -111,13 +98,11 @@ func (self *MailMessage) Send(smtp_server string, auth smtp.Auth) error {
 	}
 
 	from := toMailString(&self.From)
-	if from == "" {
-		from = *default_mail_address
-	}
 	if 0 == len(from) {
-		return errors.New("'from' is missing or default 'from' is not set.")
+		return errors.New("'from_address' is missing or default 'from_address' is not set.")
 	}
 
+	//fmt.Println(string(self.Bytes()))
 	return smtp.SendMail(smtp_server, auth, from, to, self.Bytes())
 }
 

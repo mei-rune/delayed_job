@@ -3,11 +3,21 @@ package delayed_job
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"net/mail"
 	"net/smtp"
 	"strings"
 	"text/template"
 )
+
+var default_mail_auth_type = flag.String("mail.auth.type", "", "the auth type of smtp")
+var default_mail_auth_user = flag.String("mail.auth.user", "", "the auth user of smtp")
+var default_mail_auth_identity = flag.String("mail.auth.identity", "", "the auth identity of smtp")
+var default_mail_auth_password = flag.String("mail.auth.password", "", "the auth password of smtp")
+var default_mail_auth_host = flag.String("mail.auth.host", "", "the auth host of smtp")
+
+var default_smtp_server = flag.String("mail.smtp_server", "", "the address of smtp server")
+var default_mail_address = flag.String("mail.from", "", "the from address of mail")
 
 type mailHandler struct {
 	smtp_server string
@@ -25,8 +35,13 @@ func addressesWith(params map[string]interface{}, nm string) ([]*mail.Address, e
 	if !ok {
 		return nil, nil
 	}
-
+	if nil == o {
+		return nil, nil
+	}
 	if s, ok := o.(string); ok {
+		if 0 == len(s) {
+			return nil, nil
+		}
 		addr, e := mail.ParseAddressList(s)
 		if nil != e {
 			return nil, errors.New("'" + nm + "' is invalid - " + e.Error())
@@ -61,11 +76,17 @@ func addressWith(params map[string]interface{}, nm string) (*mail.Address, error
 	if !ok {
 		return nil, nil
 	}
+	if nil == o {
+		return nil, nil
+	}
 	return toAddress(o, nm)
 }
 
 func toAddress(o interface{}, nm string) (*mail.Address, error) {
 	if s, ok := o.(string); ok {
+		if 0 == len(s) {
+			return nil, nil
+		}
 		addr, e := mail.ParseAddress(s)
 		if nil != e {
 			return nil, errors.New("'" + nm + "' is invalid - " + e.Error())
@@ -165,7 +186,13 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, e
 	}
 	if nil == from {
-		from = &mail.Address{}
+		from, e = toAddress(*default_mail_address, "from_address")
+		if nil != e {
+			return nil, e
+		}
+		if nil == from {
+			return nil, errors.New("'from_address' is required.")
+		}
 	}
 
 	to, e := addressesWith(params, "to_address")
@@ -173,7 +200,7 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, e
 	}
 	if nil == to || 0 == len(to) {
-		return nil, errors.New("'to' is missing.")
+		return nil, errors.New("'to_address' is missing.")
 	}
 
 	cc, e := addressesWith(params, "cc_address")
@@ -208,9 +235,22 @@ func (self *mailHandler) Perform() error {
 	switch self.auth_type {
 	case "":
 		if 0 != len(self.password) {
+			if 0 == len(self.user) {
+				self.user = toMailString(&self.message.From)
+
+				if 0 == len(self.user) {
+					return errors.New("user is missing.")
+				}
+			}
 			auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host)
 		}
 	case "plain", "PLAIN":
+		if 0 == len(self.user) {
+			self.user = toMailString(&self.message.From)
+			if 0 == len(self.user) {
+				return errors.New("user is missing.")
+			}
+		}
 		auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host)
 	case "cram-md5", "CRAM-MD5":
 		auth = smtp.CRAMMD5Auth(self.user, self.password)
