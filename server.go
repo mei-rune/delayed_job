@@ -18,7 +18,7 @@ import (
 
 var (
 	listenAddress = flag.String("listen", ":9086", "the address of http")
-	run_mode      = flag.String("mode", "all", "console, backend, all")
+	run_mode      = flag.String("mode", "all", "init_db, console, backend, all")
 
 	cd_dir, _ = os.Getwd()
 

@@ -13,10 +13,10 @@ import (
 )
 
 var (
-	db_url = flag.String("db.url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
-	db_drv = flag.String("db.name", "postgres", "the db driver")
+	db_url = flag.String("db_url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
+	db_drv = flag.String("db_name", "postgres", "the db driver")
 
-	table_name = flag.String("db.table", "delayed_jobs", "the table name for jobs")
+	table_name = flag.String("db_table", "delayed_jobs", "the table name for jobs")
 
 	is_test_for_lock = false
 	test_ch_for_lock = make(chan int)
