@@ -256,122 +256,216 @@ failed:
 	return
 }
 
+func pushHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) {
+	decoder := json.NewDecoder(r.Body)
+	decoder.UseNumber()
+	var ent map[string]interface{}
+	e := decoder.Decode(&ent)
+	if nil != e {
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, e.Error())
+		return
+	}
+
+	job, e := createJobFromMap(backend, ent)
+	if nil != e {
+		w.WriteHeader(http.StatusInternalServerError)
+		io.WriteString(w, e.Error())
+		return
+	}
+
+	e = backend.create(job)
+	if nil != e {
+		w.WriteHeader(http.StatusInternalServerError)
+		io.WriteString(w, e.Error())
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, "OK")
+	return
+}
+
+func pushAllHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) {
+	var jobs []*Job
+	decoder := json.NewDecoder(r.Body)
+	decoder.UseNumber()
+	var entities []map[string]interface{}
+	e := decoder.Decode(&entities)
+	if nil != e {
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, e.Error())
+		return
+	}
+	if nil == entities || 0 == len(entities) {
+		goto OK
+	}
+
+	jobs = make([]*Job, len(entities))
+	for i, ent := range entities {
+		jobs[i], e = createJobFromMap(backend, ent)
+		if nil != e {
+			w.WriteHeader(http.StatusBadRequest)
+			io.WriteString(w, "parse data["+strconv.FormatInt(int64(i), 10)+"] failed, "+e.Error())
+			return
+		}
+	}
+
+	backend.create(jobs...)
+	if nil != e {
+		w.WriteHeader(http.StatusInternalServerError)
+		io.WriteString(w, e.Error())
+		return
+	}
+OK:
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, "OK")
+	return
+}
+
 //http://127.0.0.1:9086/delayed_jobs/1/retry
 
-func httpServe(backend *dbBackend) {
-	http.HandleFunc("/",
-		func(w http.ResponseWriter, r *http.Request) {
-			switch r.Method {
-			case "GET":
-				switch r.URL.Path {
-				case "/", "/index.html", "/index.htm", "/delayed_jobs", "/delayed_jobs/":
-					indexHandler(w, r)
-					return
-				case "/static/delayed_jobs/bootstrap.css":
-					bootstrapCssHandler(w, r)
-					return
-				case "/static/delayed_jobs/bootstrap_modal.js":
-					bootstrapModalJsHandler(w, r)
-					return
-				case "/static/delayed_jobs/bootstrap_popover.js":
-					bootstrapPopoverJsHandler(w, r)
-					return
-				case "/static/delayed_jobs/bootstrap_tab.js":
-					bootstrapTabJsHandler(w, r)
-					return
-				case "/static/delayed_jobs/bootstrap_tooltip.js":
-					bootstrapTooltipJsHandler(w, r)
-					return
-				case "/static/delayed_jobs/dj_mon.css":
-					djmonCssHandler(w, r)
-					return
-				case "/static/delayed_jobs/dj_mon.js":
-					djmonJsHandler(w, r)
-					return
-				case "/static/delayed_jobs/jquery.min.js":
-					jqueryJsHandler(w, r)
-					return
-				case "/static/delayed_jobs/mustache.js":
-					mustascheJsHandler(w, r)
-					return
+type webFront struct {
+	*dbBackend
+}
 
-				case "/all", "/delayed_jobs/all", "/delayed_jobs/delayed_jobs/all":
-					allHandler(w, r, backend)
-					return
-				case "/failed", "/delayed_jobs/failed", "/delayed_jobs/delayed_jobs/failed":
-					failedHandler(w, r, backend)
-					return
-				case "/queued", "/delayed_jobs/queued", "/delayed_jobs/delayed_jobs/queued":
-					queuedHandler(w, r, backend)
-					return
-				case "/active", "/delayed_jobs/active", "/delayed_jobs/delayed_jobs/active":
-					activeHandler(w, r, backend)
-					return
-				case "/counts", "/delayed_jobs/counts", "/delayed_jobs/delayed_jobs/counts":
-					countsHandler(w, r, backend)
+func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	backend := self.dbBackend
+
+	switch r.Method {
+	case "GET":
+		switch r.URL.Path {
+		case "/", "/index.html", "/index.htm", "/delayed_jobs", "/delayed_jobs/":
+			indexHandler(w, r)
+			return
+		case "/static/delayed_jobs/bootstrap.css":
+			bootstrapCssHandler(w, r)
+			return
+		case "/static/delayed_jobs/bootstrap_modal.js":
+			bootstrapModalJsHandler(w, r)
+			return
+		case "/static/delayed_jobs/bootstrap_popover.js":
+			bootstrapPopoverJsHandler(w, r)
+			return
+		case "/static/delayed_jobs/bootstrap_tab.js":
+			bootstrapTabJsHandler(w, r)
+			return
+		case "/static/delayed_jobs/bootstrap_tooltip.js":
+			bootstrapTooltipJsHandler(w, r)
+			return
+		case "/static/delayed_jobs/dj_mon.css":
+			djmonCssHandler(w, r)
+			return
+		case "/static/delayed_jobs/dj_mon.js":
+			djmonJsHandler(w, r)
+			return
+		case "/static/delayed_jobs/jquery.min.js":
+			jqueryJsHandler(w, r)
+			return
+		case "/static/delayed_jobs/mustache.js":
+			mustascheJsHandler(w, r)
+			return
+
+		case "/all", "/delayed_jobs/all", "/delayed_jobs/delayed_jobs/all":
+			allHandler(w, r, backend)
+			return
+		case "/failed", "/delayed_jobs/failed", "/delayed_jobs/delayed_jobs/failed":
+			failedHandler(w, r, backend)
+			return
+		case "/queued", "/delayed_jobs/queued", "/delayed_jobs/delayed_jobs/queued":
+			queuedHandler(w, r, backend)
+			return
+		case "/active", "/delayed_jobs/active", "/delayed_jobs/delayed_jobs/active":
+			activeHandler(w, r, backend)
+			return
+		case "/counts", "/delayed_jobs/counts", "/delayed_jobs/delayed_jobs/counts":
+			countsHandler(w, r, backend)
+			return
+		}
+
+	case "PUT":
+		switch r.URL.Path {
+		case "/delayed_jobs/push", "/delayed_jobs/push/":
+			pushHandler(w, r, backend)
+			return
+
+		case "/delayed_jobs/pushAll", "/delayed_jobs/pushAll/":
+			pushAllHandler(w, r, backend)
+			return
+		}
+
+	case "POST":
+		switch r.URL.Path {
+		case "/delayed_jobs/push", "/delayed_jobs/push/":
+			pushHandler(w, r, backend)
+			return
+
+		case "/delayed_jobs/pushAll", "/delayed_jobs/pushAll/":
+			pushAllHandler(w, r, backend)
+			return
+		}
+
+		for _, retry := range retry_list {
+			if retry.MatchString(r.URL.Path) {
+				ss := strings.Split(r.URL.Path, "/")
+				id, e := strconv.ParseInt(ss[len(ss)-2], 10, 0)
+				if nil != e {
+					indexHandlerWithMessage(w, r, "error", e.Error())
 					return
 				}
-			case "POST":
-				for _, retry := range retry_list {
-					if retry.MatchString(r.URL.Path) {
-						ss := strings.Split(r.URL.Path, "/")
-						id, e := strconv.ParseInt(ss[len(ss)-2], 10, 0)
-						if nil != e {
-							indexHandlerWithMessage(w, r, "error", e.Error())
-							return
-						}
 
-						e = backend.retry(id)
-						if nil == e {
-							indexHandlerWithMessage(w, r, "success", "The job has been queued for a re-run")
-						} else {
-							indexHandlerWithMessage(w, r, "error", e.Error())
-						}
-						return
-					}
+				e = backend.retry(id)
+				if nil == e {
+					indexHandlerWithMessage(w, r, "success", "The job has been queued for a re-run")
+				} else {
+					indexHandlerWithMessage(w, r, "error", e.Error())
 				}
-
-				for _, job_id := range delete_by_id_list {
-					if job_id.MatchString(r.URL.Path) {
-						ss := strings.Split(r.URL.Path, "/")
-						id, e := strconv.ParseInt(ss[len(ss)-2], 10, 0)
-						if nil != e {
-							indexHandlerWithMessage(w, r, "error", e.Error())
-							return
-						}
-
-						e = backend.destroy(id)
-						if nil == e {
-							indexHandlerWithMessage(w, r, "success", "The job was deleted")
-						} else {
-							indexHandlerWithMessage(w, r, "error", e.Error())
-						}
-						return
-					}
-				}
-			case "DELETE":
-				for _, job_id := range job_id_list {
-					if job_id.MatchString(r.URL.Path) {
-						ss := strings.Split(r.URL.Path, "/")
-						id, e := strconv.ParseInt(ss[len(ss)-1], 10, 0)
-						if nil != e {
-							indexHandlerWithMessage(w, r, "error", e.Error())
-							return
-						}
-
-						e = backend.destroy(id)
-						if nil == e {
-							indexHandlerWithMessage(w, r, "success", "The job was deleted")
-						} else {
-							indexHandlerWithMessage(w, r, "error", e.Error())
-						}
-						return
-					}
-				}
+				return
 			}
+		}
 
-			w.WriteHeader(http.StatusNotFound)
-		})
+		for _, job_id := range delete_by_id_list {
+			if job_id.MatchString(r.URL.Path) {
+				ss := strings.Split(r.URL.Path, "/")
+				id, e := strconv.ParseInt(ss[len(ss)-2], 10, 0)
+				if nil != e {
+					indexHandlerWithMessage(w, r, "error", e.Error())
+					return
+				}
+
+				e = backend.destroy(id)
+				if nil == e {
+					indexHandlerWithMessage(w, r, "success", "The job was deleted")
+				} else {
+					indexHandlerWithMessage(w, r, "error", e.Error())
+				}
+				return
+			}
+		}
+	case "DELETE":
+		for _, job_id := range job_id_list {
+			if job_id.MatchString(r.URL.Path) {
+				ss := strings.Split(r.URL.Path, "/")
+				id, e := strconv.ParseInt(ss[len(ss)-1], 10, 0)
+				if nil != e {
+					indexHandlerWithMessage(w, r, "error", e.Error())
+					return
+				}
+
+				e = backend.destroy(id)
+				if nil == e {
+					indexHandlerWithMessage(w, r, "success", "The job was deleted")
+				} else {
+					indexHandlerWithMessage(w, r, "error", e.Error())
+				}
+				return
+			}
+		}
+	}
+
+	w.WriteHeader(http.StatusNotFound)
+}
+func httpServe(backend *dbBackend) {
+	http.Handle("/", &webFront{backend})
 	log.Println("[delayed_job] serving at '" + *listenAddress + "'")
 	http.ListenAndServe(*listenAddress, nil)
 }

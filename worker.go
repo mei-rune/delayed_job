@@ -25,7 +25,7 @@ var (
 	default_max_run_time        = flag.Duration("max_run_time", 1*time.Minute, "the max run time")
 	default_sleep_delay         = flag.Duration("sleep_delay", 10*time.Second, "the sleep delay")
 	default_read_ahead          = flag.Int("read_ahead", 10, "the read ahead")
-	default_queues              = flag.String("queues", "", "the default queue name")
+	default_queues              = flag.String("queues", "", "the queue name of worker")
 	default_exit_on_complete    = flag.Bool("exit_on_complete", false, "exit worker while jobs complete")
 	default_destroy_failed_jobs = flag.Bool("destroy_failed_jobs", false, "the failed jobs are destroyed after too many attempts")
 )

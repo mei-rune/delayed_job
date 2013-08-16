@@ -48,6 +48,24 @@ type Job struct {
 	handler_object     Handler
 }
 
+func createJobFromMap(backend *dbBackend, args map[string]interface{}) (*Job, error) {
+	priority := intWithDefault(args, "priority", *default_priority)
+	queue := stringWithDefault(args, "queue", *default_queue_name)
+	run_at := timeWithDefault(args, "run_at", time.Now())
+	Handler_o, ok := args["handler"]
+	if !ok {
+		return nil, errors.New("'Handler' is missing.")
+	}
+
+	Handler, ok := Handler_o.(map[string]interface{})
+	if !ok {
+		return nil, errors.New("'Handler' is not a map[string]interface{}.")
+	}
+
+	is_valid_rule := boolWithDefault(args, "is_valid_rule", true)
+	return newJob(backend, priority, queue, run_at, Handler, is_valid_rule)
+}
+
 func newJob(backend *dbBackend, priority int, queue string, run_at time.Time, args map[string]interface{}, is_valid_payload_object bool) (*Job, error) {
 	defaultValue := generate_id()
 	id := stringWithDefault(args, "_uid", defaultValue)
