@@ -6,6 +6,9 @@ install:
   - go get github.com/garyburd/redigo/redis
   - go get github.com/lib/pq
   - go get github.com/go-sql-driver/mysql
+  - go get github.com/ziutek/mymysql/mysql
+  - go get github.com/ziutek/mymysql/native
+  - go get github.com/ziutek/mymysql/godrv
   - go get github.com/mattn/go-sqlite3
 services:
   - redis-server
