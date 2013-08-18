@@ -162,7 +162,7 @@ func TestSyslogHandler(t *testing.T) {
 				if !strings.Contains(s, test.message) {
 					t.Error("tests[", idx, "] excepted message contains [", test.message, "], but actual is ", s)
 				}
-			case <-time.After(10 * time.Microsecond):
+			case <-time.After(1 * time.Second):
 				t.Error("recv syslog time out")
 			}
 		})
