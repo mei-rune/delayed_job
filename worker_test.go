@@ -59,63 +59,57 @@ func TestRunError(t *testing.T) {
 		case <-time.After(2 * time.Second):
 			t.Error("not recv")
 		}
+		time.Sleep(1 * time.Second)
 
-		rows, e := backend.db.Query("SELECT attempts, run_at, locked_at, locked_by, handler, last_error FROM " + *table_name)
+		row := backend.db.QueryRow("SELECT attempts, run_at, locked_at, locked_by, handler, last_error FROM " + *table_name)
+
+		var attempts int64
+		var run_at NullTime
+		var locked_at NullTime
+		var locked_by sql.NullString
+		var handler sql.NullString
+		var last_error sql.NullString
+
+		e = row.Scan(&attempts, &run_at, &locked_at, &locked_by, &handler, &last_error)
 		if nil != e {
 			t.Error(e)
 			return
 		}
 
-		for rows.Next() {
+		if !run_at.Valid {
+			t.Error("excepted run_at is valid, actual is invalid")
+		}
+		if locked_at.Valid {
+			t.Error("excepted locked_at is invalid, actual is valid - ", locked_at.Time)
+		}
+		if locked_by.Valid {
+			t.Error("excepted locked_by is invalid, actual is valid - ", locked_by.String)
+		}
 
-			var attempts int64
-			var run_at NullTime
-			var locked_at NullTime
-			var locked_by sql.NullString
-			var handler sql.NullString
-			var last_error sql.NullString
+		if !handler.Valid {
+			t.Error("excepted handler is not empty, actual is invalid")
+		}
 
-			e = rows.Scan(&attempts, &run_at, &locked_at, &locked_by, &handler, &last_error)
-			if nil != e {
-				t.Error(e)
-				return
-			}
+		if !last_error.Valid {
+			t.Error("excepted last_error is not empty, actual is invalid")
+		}
 
-			if !run_at.Valid {
-				t.Error("excepted run_at is valid, actual is invalid")
-			}
-			if locked_at.Valid {
-				t.Error("excepted locked_at is invalid, actual is valid - ", locked_at.Time)
-			}
-			if locked_by.Valid {
-				t.Error("excepted locked_by is invalid, actual is valid - ", locked_by.String)
-			}
+		if 1 != attempts {
+			t.Error("excepted attempts is '1', and actual is ", attempts)
+		}
 
-			if !handler.Valid {
-				t.Error("excepted handler is not empty, actual is invalid")
-			}
+		//if !strings.Contains(*db_drv, "mysql") {
+		now := backend.db_time_now()
+		if math.Abs(float64(now.Unix()+5-run_at.Time.Unix())) < 1 {
+			t.Error("excepted run_at is ", run_at.Time, ", actual is", now)
+		}
+		//}
+		if !strings.Contains(handler.String, "\"type\": \"test\"") {
+			t.Error("excepted handler contains '\"type\": \"test\"', actual is ", handler.String)
+		}
 
-			if !last_error.Valid {
-				t.Error("excepted last_error is not empty, actual is invalid")
-			}
-
-			if 1 != attempts {
-				t.Error("excepted attempts is '1', and actual is ", attempts)
-			}
-
-			//if !strings.Contains(*db_drv, "mysql") {
-			now := backend.db_time_now()
-			if math.Abs(float64(now.Unix()+5-run_at.Time.Unix())) < 1 {
-				t.Error("excepted run_at is ", run_at.Time, ", actual is", now)
-			}
-			//}
-			if !strings.Contains(handler.String, "\"type\": \"test\"") {
-				t.Error("excepted handler contains '\"type\": \"test\"', actual is ", handler.String)
-			}
-
-			if "throw a" != last_error.String {
-				t.Error("excepted run_at is 'throw a', actual is", last_error.String)
-			}
+		if "throw a" != last_error.String {
+			t.Error("excepted run_at is 'throw a', actual is", last_error.String)
 		}
 
 	})
@@ -135,6 +129,7 @@ func TestRunFailedAndNotDestoryIt2(t *testing.T) {
 		case <-time.After(4 * time.Second):
 			t.Error("not recv")
 		}
+		time.Sleep(1 * time.Second)
 
 		rows, e := backend.db.Query("SELECT last_error FROM " + *table_name)
 		if nil != e {
@@ -176,6 +171,7 @@ func TestRunFailedAndNotDestoryIt(t *testing.T) {
 		case <-time.After(4 * time.Second):
 			t.Error("not recv")
 		}
+		time.Sleep(1 * time.Second)
 
 		rows, e := backend.db.Query("SELECT attempts, run_at, locked_at, locked_by, handler, last_error FROM " + *table_name)
 		if nil != e {
@@ -251,6 +247,7 @@ func TestRunFailedAndDestoryIt(t *testing.T) {
 		case <-time.After(2 * time.Second):
 			t.Error("not recv")
 		}
+		time.Sleep(1 * time.Second)
 
 		var count int64
 		e = backend.db.QueryRow("SELECT count(*) FROM " + *table_name).Scan(&count)

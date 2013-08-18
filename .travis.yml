@@ -22,5 +22,5 @@ before_script:
   - mysql -e "create database tpt_data;"
 script:
   - go test -v
-  - go test -v -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*tpt_data/travis
+  - go test -v -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*tpt_data/travis/
   - go test -v -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true"
