@@ -5,12 +5,21 @@ install:
   - go get github.com/fd/go-shellwords/shellwords
   - go get github.com/garyburd/redigo/redis
   - go get github.com/lib/pq
+  - go get code.google.com/p/odbc
+  - go get github.com/go-sql-driver/mysql
+  - go get github.com/mattn/go-sqlite3
 services:
   - redis-server
   - postgres 
+  - mysql
 
 before_script:
   - psql -c "CREATE USER tpt WITH PASSWORD 'extreme';" -U postgres
   - psql -c "create database tpt_data with OWNER = tpt;" -U postgres
+  - mysql -e "CREATE USER 'tpt' IDENTIFIED BY 'extreme';"
+  - mysql -e "create database tpt_data;"
+  - mysql -e "GRANT ALL PRIVILEGES ON tpt_data.* TO 'tpt';"
 script:
   - go test -v
+  - go test -v -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*tpt_data/tpt/extreme
+  - go test -v -db_drv=mysql -db_url="tpt:extreme@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true"

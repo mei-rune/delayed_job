@@ -20,6 +20,8 @@ var (
 	listenAddress = flag.String("listen", ":9086", "the address of http")
 	run_mode      = flag.String("mode", "all", "init_db, console, backend, all")
 
+	config_file = flag.String("config", "delayed_job.conf", "the config file name")
+
 	cd_dir, _ = os.Getwd()
 
 	retry_list = []*regexp.Regexp{regexp.MustCompile(`^/?[0-9]+/retry/?$`),
@@ -42,6 +44,34 @@ func Main() error {
 		return nil
 	}
 
+	initDB()
+
+	// files := []string{*config_file,
+	// 	filepath.Join("conf", *config_file),
+	// 	filepath.Join("etc", *config_file),
+	// 	filepath.Join("..", "conf", *config_file),
+	// 	filepath.Join("..", "etc", *config_file),
+	// 	filepath.Join("delayed_job.conf"),
+	// 	filepath.Join("conf", "delayed_job.conf"),
+	// 	filepath.Join("etc", "delayed_job.conf"),
+	// 	filepath.Join("..", "conf", "delayed_job.conf"),
+	// 	filepath.Join("..", "etc", "delayed_job.conf")}
+
+	// found := false
+	// for _, file := range files {
+	// 	if st, e := os.Stat(file); nil == e && nil != st && !st.IsDir() {
+	// 		*config_file = file
+	// 		found = true
+	// 		break
+	// 	}
+	// }
+
+	// fmt.Println("[warn] load file '" + *config_file + "'.")
+	// e := LoadConfig(*config_file, flag.Bool(name, value, usage), false)
+	// if nil != e {
+	// 	return errors.New("load file '" + *config_file + "' failed, " + e.Error())
+	// }
+
 	switch *run_mode {
 	case "init_db":
 		ctx := map[string]interface{}{}
@@ -50,27 +80,78 @@ func Main() error {
 			return e
 		}
 		defer backend.Close()
-
-		_, e = backend.db.Exec(`
-DROP TABLE IF EXISTS ` + *table_name + `;
-
-CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
-  id                BIGSERIAL  PRIMARY KEY,
-  priority          int DEFAULT 0,
-  attempts          int DEFAULT 0,
-  queue             varchar(200),
-  handler           text  NOT NULL,
-  handler_id        varchar(200),
-  last_error        varchar(2000),
-  run_at            timestamp with time zone,
-  locked_at         timestamp with time zone,
-  failed_at         timestamp with time zone,
-  locked_by         varchar(200),
-  created_at        timestamp with time zone  NOT NULL,
-  updated_at        timestamp with time zone NOT NULL
-);`)
-		if nil != e {
-			return e
+		switch *db_type {
+		case MSSQL:
+			script := `if object_id('dbo.` + *table_name + `', 'U') is not null
+BEGIN 
+			 DROP TABLE ` + *table_name + `; 
+END
+if object_id('dbo.` + *table_name + `', 'U') is null
+BEGIN
+ CREATE TABLE dbo.` + *table_name + ` (
+		  id                INT IDENTITY(1,1)  PRIMARY KEY,
+		  priority          int DEFAULT 0,
+		  attempts          int DEFAULT 0,
+		  queue             varchar(200),
+		  handler           text  NOT NULL,
+		  handler_id        varchar(200),
+		  last_error        varchar(2000),
+		  run_at            DATETIME2,
+		  locked_at         DATETIME2,
+		  failed_at         DATETIME2,
+		  locked_by         varchar(200),
+		  created_at        DATETIME2 NOT NULL,
+		  updated_at        DATETIME2 NOT NULL
+		); 
+END`
+			fmt.Println(script)
+			_, e = backend.db.Exec(script)
+			if nil != e {
+				return e
+			}
+		case POSTGRESQL:
+			script := `DROP TABLE IF EXISTS ` + *table_name + `;
+				CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
+				  id                SERIAL PRIMARY KEY,
+				  priority          int DEFAULT 0,
+				  attempts          int DEFAULT 0,
+				  queue             varchar(200),
+				  handler           text  NOT NULL,
+				  handler_id        varchar(200),
+				  last_error        varchar(2000),
+				  run_at            timestamp with time zone,
+				  locked_at         timestamp with time zone,
+				  failed_at         timestamp with time zone,
+				  locked_by         varchar(200),
+				  created_at        timestamp with time zone NOT NULL,
+				  updated_at        timestamp with time zone NOT NULL
+				);`
+			_, e = backend.db.Exec(script)
+			if nil != e {
+				return e
+			}
+		default:
+			for _, script := range []string{`DROP TABLE IF EXISTS ` + *table_name + `;`,
+				`CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
+					  id                SERIAL PRIMARY KEY,
+					  priority          int DEFAULT 0,
+					  attempts          int DEFAULT 0,
+					  queue             varchar(200),
+					  handler           text  NOT NULL,
+					  handler_id        varchar(200),
+					  last_error        VARCHAR(200),
+					  run_at            DATETIME,
+					  locked_at         DATETIME,
+					  failed_at         DATETIME,
+					  locked_by         varchar(200),
+					  created_at        DATETIME NOT NULL,
+					  updated_at        timestamp NOT NULL
+					);`} {
+				_, e = backend.db.Exec(script)
+				if nil != e {
+					return e
+				}
+			}
 		}
 
 	case "console":

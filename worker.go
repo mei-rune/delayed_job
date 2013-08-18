@@ -274,8 +274,10 @@ func (self *worker) run(job *Job) (bool, error) {
 
 func (self *worker) failed(job *Job, e error) error {
 	if self.destroy_failed_jobs {
+		self.job_say(job, "REMOVED permanently because of ", job.attempts, " consecutive failures")
 		return job.destroyIt()
 	} else {
+		self.job_say(job, "STOPPED permanently because of ", job.attempts, " consecutive failures")
 		return job.failIt(e.Error())
 	}
 }
@@ -317,7 +319,6 @@ func (self *worker) reschedule(job *Job, next_time time.Time, e error) error {
 		}
 		return job.rescheduleIt(next_time, e.Error())
 	} else {
-		self.job_say(job, "REMOVED permanently because of ", job.attempts, " consecutive failures")
 		return self.failed(job, e)
 	}
 }
@@ -331,30 +332,17 @@ func (self *TestWorker) WorkOff(num int) (int, int, error) {
 }
 
 func WorkTest(t *testing.T, cb func(w *TestWorker)) {
-	w, e := newWorker(map[string]interface{}{})
+	old_mode := *run_mode
+	*run_mode = "init_db"
+	defer func() {
+		*run_mode = old_mode
+	}()
+	e := Main()
 	if nil != e {
 		t.Error(e)
 		return
 	}
-
-	_, e = w.backend.db.Exec(`
-DROP TABLE IF EXISTS ` + *table_name + `;
-
-CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
-  id                BIGSERIAL  PRIMARY KEY,
-  priority          int DEFAULT 0,
-  attempts          int DEFAULT 0,
-  queue             varchar(200),
-  handler           text  NOT NULL,
-  handler_id        varchar(200),
-  last_error        varchar(2000),
-  run_at            timestamp with time zone,
-  locked_at         timestamp with time zone,
-  failed_at         timestamp with time zone,
-  locked_by         varchar(200),
-  created_at        timestamp with time zone  NOT NULL,
-  updated_at        timestamp with time zone NOT NULL
-);`)
+	w, e := newWorker(map[string]interface{}{})
 	if nil != e {
 		t.Error(e)
 		return

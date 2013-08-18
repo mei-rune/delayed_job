@@ -10,6 +10,17 @@ import (
 )
 
 func backendTest(t *testing.T, cb func(backend *dbBackend)) {
+	old_mode := *run_mode
+	*run_mode = "init_db"
+	defer func() {
+		*run_mode = old_mode
+	}()
+	e := Main()
+	if nil != e {
+		t.Error(e)
+		return
+	}
+
 	backend, e := newBackend(*db_drv, *db_url, nil)
 	if nil != e {
 		t.Error(e)
@@ -17,28 +28,28 @@ func backendTest(t *testing.T, cb func(backend *dbBackend)) {
 	}
 	defer backend.Close()
 
-	_, e = backend.db.Exec(`
-DROP TABLE IF EXISTS ` + *table_name + `;
+	// 	_, e = backend.db.Exec(`
+	// DROP TABLE IF EXISTS ` + *table_name + `;
 
-CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
-  id                BIGSERIAL  PRIMARY KEY,
-  priority          int DEFAULT 0,
-  attempts          int DEFAULT 0,
-  queue             varchar(200),
-  handler           text  NOT NULL,
-  handler_id        varchar(200),
-  last_error        varchar(2000),
-  run_at            timestamp with time zone,
-  locked_at         timestamp with time zone,
-  failed_at         timestamp with time zone,
-  locked_by         varchar(200),
-  created_at        timestamp with time zone  NOT NULL,
-  updated_at        timestamp with time zone NOT NULL
-);`)
-	if nil != e {
-		t.Error(e)
-		return
-	}
+	// CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
+	//   id                SERIAL  PRIMARY KEY,
+	//   priority          int DEFAULT 0,
+	//   attempts          int DEFAULT 0,
+	//   queue             varchar(200),
+	//   handler           text  NOT NULL,
+	//   handler_id        varchar(200),
+	//   last_error        varchar(2000),
+	//   run_at            timestamp,
+	//   locked_at         timestamp,
+	//   failed_at         timestamp,
+	//   locked_by         varchar(200),
+	//   created_at        timestamp NOT NULL,
+	//   updated_at        timestamp NOT NULL
+	// );`)
+	// 	if nil != e {
+	// 		t.Error(e)
+	// 		return
+	// 	}
 	cb(backend)
 }
 
@@ -156,7 +167,7 @@ func TestGet(t *testing.T) {
 			t.Error("excepted locked_by is not empty, actual is invalid")
 		}
 
-		if math.Abs(float64(locked_at.Time.Unix()-time.Now().Unix())) > 10 {
+		if math.Abs(float64(locked_at.Time.Unix()-backend.db_time_now().Unix())) > 10 {
 			t.Error("excepted locked_at is now, actual is", locked_at.Time)
 		}
 		if w.name != locked_by.String {
@@ -211,7 +222,11 @@ func TestGetWithLocked(t *testing.T) {
 			return
 		}
 
-		_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = now(), locked_by = 'aa'")
+		if strings.Contains(*db_drv, "odbc") && *is_mssql {
+			_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = SYSUTCDATETIME(), locked_by = 'aa'")
+		} else {
+			_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = now(), locked_by = 'aa'")
+		}
 		if nil != e {
 			t.Error(e)
 			return
@@ -239,7 +254,11 @@ func TestGetWithFailed(t *testing.T) {
 			return
 		}
 
-		_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = now(), last_error = 'aa'")
+		if strings.Contains(*db_drv, "odbc") && *is_mssql {
+			_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = SYSUTCDATETIME(), last_error = 'aa'")
+		} else {
+			_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = now(), last_error = 'aa'")
+		}
 		if nil != e {
 			t.Error(e)
 			return
@@ -275,7 +294,12 @@ func TestLockedInGet(t *testing.T) {
 		go func() {
 			<-test_ch_for_lock
 
-			_, e := backend.db.Exec("UPDATE " + *table_name + " SET locked_at = now(), locked_by = 'aa'")
+			var e error
+			if strings.Contains(*db_drv, "odbc") && *is_mssql {
+				_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = SYSUTCDATETIME(), locked_by = 'aa'")
+			} else {
+				_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = now(), locked_by = 'aa'")
+			}
 			if nil != e {
 				t.Error(e)
 			}
@@ -311,7 +335,14 @@ func TestFailedInGet(t *testing.T) {
 
 		go func() {
 			<-test_ch_for_lock
-			_, e := backend.db.Exec("UPDATE " + *table_name + " SET failed_at = now(), last_error = 'aa'")
+
+			var e error
+			if strings.Contains(*db_drv, "odbc") && *is_mssql {
+				_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = SYSUTCDATETIME(), last_error = 'aa'")
+			} else {
+				_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = now(), last_error = 'aa'")
+			}
+
 			if nil != e {
 				t.Error(e)
 				return
@@ -413,7 +444,7 @@ func TestFailIt(t *testing.T) {
 			t.Error("excepted last_error is '1234', and actual is ", last_error.String)
 		}
 
-		if math.Abs(float64(failed_at.Time.Unix()-time.Now().Unix())) > 10 {
+		if math.Abs(float64(failed_at.Time.Unix()-backend.db_time_now().Unix())) > 10 {
 			t.Error("excepted failed_at is now, actual is", failed_at.Time)
 		}
 	})

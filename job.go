@@ -51,7 +51,7 @@ type Job struct {
 func createJobFromMap(backend *dbBackend, args map[string]interface{}) (*Job, error) {
 	priority := intWithDefault(args, "priority", *default_priority)
 	queue := stringWithDefault(args, "queue", *default_queue_name)
-	run_at := timeWithDefault(args, "run_at", time.Now())
+	run_at := timeWithDefault(args, "run_at", backend.db_time_now())
 	Handler_o, ok := args["handler"]
 	if !ok {
 		return nil, errors.New("'Handler' is missing.")

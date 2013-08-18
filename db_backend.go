@@ -2,19 +2,33 @@ package delayed_job
 
 import (
 	"bytes"
+	_ "code.google.com/p/odbc"
 	"database/sql"
 	"database/sql/driver"
 	"errors"
 	"flag"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	_ "github.com/ziutek/mymysql/godrv"
 	"strconv"
 	"time"
 )
 
+const (
+	AUTO       = 0
+	POSTGRESQL = 1
+	MYSQL      = 2
+	MSSQL      = 3
+	ORACLE     = 4
+	DB2        = 5
+)
+
 var (
-	db_url = flag.String("db_url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
-	db_drv = flag.String("db_name", "postgres", "the db driver")
+	db_url   = flag.String("db_url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
+	db_drv   = flag.String("db_drv", "postgres", "the db driver")
+	is_mssql = flag.Bool("is_mssql", true, "database is ms sqlserver while driver is odbc")
+	db_type  = flag.Int("db_type", AUTO, "the db type, 0 is auto")
 
 	table_name = flag.String("db_table", "delayed_jobs", "the table name for jobs")
 
@@ -23,6 +37,23 @@ var (
 
 	select_sql_string = "SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM " + *table_name + " "
 )
+
+func initDB() {
+	if AUTO == *db_type {
+		switch *db_drv {
+		case "postgres":
+			*db_type = POSTGRESQL
+		case "mysql", "mymysql":
+			*db_type = MYSQL
+		case "odbc":
+			if *is_mssql {
+				*db_type = MSSQL
+			}
+		case "oci8":
+			*db_type = ORACLE
+		}
+	}
+}
 
 func IsNumericParams(drv string) bool {
 	switch drv {
@@ -47,8 +78,9 @@ func (n *NullTime) Scan(value interface{}) error {
 		n.Time, n.Valid = time.Time{}, false
 		return nil
 	}
-
+	// fmt.Println("wwwwwwwwwwwww", value)
 	n.Time, n.Valid = value.(time.Time)
+	// fmt.Println("cccccccccccccc", n.Time)
 	return nil
 }
 
@@ -152,6 +184,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 	buffer.WriteString(" ORDER BY priority ASC, run_at ASC")
 
 	now := self.db_time_now()
+	// fmt.Println(buffer.String(), ",", now, now.Truncate(w.max_run_time), w.name)
 	rows, e := self.db.Query(buffer.String(), now, now.Truncate(w.max_run_time), w.name)
 	if nil != e {
 		if sql.ErrNoRows == e {
@@ -162,6 +195,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 	defer rows.Close()
 
 	for rows.Next() {
+		// fmt.Println("================next=================")
 		job := &Job{}
 		var queue sql.NullString
 		var handler_id sql.NullString
@@ -200,6 +234,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 			result, e = self.db.Exec("UPDATE "+*table_name+" SET locked_at = $1, locked_by = $2 WHERE id = $3 AND (locked_at IS NULL OR locked_at < $4 OR locked_by = $5) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
 		} else {
 			result, e = self.db.Exec("UPDATE "+*table_name+" SET locked_at = ?, locked_by = ? WHERE id = ? AND (locked_at IS NULL OR locked_at < ? OR locked_by = ?) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
+			// fmt.Println("UPDATE "+*table_name+" SET locked_at = ?, locked_by = ? WHERE id = ? AND (locked_at IS NULL OR locked_at < ? OR locked_by = ?) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
 		}
 		if nil != e {
 			return nil, e
@@ -297,7 +332,14 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 // Note: This does not ping the DB to get the time, so all your clients
 // must have syncronized clocks.
 func (self *dbBackend) db_time_now() time.Time {
-	return time.Now()
+	switch *db_type {
+	case MSSQL:
+		t := time.Now().UTC()
+		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), 0, t.Location())
+	case POSTGRESQL:
+		return time.Now()
+	}
+	return time.Now().UTC()
 }
 
 func (self *dbBackend) create(jobs ...*Job) error {
@@ -317,7 +359,7 @@ func (self *dbBackend) create(jobs ...*Job) error {
 
 	for _, job := range jobs {
 		if job.run_at.IsZero() {
-			job.run_at = now
+			job.run_at = now.Truncate(10 * time.Second)
 		}
 
 		// var queue sql.NullString
@@ -336,6 +378,8 @@ func (self *dbBackend) create(jobs ...*Job) error {
 		} else {
 			_, e = tx.Exec("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)",
 				job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
+			// fmt.Println("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)",
+			//	job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
 		}
 		if nil != e {
 			return e
@@ -402,8 +446,7 @@ func (self *dbBackend) update(id int64, attributes map[string]interface{}) error
 	}
 	params = append(params, id)
 
-	//fmt.Println(buffer.String())
-	//fmt.Println(params)
+	// fmt.Println(buffer.String(), "\r\n", params)
 	_, e := self.db.Exec(buffer.String(), params...)
 	if nil != e && sql.ErrNoRows != e {
 		return e
@@ -568,7 +611,7 @@ func (self *dbBackend) where(params map[string]interface{}) ([]map[string]interf
 		return nil, e
 	}
 
-	//fmt.Println(select_sql_string + query)
+	//// fmt.Println(select_sql_string + query)
 	rows, e := self.db.Query(select_sql_string+query, arguments...)
 	if nil != e {
 		if sql.ErrNoRows == e {

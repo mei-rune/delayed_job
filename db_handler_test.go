@@ -86,6 +86,7 @@ func TestDbHandlerAuthError(t *testing.T) {
 }
 
 func dbTest(t *testing.T, cb func(backend *sql.DB)) {
+	initDB()
 	db, e := sql.Open(*db_drv, *db_url)
 	if nil != e {
 		t.Error(e)
@@ -93,23 +94,39 @@ func dbTest(t *testing.T, cb func(backend *sql.DB)) {
 	}
 	defer db.Close()
 
-	_, e = db.Exec(`
-DROP TABLE IF EXISTS tpt_test_for_handler;
+	if *db_type == MSSQL {
+		_, e = db.Exec(`
+if object_id('dbo.tpt_test_for_handler', 'U') is not null BEGIN DROP TABLE tpt_test_for_handler; END
 
-CREATE TABLE IF NOT EXISTS tpt_test_for_handler (
-  id                BIGSERIAL  PRIMARY KEY,
+if object_id('dbo.tpt_test_for_handler', 'U') is null BEGIN CREATE TABLE tpt_test_for_handler (
+  id                INT IDENTITY(1,1)   PRIMARY KEY,
   priority          int DEFAULT 0,
   queue             varchar(200)
-);`)
-
-	if nil != e {
-		t.Error(e)
-		return
+); END`)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+	} else {
+		for _, s := range []string{`DROP TABLE IF EXISTS tpt_test_for_handler;`,
+			`CREATE TABLE IF NOT EXISTS tpt_test_for_handler (
+  id                SERIAL  PRIMARY KEY,
+  priority          int DEFAULT 0,
+  queue             varchar(200)
+);`} {
+			_, e = db.Exec(s)
+			if nil != e {
+				t.Error(e)
+				return
+			}
+		}
 	}
 	cb(db)
 }
 
 func TestDbHandlerScriptError(t *testing.T) {
+	initDB()
+
 	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "insert aa"})
 	if nil != e {
 		t.Error(e)
@@ -122,8 +139,19 @@ func TestDbHandlerScriptError(t *testing.T) {
 		return
 	}
 
-	if !strings.Contains(e.Error(), "scanner_yyerror") {
-		t.Error("excepted error contains [scanner_yyerror], but actual is", e)
+	switch *db_type {
+	case MSSQL:
+		if !strings.Contains(e.Error(), "SQLExecute: {42000} [Microsoft]") {
+			t.Error("excepted error contains [[Microsoft]], but actual is", e)
+		}
+	case MYSQL:
+		if !strings.Contains(e.Error(), "Error 1064:") {
+			t.Error("excepted error contains [Error 1064:], but actual is", e)
+		}
+	default:
+		if !strings.Contains(e.Error(), "scanner_yyerror") {
+			t.Error("excepted error contains [scanner_yyerror], but actual is", e)
+		}
 	}
 }
 
@@ -161,6 +189,11 @@ func TestDbHandlerSimple(t *testing.T) {
 
 func TestDbHandlerMuti(t *testing.T) {
 	dbTest(t, func(db *sql.DB) {
+		if "mysql" == *db_drv {
+			t.Skip("")
+			return
+		}
+
 		handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "insert into tpt_test_for_handler(priority, queue) values(12, 'sss'); insert into tpt_test_for_handler(priority, queue) values(112, 'aa')"})
 		if nil != e {
 			t.Error(e)
@@ -181,6 +214,10 @@ func TestDbHandlerMuti(t *testing.T) {
 
 func TestDbHandlerArguments(t *testing.T) {
 	dbTest(t, func(db *sql.DB) {
+		if "mysql" == *db_drv {
+			t.Skip("")
+			return
+		}
 		handler, e := newDbHandler(map[string]interface{}{},
 			map[string]interface{}{"arguments": map[string]interface{}{"priority1": 23, "queue1": "q1", "priority2": 24, "queue2": "q2"},
 				"script": `insert into tpt_test_for_handler(priority, queue) values({{.priority1}}, '{{.queue1}}'); 
