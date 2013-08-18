@@ -59,7 +59,7 @@ func TestRunError(t *testing.T) {
 		case <-time.After(2 * time.Second):
 			t.Error("not recv")
 		}
-		time.Sleep(5000 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 
 		row := backend.db.QueryRow("SELECT attempts, run_at, locked_at, locked_by, handler, last_error FROM " + *table_name)
 

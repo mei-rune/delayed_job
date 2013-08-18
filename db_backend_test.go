@@ -109,11 +109,11 @@ func TestEnqueue(t *testing.T) {
 			t.Error("excepted last_error is invalid, actual is ", last_error.String)
 		}
 
-		if locked_at.Valid {
+		if locked_at.Valid && !locked_at.Time.IsZero() {
 			t.Error("excepted locked_at is invalid actual is ", locked_at.Time)
 		}
 
-		if failed_at.Valid {
+		if failed_at.Valid && !failed_at.Time.IsZero() {
 			t.Error("excepted failed_at is invalid, actual is ", failed_at.Time)
 		}
 
@@ -494,7 +494,7 @@ func TestRescheduleIt(t *testing.T) {
 		if !run_at.Valid {
 			t.Error("excepted run_at is valid, actual is invalid")
 		}
-		if locked_at.Valid {
+		if locked_at.Valid && !locked_at.Time.IsZero() {
 			t.Error("excepted locked_at is invalid, actual is valid")
 		}
 		if locked_by.Valid {

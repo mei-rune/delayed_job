@@ -145,7 +145,8 @@ func TestDbHandlerScriptError(t *testing.T) {
 			t.Error("excepted error contains [[Microsoft]], but actual is", e)
 		}
 	case MYSQL:
-		if !strings.Contains(e.Error(), "Error 1064:") {
+		if !strings.Contains(e.Error(), "Error 1064:") &&
+			!strings.Contains(e.Error(), "#1064 error from MySQL server:") {
 			t.Error("excepted error contains [Error 1064:], but actual is", e)
 		}
 	default:
