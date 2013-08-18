@@ -59,7 +59,7 @@ func TestRunError(t *testing.T) {
 		case <-time.After(2 * time.Second):
 			t.Error("not recv")
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(1500 * time.Millisecond)
 
 		row := backend.db.QueryRow("SELECT attempts, run_at, locked_at, locked_by, handler, last_error FROM " + *table_name)
 
@@ -129,7 +129,7 @@ func TestRunFailedAndNotDestoryIt2(t *testing.T) {
 		case <-time.After(4 * time.Second):
 			t.Error("not recv")
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(1500 * time.Millisecond)
 
 		rows, e := backend.db.Query("SELECT last_error FROM " + *table_name)
 		if nil != e {
@@ -171,7 +171,7 @@ func TestRunFailedAndNotDestoryIt(t *testing.T) {
 		case <-time.After(4 * time.Second):
 			t.Error("not recv")
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(1500 * time.Millisecond)
 
 		rows, e := backend.db.Query("SELECT attempts, run_at, locked_at, locked_by, handler, last_error FROM " + *table_name)
 		if nil != e {
@@ -247,7 +247,7 @@ func TestRunFailedAndDestoryIt(t *testing.T) {
 		case <-time.After(2 * time.Second):
 			t.Error("not recv")
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(1500 * time.Millisecond)
 
 		var count int64
 		e = backend.db.QueryRow("SELECT count(*) FROM " + *table_name).Scan(&count)
