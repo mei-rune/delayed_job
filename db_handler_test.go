@@ -189,12 +189,9 @@ func TestDbHandlerSimple(t *testing.T) {
 
 func TestDbHandlerMuti(t *testing.T) {
 	dbTest(t, func(db *sql.DB) {
-		if "mysql" == *db_drv {
-			t.Skip("")
-			return
-		}
 
-		handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "insert into tpt_test_for_handler(priority, queue) values(12, 'sss'); insert into tpt_test_for_handler(priority, queue) values(112, 'aa')"})
+		handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": `insert into tpt_test_for_handler(priority, queue) values(12, 'sss');
+			insert into tpt_test_for_handler(priority, queue) values(112, 'aa')`})
 		if nil != e {
 			t.Error(e)
 			return
@@ -214,10 +211,6 @@ func TestDbHandlerMuti(t *testing.T) {
 
 func TestDbHandlerArguments(t *testing.T) {
 	dbTest(t, func(db *sql.DB) {
-		if "mysql" == *db_drv {
-			t.Skip("")
-			return
-		}
 		handler, e := newDbHandler(map[string]interface{}{},
 			map[string]interface{}{"arguments": map[string]interface{}{"priority1": 23, "queue1": "q1", "priority2": 24, "queue2": "q2"},
 				"script": `insert into tpt_test_for_handler(priority, queue) values({{.priority1}}, '{{.queue1}}'); 

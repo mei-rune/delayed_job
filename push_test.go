@@ -95,11 +95,11 @@ func TestPush(t *testing.T) {
 			t.Error("excepted last_error is invalid, actual is ", last_error.String)
 		}
 
-		if locked_at.Valid {
+		if locked_at.Valid && !locked_at.Time.IsZero() {
 			t.Error("excepted locked_at is invalid actual is ", locked_at.Time)
 		}
 
-		if failed_at.Valid {
+		if failed_at.Valid && !failed_at.Time.IsZero() {
 			t.Error("excepted failed_at is invalid, actual is ", failed_at.Time)
 		}
 

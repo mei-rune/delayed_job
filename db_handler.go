@@ -1,9 +1,12 @@
 package delayed_job
 
 import (
+	"bufio"
 	"bytes"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 	"text/template"
 )
 
@@ -66,6 +69,29 @@ func (self *dbHandler) Perform() error {
 		return e
 	}
 	defer db.Close()
+
+	if MYSQL == *db_type {
+		scaner := bufio.NewScanner(bytes.NewBufferString(self.script))
+		scaner.Split(bufio.ScanLines)
+		var line string
+		for scaner.Scan() {
+			line += strings.TrimSpace(scaner.Text())
+			if strings.HasSuffix(line, ";") {
+				fmt.Println("execute ", line)
+				_, e = db.Exec(line)
+				if nil != e {
+					return e
+				}
+
+				line = ""
+			}
+		}
+		if 0 != len(line) {
+			_, e = db.Exec(line)
+			return e
+		}
+		return nil
+	}
 
 	_, e = db.Exec(self.script)
 	return e
