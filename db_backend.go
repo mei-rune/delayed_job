@@ -2,7 +2,6 @@ package delayed_job
 
 import (
 	"bytes"
-	_ "code.google.com/p/odbc"
 	"database/sql"
 	"database/sql/driver"
 	"errors"
