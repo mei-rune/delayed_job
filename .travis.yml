@@ -5,7 +5,6 @@ install:
   - go get github.com/fd/go-shellwords/shellwords
   - go get github.com/garyburd/redigo/redis
   - go get github.com/lib/pq
-  - go get code.google.com/p/odbc
   - go get github.com/go-sql-driver/mysql
   - go get github.com/mattn/go-sqlite3
 services:
