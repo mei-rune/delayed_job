@@ -106,7 +106,7 @@ type dbBackend struct {
 
 func newBackend(drvName, url string, ctx map[string]interface{}) (*dbBackend, error) {
 	drv := drvName
-	if strings.HasSuffix(drvName, "odbc_with_") {
+	if strings.HasPrefix(drvName, "odbc_with_") {
 		drv = "odbc"
 	}
 

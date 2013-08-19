@@ -65,7 +65,7 @@ func newDbHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 func (self *dbHandler) Perform() error {
 	drv := self.drv
-	if strings.HasSuffix(self.drv, "odbc_with_") {
+	if strings.HasPrefix(self.drv, "odbc_with_") {
 		drv = "odbc"
 	}
 

@@ -43,6 +43,7 @@ func Main() error {
 		flag.Usage()
 		return nil
 	}
+	fmt.Println(*db_drv, *db_url)
 
 	initDB()
 
