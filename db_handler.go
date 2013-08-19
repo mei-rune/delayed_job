@@ -64,7 +64,12 @@ func newDbHandler(ctx, params map[string]interface{}) (Handler, error) {
 }
 
 func (self *dbHandler) Perform() error {
-	db, e := sql.Open(self.drv, self.url)
+	drv := self.drv
+	if strings.HasSuffix(self.drv, "odbc_with_") {
+		drv = "odbc"
+	}
+
+	db, e := sql.Open(drv, self.url)
 	if nil != e {
 		return e
 	}

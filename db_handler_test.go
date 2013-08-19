@@ -87,7 +87,11 @@ func TestDbHandlerAuthError(t *testing.T) {
 
 func dbTest(t *testing.T, cb func(backend *sql.DB)) {
 	initDB()
-	db, e := sql.Open(*db_drv, *db_url)
+	drv := *db_drv
+	if strings.HasSuffix(*db_drv, "odbc_with_") {
+		drv = "odbc"
+	}
+	db, e := sql.Open(drv, *db_url)
 	if nil != e {
 		t.Error(e)
 		return

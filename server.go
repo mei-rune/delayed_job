@@ -126,6 +126,7 @@ END`
 				  created_at        timestamp with time zone NOT NULL,
 				  updated_at        timestamp with time zone NOT NULL
 				);`
+			fmt.Println(script)
 			_, e = backend.db.Exec(script)
 			if nil != e {
 				return e

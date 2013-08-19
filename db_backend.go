@@ -11,6 +11,7 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/ziutek/mymysql/godrv"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -24,39 +25,42 @@ const (
 )
 
 var (
-	db_url   = flag.String("db_url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
-	db_drv   = flag.String("db_drv", "postgres", "the db driver")
-	is_mssql = flag.Bool("is_mssql", true, "database is ms sqlserver while driver is odbc")
-	db_type  = flag.Int("db_type", AUTO, "the db type, 0 is auto")
+	db_url  = flag.String("db_url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
+	db_drv  = flag.String("db_drv", "postgres", "the db driver")
+	db_type = flag.Int("db_type", AUTO, "the db type, 0 is auto")
 
 	table_name = flag.String("db_table", "delayed_jobs", "the table name for jobs")
 
 	is_test_for_lock = false
 	test_ch_for_lock = make(chan int)
 
-	select_sql_string = "SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM " + *table_name + " "
+	select_sql_string = ""
 )
 
 func initDB() {
-	if AUTO == *db_type {
-		switch *db_drv {
-		case "postgres":
-			*db_type = POSTGRESQL
-		case "mysql", "mymysql":
-			*db_type = MYSQL
-		case "odbc":
-			if *is_mssql {
-				*db_type = MSSQL
-			}
-		case "oci8":
-			*db_type = ORACLE
-		}
+	switch *db_drv {
+	case "postgres":
+		*db_type = POSTGRESQL
+	case "mysql", "mymysql":
+		*db_type = MYSQL
+	case "odbc_with_mssql":
+		*db_type = MSSQL
+	case "oci8":
+		*db_type = ORACLE
 	}
+
+	select_sql_string = "SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM " + *table_name + " "
+}
+
+func SetDbUrl(drv, url string) {
+	*db_drv = drv
+	*db_url = url
+	initDB()
 }
 
 func IsNumericParams(drv string) bool {
 	switch drv {
-	case "postgres":
+	case "postgres", "oracle":
 		return true
 	default:
 		return false
@@ -100,7 +104,12 @@ type dbBackend struct {
 	isNumericParams bool
 }
 
-func newBackend(drv, url string, ctx map[string]interface{}) (*dbBackend, error) {
+func newBackend(drvName, url string, ctx map[string]interface{}) (*dbBackend, error) {
+	drv := drvName
+	if strings.HasSuffix(drvName, "odbc_with_") {
+		drv = "odbc"
+	}
+
 	db, e := sql.Open(drv, url)
 	if nil != e {
 		return nil, e

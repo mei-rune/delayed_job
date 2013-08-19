@@ -222,7 +222,7 @@ func TestGetWithLocked(t *testing.T) {
 			return
 		}
 
-		if strings.Contains(*db_drv, "odbc") && *is_mssql {
+		if strings.Contains(*db_drv, "odbc_with_mssql") {
 			_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = SYSUTCDATETIME(), locked_by = 'aa'")
 		} else {
 			_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = now(), locked_by = 'aa'")
@@ -254,7 +254,7 @@ func TestGetWithFailed(t *testing.T) {
 			return
 		}
 
-		if strings.Contains(*db_drv, "odbc") && *is_mssql {
+		if strings.Contains(*db_drv, "odbc_with_mssql") {
 			_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = SYSUTCDATETIME(), last_error = 'aa'")
 		} else {
 			_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = now(), last_error = 'aa'")
@@ -295,7 +295,7 @@ func TestLockedInGet(t *testing.T) {
 			<-test_ch_for_lock
 
 			var e error
-			if strings.Contains(*db_drv, "odbc") && *is_mssql {
+			if strings.Contains(*db_drv, "odbc_with_mssql") {
 				_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = SYSUTCDATETIME(), locked_by = 'aa'")
 			} else {
 				_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = now(), locked_by = 'aa'")
@@ -337,7 +337,7 @@ func TestFailedInGet(t *testing.T) {
 			<-test_ch_for_lock
 
 			var e error
-			if strings.Contains(*db_drv, "odbc") && *is_mssql {
+			if strings.Contains(*db_drv, "odbc_with_mssql") {
 				_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = SYSUTCDATETIME(), last_error = 'aa'")
 			} else {
 				_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = now(), last_error = 'aa'")
