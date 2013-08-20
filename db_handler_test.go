@@ -99,14 +99,16 @@ func dbTest(t *testing.T, cb func(backend *sql.DB)) {
 	defer db.Close()
 
 	if *db_type == MSSQL {
-		_, e = db.Exec(`
+		script := `
 if object_id('dbo.tpt_test_for_handler', 'U') is not null BEGIN DROP TABLE tpt_test_for_handler; END
 
 if object_id('dbo.tpt_test_for_handler', 'U') is null BEGIN CREATE TABLE tpt_test_for_handler (
   id                INT IDENTITY(1,1)   PRIMARY KEY,
   priority          int DEFAULT 0,
   queue             varchar(200)
-); END`)
+); END`
+		t.Log("execute sql:", script)
+		_, e = db.Exec(script)
 		if nil != e {
 			t.Error(e)
 			return
@@ -118,6 +120,8 @@ if object_id('dbo.tpt_test_for_handler', 'U') is null BEGIN CREATE TABLE tpt_tes
   priority          int DEFAULT 0,
   queue             varchar(200)
 );`} {
+
+			t.Log("execute sql:", s)
 			_, e = db.Exec(s)
 			if nil != e {
 				t.Error(e)

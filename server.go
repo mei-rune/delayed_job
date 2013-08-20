@@ -2,6 +2,7 @@ package delayed_job
 
 import (
 	"encoding/json"
+	"errors"
 	_ "expvar"
 	"flag"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -19,8 +21,7 @@ import (
 var (
 	listenAddress = flag.String("listen", ":9086", "the address of http")
 	run_mode      = flag.String("mode", "all", "init_db, console, backend, all")
-
-	config_file = flag.String("config", "delayed_job.conf", "the config file name")
+	config_file   = flag.String("config", "delayed_job.conf", "the config file name")
 
 	cd_dir, _ = os.Getwd()
 
@@ -37,41 +38,51 @@ var (
 		regexp.MustCompile(`^/?delayed_jobs/delayed_jobs/[0-9]+/?$`)}
 )
 
+func searchFile() (string, bool) {
+	files := []string{*config_file,
+		filepath.Join("conf", "delayed_job.conf"),
+		filepath.Join("etc", "delayed_job.conf"),
+		filepath.Join("..", "conf", "delayed_job.conf"),
+		filepath.Join("..", "etc", "delayed_job.conf")}
+
+	for _, file := range files {
+		if st, e := os.Stat(file); nil == e && nil != st && !st.IsDir() {
+			return file, true
+		}
+	}
+
+	files = []string{filepath.Join("conf"),
+		filepath.Join("etc"),
+		filepath.Join("..", "conf"),
+		filepath.Join("..", "etc")}
+	for _, file := range files {
+		if st, e := os.Stat(file); nil == e && nil != st && st.IsDir() {
+			return filepath.Join(file, "delayed_job.conf"), false
+		}
+	}
+	return filepath.Join("delayed_job.conf"), false
+}
+
 func Main() error {
 	flag.Parse()
 	if nil != flag.Args() && 0 != len(flag.Args()) {
 		flag.Usage()
 		return nil
 	}
-	fmt.Println(*db_drv, *db_url)
 
+	default_actuals = loadActualFlags(nil)
 	initDB()
 
-	// files := []string{*config_file,
-	// 	filepath.Join("conf", *config_file),
-	// 	filepath.Join("etc", *config_file),
-	// 	filepath.Join("..", "conf", *config_file),
-	// 	filepath.Join("..", "etc", *config_file),
-	// 	filepath.Join("delayed_job.conf"),
-	// 	filepath.Join("conf", "delayed_job.conf"),
-	// 	filepath.Join("etc", "delayed_job.conf"),
-	// 	filepath.Join("..", "conf", "delayed_job.conf"),
-	// 	filepath.Join("..", "etc", "delayed_job.conf")}
+	file, found := searchFile()
+	flag.Set("config", file)
 
-	// found := false
-	// for _, file := range files {
-	// 	if st, e := os.Stat(file); nil == e && nil != st && !st.IsDir() {
-	// 		*config_file = file
-	// 		found = true
-	// 		break
-	// 	}
-	// }
-
-	// fmt.Println("[warn] load file '" + *config_file + "'.")
-	// e := LoadConfig(*config_file, flag.Bool(name, value, usage), false)
-	// if nil != e {
-	// 	return errors.New("load file '" + *config_file + "' failed, " + e.Error())
-	// }
+	if found {
+		fmt.Println("[warn] load file '" + file + "'.")
+		e := loadConfig(file, nil, false)
+		if nil != e {
+			return errors.New("load file '" + file + "' failed, " + e.Error())
+		}
+	}
 
 	switch *run_mode {
 	case "init_db":
@@ -405,6 +416,50 @@ OK:
 	return
 }
 
+func settingsFileHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) {
+	decoder := json.NewDecoder(r.Body)
+	decoder.UseNumber()
+	var entities map[string]interface{}
+	e := decoder.Decode(&entities)
+	if nil != e {
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, e.Error())
+		return
+	}
+
+	e = assignFlagSet("", entities, nil, default_actuals, false)
+	if nil != e {
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, e.Error())
+		return
+	}
+
+	f, e := os.OpenFile(*config_file, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0)
+	if nil != e {
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, e.Error())
+		return
+	}
+	defer f.Close()
+
+	b, e := json.MarshalIndent(entities, "", "  ")
+	if e != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, e.Error())
+		return
+	}
+	_, e = f.Write(b)
+	if e != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, e.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, "OK")
+	return
+}
+
 //http://127.0.0.1:9086/delayed_jobs/1/retry
 
 type webFront struct {
@@ -474,6 +529,10 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "/delayed_jobs/pushAll", "/delayed_jobs/pushAll/":
 			pushAllHandler(w, r, backend)
 			return
+
+		case "/delayed_jobs/settings_file", "/delayed_jobs/settings_file/":
+			settingsFileHandler(w, r, backend)
+			return
 		}
 
 	case "POST":
@@ -484,6 +543,10 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		case "/delayed_jobs/pushAll", "/delayed_jobs/pushAll/":
 			pushAllHandler(w, r, backend)
+			return
+
+		case "/delayed_jobs/settings_file", "/delayed_jobs/settings_file/":
+			settingsFileHandler(w, r, backend)
 			return
 		}
 
