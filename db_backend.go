@@ -45,7 +45,7 @@ func initDB() {
 		*db_type = MYSQL
 	case "odbc_with_mssql":
 		*db_type = MSSQL
-	case "oci8":
+	case "oci8", "odbc_with_oracle":
 		*db_type = ORACLE
 	}
 

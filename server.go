@@ -38,6 +38,14 @@ var (
 		regexp.MustCompile(`^/?delayed_jobs/delayed_jobs/[0-9]+/?$`)}
 )
 
+func abs(pa string) string {
+	s, e := filepath.Abs(pa)
+	if nil != e {
+		panic(e.Error())
+	}
+	return s
+}
+
 func searchFile() (string, bool) {
 	files := []string{*config_file,
 		filepath.Join("conf", "delayed_job.conf"),
@@ -47,7 +55,7 @@ func searchFile() (string, bool) {
 
 	for _, file := range files {
 		if st, e := os.Stat(file); nil == e && nil != st && !st.IsDir() {
-			return file, true
+			return abs(file), true
 		}
 	}
 
@@ -57,10 +65,10 @@ func searchFile() (string, bool) {
 		filepath.Join("..", "etc")}
 	for _, file := range files {
 		if st, e := os.Stat(file); nil == e && nil != st && st.IsDir() {
-			return filepath.Join(file, "delayed_job.conf"), false
+			return abs(filepath.Join(file, "delayed_job.conf")), false
 		}
 	}
-	return filepath.Join("delayed_job.conf"), false
+	return abs(filepath.Join("delayed_job.conf")), false
 }
 
 func Main() error {
@@ -75,6 +83,7 @@ func Main() error {
 
 	file, found := searchFile()
 	flag.Set("config", file)
+	fmt.Println("[info] config file is '" + file + "'")
 
 	if found {
 		fmt.Println("[warn] load file '" + file + "'.")
@@ -200,7 +209,12 @@ func fileExists(nm string) bool {
 }
 
 func fileHandler(w http.ResponseWriter, r *http.Request, path, default_content string) {
-	name := cd_dir + path
+	var name string
+	if filepath.IsAbs(path) {
+		name = path
+	} else {
+		name = cd_dir + path
+	}
 	if fileExists(name) {
 		http.ServeFile(w, r, name)
 		return
@@ -416,6 +430,10 @@ OK:
 	return
 }
 
+func readSettingsFileHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) {
+	fileHandler(w, r, *config_file, "{}")
+}
+
 func settingsFileHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) {
 	decoder := json.NewDecoder(r.Body)
 	decoder.UseNumber()
@@ -517,6 +535,10 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		case "/counts", "/delayed_jobs/counts", "/delayed_jobs/delayed_jobs/counts":
 			countsHandler(w, r, backend)
+			return
+
+		case "/delayed_jobs/settings_file", "/delayed_jobs/settings_file/":
+			readSettingsFileHandler(w, r, backend)
 			return
 		}
 
