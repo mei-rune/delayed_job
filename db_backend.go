@@ -48,13 +48,21 @@ func initDB() {
 	case "oci8", "odbc_with_oracle":
 		*db_type = ORACLE
 	}
+	createSQL()
+}
 
+func createSQL() {
 	select_sql_string = "SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM " + *table_name + " "
 }
 
+func SetTable(table_name string) {
+	flag.Set("db_table", table_name)
+	createSQL()
+}
+
 func SetDbUrl(drv, url string) {
-	*db_drv = drv
-	*db_url = url
+	flag.Set("db_url", url)
+	flag.Set("db_drv", drv)
 	initDB()
 }
 
