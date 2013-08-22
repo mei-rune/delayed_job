@@ -7,6 +7,34 @@ import (
 	"testing"
 )
 
+func TestTransformUrl(t *testing.T) {
+	for idx, test := range []struct{ drv, input, output string }{{drv: "postgres",
+		input:  "gdbc:host=127.0.0.1;port=33;dbname=cc;user=aa;password=abc",
+		output: "host=127.0.0.1 port=33 dbname=cc user=aa password=abc sslmode=disable"},
+		{drv: "mysql",
+			input:  "gdbc:host=127.0.0.1;port=33;dbname=cc;user=aa;password=abc",
+			output: "aa:abc@tcp(127.0.0.1:33)/cc?autocommit=true&parseTime=true"},
+		{drv: "mysql",
+			input:  "gdbc:host=127.0.0.1;port=33;dbname=cc;user=aa;password=abc;a1=e1",
+			output: "aa:abc@tcp(127.0.0.1:33)/cc?autocommit=true&parseTime=true&a1=e1"},
+		{drv: "mymysql",
+			input:  "gdbc:host=127.0.0.1;port=33;dbname=cc;user=aa;password=abc",
+			output: "tcp:127.0.0.1:33*cc/aa/abc"},
+		{drv: "odbc_with_mssql",
+			input:  "gdbc:dsn=tt;user=aa;password=abc",
+			output: "DSN=tt;UID=aa;PWD=abc"},
+		{drv: "odbc_with_or",
+			input:  "gdbc:dsn=tt;dbname=cc;user=aa;password=abc",
+			output: "DSN=tt;UID=aa;PWD=abc;dbname=cc"}} {
+		out, e := transformUrl(test.drv, test.input)
+		if nil != e {
+			t.Errorf("test[%v] is failed, %v", idx, e)
+		} else if out != test.output {
+			t.Error("transform failed, excepted is `", test.output, "`, actual is `", out, "`")
+		}
+	}
+}
+
 func TestDbHandlerParameterIsError(t *testing.T) {
 	_, e := newDbHandler(nil, map[string]interface{}{})
 	if nil == e {
