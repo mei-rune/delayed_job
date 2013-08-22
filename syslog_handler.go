@@ -166,9 +166,13 @@ func newSyslogHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 	to_addr := make([]*net.UDPAddr, 0, len(to))
 	for _, t := range to {
+	reparse:
 		addr, e := net.ResolveUDPAddr("udp", t)
 		if nil == e && nil != addr {
 			to_addr = append(to_addr, addr)
+		} else if ip := net.ParseIP(t); nil != ip {
+			t += ":514"
+			goto reparse
 		}
 	}
 	if 0 == len(to_addr) {

@@ -31,6 +31,14 @@ func TestSyslogHandlerParameterError(t *testing.T) {
 		t.Error("excepted error is ''content' is required', but actual is", e)
 	}
 
+	_, e = newSyslogHandler(map[string]interface{}{},
+		map[string]interface{}{"to_address": "127.0.0.1"})
+	if nil == e {
+		t.Error("excepted error is not nil, but actual is nil")
+	} else if "'content' is required." != e.Error() {
+		t.Error("excepted error is ''content' is required', but actual is", e)
+	}
+
 	_, e = newSyslogHandler(map[string]interface{}{"redis": 0},
 		map[string]interface{}{"to_address": "e"})
 	if nil == e {
