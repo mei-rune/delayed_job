@@ -91,6 +91,17 @@ func (n *NullTime) Scan(value interface{}) error {
 	}
 	// fmt.Println("wwwwwwwwwwwww", value)
 	n.Time, n.Valid = value.(time.Time)
+	if !n.Valid {
+		if s, ok := value.(string); ok {
+			var e error
+			for _, layout := range []string{time.StampNano, time.StampMicro, time.StampMilli, time.Stamp} {
+				if n.Time, e = time.ParseInLocation(layout, s, time.UTC); nil == e {
+					n.Valid = true
+					break
+				}
+			}
+		}
+	}
 	// fmt.Println("cccccccccccccc", n.Time)
 	return nil
 }
@@ -220,6 +231,8 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 		var locked_at NullTime
 		var failed_at NullTime
 		var locked_by sql.NullString
+		var created_at NullTime
+		var updated_at NullTime
 
 		e = rows.Scan(
 			&job.id,
@@ -233,8 +246,8 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 			&locked_at,
 			&failed_at,
 			&locked_by,
-			&job.created_at,
-			&job.updated_at)
+			&created_at,
+			&updated_at)
 		if nil != e {
 			return nil, errors.New("scan job failed from the database, " + e.Error())
 		}
@@ -288,6 +301,14 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 
 			if locked_by.Valid {
 				job.locked_by = locked_by.String
+			}
+
+			if created_at.Valid {
+				job.created_at = created_at.Time
+			}
+
+			if updated_at.Valid {
+				job.updated_at = updated_at.Time
 			}
 
 			job.backend = self
