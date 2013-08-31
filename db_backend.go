@@ -206,7 +206,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 		if sql.ErrNoRows == e {
 			return nil, nil
 		}
-		return nil, e
+		return nil, errors.New("execute query sql failed while fetch job from the database, " + e.Error())
 	}
 	defer rows.Close()
 
@@ -236,7 +236,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 			&job.created_at,
 			&job.updated_at)
 		if nil != e {
-			return nil, e
+			return nil, errors.New("scan job failed from the database, " + e.Error())
 		}
 
 		if is_test_for_lock {
@@ -253,12 +253,12 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 			// fmt.Println("UPDATE "+*table_name+" SET locked_at = ?, locked_by = ? WHERE id = ? AND (locked_at IS NULL OR locked_at < ? OR locked_by = ?) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
 		}
 		if nil != e {
-			return nil, e
+			return nil, errors.New("lock job failed from the database, " + e.Error())
 		}
 
 		c, e = result.RowsAffected()
 		if nil != e {
-			return nil, e
+			return nil, errors.New("lock job failed from the database, " + e.Error())
 		}
 
 		if c > 0 {
@@ -297,7 +297,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 
 	e = rows.Err()
 	if nil != e {
-		return nil, e
+		return nil, errors.New("next job failed from the database, " + e.Error())
 	}
 
 	return nil, nil
