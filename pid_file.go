@@ -23,8 +23,8 @@ func createPidFile(pidFile string) error {
 	if pidString, err := ioutil.ReadFile(pidFile); err == nil {
 		pid, err := strconv.Atoi(string(pidString))
 		if err == nil {
-			if _, err := os.Stat(fmt.Sprintf("/proc/%d/", pid)); err == nil {
-				return fmt.Errorf("pid file found, ensure docker-registry is not running or delete %s", pidFile)
+			if _, err = os.FindProcess(pid); nil == err {
+				return fmt.Errorf("pid file found, ensure "+pidFile+" is not running or delete %s", pidFile)
 			}
 		}
 	}
