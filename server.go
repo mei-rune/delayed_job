@@ -182,18 +182,38 @@ END`
 		if nil != e {
 			return e
 		}
+
+		if err := createPidFile(*pidFile); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		defer removePidFile(*pidFile)
 		httpServe(backend)
 	case "backend":
 		w, e := newWorker(map[string]interface{}{})
 		if nil != e {
 			return e
 		}
+
+		if err := createPidFile(*pidFile); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		defer removePidFile(*pidFile)
+
 		w.RunForever()
 	case "all":
 		w, e := newWorker(map[string]interface{}{})
 		if nil != e {
 			return e
 		}
+
+		if err := createPidFile(*pidFile); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		defer removePidFile(*pidFile)
+
 		go httpServe(w.backend)
 		w.RunForever()
 	}
