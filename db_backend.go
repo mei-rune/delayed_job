@@ -2,13 +2,16 @@ package delayed_job
 
 import (
 	"bytes"
+	"code.google.com/p/mahonia"
 	"database/sql"
 	"database/sql/driver"
+
 	"errors"
 	"flag"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	_ "github.com/runner-mei/go-oci8"
 	_ "github.com/ziutek/mymysql/godrv"
 	"strconv"
 	"strings"
@@ -35,19 +38,26 @@ var (
 	test_ch_for_lock = make(chan int)
 
 	select_sql_string = ""
+
+	decoder = mahonia.NewDecoder("gb18030")
 )
 
-func initDB() {
-	switch *db_drv {
+func DbType(drv string) int {
+	switch drv {
 	case "postgres":
-		*db_type = POSTGRESQL
+		return POSTGRESQL
 	case "mysql", "mymysql":
-		*db_type = MYSQL
+		return MYSQL
 	case "odbc_with_mssql":
-		*db_type = MSSQL
+		return MSSQL
 	case "oci8", "odbc_with_oracle":
-		*db_type = ORACLE
+		return ORACLE
+	default:
+		return AUTO
 	}
+}
+func initDB() {
+	*db_type = DbType(*db_drv)
 	createSQL()
 }
 
@@ -66,9 +76,23 @@ func SetDbUrl(drv, url string) {
 	initDB()
 }
 
+func i18n(dbType int, drv string, e error) error {
+	if ORACLE == dbType && "oci8" == drv {
+		return errors.New(decoder.ConvertString(e.Error()))
+	}
+	return e
+}
+
+func i18nString(dbType int, drv string, e error) string {
+	if ORACLE == dbType && "oci8" == drv {
+		return decoder.ConvertString(e.Error())
+	}
+	return e.Error()
+}
+
 func IsNumericParams(drv string) bool {
 	switch drv {
-	case "postgres", "oracle":
+	case "postgres", "oracle", "odbc_with_oracle", "oci8":
 		return true
 	default:
 		return false
@@ -94,13 +118,14 @@ func (n *NullTime) Scan(value interface{}) error {
 	if !n.Valid {
 		if s, ok := value.(string); ok {
 			var e error
-			for _, layout := range []string{time.StampNano, time.StampMicro, time.StampMilli, time.Stamp} {
+			for _, layout := range []string{"2006-01-02 15:04:05.000000000", "2006-01-02 15:04:05.000000", "2006-01-02 15:04:05.000", "2006-01-02 15:04:05", "2006-01-02"} {
 				if n.Time, e = time.ParseInLocation(layout, s, time.UTC); nil == e {
 					n.Valid = true
 					break
 				}
 			}
 		}
+		fmt.Println("--------------------", value)
 	}
 	// fmt.Println("cccccccccccccc", n.Time)
 	return nil
@@ -119,6 +144,7 @@ func (n NullTime) Value() (driver.Value, error) {
 type dbBackend struct {
 	ctx             map[string]interface{}
 	drv             string
+	dbType          int
 	db              *sql.DB
 	isNumericParams bool
 }
@@ -133,7 +159,7 @@ func newBackend(drvName, url string, ctx map[string]interface{}) (*dbBackend, er
 	if nil != e {
 		return nil, e
 	}
-	return &dbBackend{ctx: ctx, drv: drv, db: db, isNumericParams: IsNumericParams(drv)}, nil
+	return &dbBackend{ctx: ctx, drv: drv, db: db, dbType: *db_type, isNumericParams: IsNumericParams(drvName)}, nil
 }
 
 func (self *dbBackend) Close() error {
@@ -162,7 +188,7 @@ func (self *dbBackend) clearLocks(worker_name string) error {
 	} else {
 		_, e = self.db.Exec("UPDATE "+*table_name+" SET locked_by = NULL, locked_at = NULL WHERE locked_by = ?", worker_name)
 	}
-	return e
+	return i18n(self.dbType, self.drv, e)
 }
 
 func (self *dbBackend) reserve(w *worker) (*Job, error) {
@@ -217,7 +243,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 		if sql.ErrNoRows == e {
 			return nil, nil
 		}
-		return nil, errors.New("execute query sql failed while fetch job from the database, " + e.Error())
+		return nil, errors.New("execute query sql failed while fetch job from the database, " + i18nString(self.dbType, self.drv, e))
 	}
 	defer rows.Close()
 
@@ -249,7 +275,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 			&created_at,
 			&updated_at)
 		if nil != e {
-			return nil, errors.New("scan job failed from the database, " + e.Error())
+			return nil, errors.New("scan job failed from the database, " + i18nString(self.dbType, self.drv, e))
 		}
 
 		if is_test_for_lock {
@@ -266,12 +292,12 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 			// fmt.Println("UPDATE "+*table_name+" SET locked_at = ?, locked_by = ? WHERE id = ? AND (locked_at IS NULL OR locked_at < ? OR locked_by = ?) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
 		}
 		if nil != e {
-			return nil, errors.New("lock job failed from the database, " + e.Error())
+			return nil, errors.New("lock job failed from the database, " + i18nString(self.dbType, self.drv, e))
 		}
 
 		c, e = result.RowsAffected()
 		if nil != e {
-			return nil, errors.New("lock job failed from the database, " + e.Error())
+			return nil, errors.New("lock job failed from the database, " + i18nString(self.dbType, self.drv, e))
 		}
 
 		if c > 0 {
@@ -318,7 +344,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 
 	e = rows.Err()
 	if nil != e {
-		return nil, errors.New("next job failed from the database, " + e.Error())
+		return nil, errors.New("next job failed from the database, " + i18nString(self.dbType, self.drv, e))
 	}
 
 	return nil, nil
@@ -379,18 +405,20 @@ func (self *dbBackend) db_time_now() time.Time {
 	return time.Now().UTC()
 }
 
-func (self *dbBackend) create(jobs ...*Job) error {
-	var e error
+func (self *dbBackend) create(jobs ...*Job) (e error) {
 	now := self.db_time_now()
 
 	tx, e := self.db.Begin()
 	if nil != e {
-		return e
+		return errors.New("open transaction failed, " + i18nString(self.dbType, self.drv, e))
 	}
 	isCommited := false
 	defer func() {
 		if !isCommited {
-			tx.Rollback()
+			err := tx.Rollback()
+			if nil == e {
+				e = errors.New("rollback transaction failed, " + i18nString(self.dbType, self.drv, err))
+			}
 		}
 	}()
 
@@ -409,22 +437,39 @@ func (self *dbBackend) create(jobs ...*Job) error {
 
 		//1         2         3      4        5           NULL        6       NULL       NULL       NULL       7           8
 		//priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at
-		if self.isNumericParams {
+		switch self.dbType {
+		case ORACLE:
+			// _, e = tx.Exec("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (:1, :2, :3, :4, :5, NULL, :6, NULL, NULL, NULL, :7, :8)",
+			// 	job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
+			// fmt.Println("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (:1, :2, :3, :4, :5, NULL, :6, NULL, NULL, NULL, :7, :8)",
+			// 	job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
+			now_str := now.Format("2006-01-02 15:04:05")
+			_, e = tx.Exec(fmt.Sprintf("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, run_at, created_at, updated_at) VALUES (%d, %d, '%s', :1, '%s', TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'), TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'), TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'))",
+				job.priority, job.attempts, job.queue, job.handler_id, job.run_at.Format("2006-01-02 15:04:05"), now_str, now_str), job.handler)
+			//fmt.Println(fmt.Sprintf("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, run_at, created_at, updated_at) VALUES (%d, %d, '%s', :1, '%s', TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'), TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'), TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'))",
+			//	job.priority, job.attempts, job.queue, job.handler_id, job.run_at.Format("2006-01-02 15:04:05"), now_str, now_str), job.handler)
+		case POSTGRESQL:
 			_, e = tx.Exec("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NULL, $6, NULL, NULL, NULL, $7, $8)",
 				job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
-		} else {
+			//fmt.Println("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NULL, $6, NULL, NULL, NULL, $7, $8)",
+			//	job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
+		default:
 			_, e = tx.Exec("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)",
 				job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
-			// fmt.Println("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)",
+			//fmt.Println("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)",
 			//	job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
 		}
 		if nil != e {
-			return e
+			return i18n(self.dbType, self.drv, e)
 		}
 	}
 
 	isCommited = true
-	return tx.Commit()
+	e = tx.Commit()
+	if nil != e {
+		return errors.New("commit transaction failed, " + i18nString(self.dbType, self.drv, e))
+	}
+	return nil
 }
 
 func (self *dbBackend) update(id int64, attributes map[string]interface{}) error {
@@ -451,10 +496,14 @@ func (self *dbBackend) update(id int64, attributes map[string]interface{}) error
 		if nil == v {
 			buffer.WriteString(" = NULL")
 		} else {
-			if self.isNumericParams {
+			switch self.dbType {
+			case ORACLE:
+				buffer.WriteString(" = :")
+				buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
+			case POSTGRESQL:
 				buffer.WriteString(" = $")
 				buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
-			} else {
+			default:
 				buffer.WriteString(" = ?")
 			}
 
@@ -467,26 +516,33 @@ func (self *dbBackend) update(id int64, attributes map[string]interface{}) error
 	} else {
 		buffer.WriteString(", ")
 	}
-	if self.isNumericParams {
+
+	switch self.dbType {
+	case ORACLE:
+		buffer.WriteString("updated_at = :")
+		buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
+		params = append(params, self.db_time_now())
+		buffer.WriteString(" WHERE id = :")
+		buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
+		params = append(params, id)
+	case POSTGRESQL:
 		buffer.WriteString("updated_at = $")
 		buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
-	} else {
-		buffer.WriteString("updated_at = ?")
-	}
-	params = append(params, self.db_time_now())
-
-	if self.isNumericParams {
+		params = append(params, self.db_time_now())
 		buffer.WriteString(" WHERE id = $")
 		buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
-	} else {
+		params = append(params, id)
+	default:
+		buffer.WriteString("updated_at = ?")
+		params = append(params, self.db_time_now())
 		buffer.WriteString(" WHERE id = ?")
+		params = append(params, id)
 	}
-	params = append(params, id)
 
-	// fmt.Println(buffer.String(), "\r\n", params)
+	//fmt.Println(buffer.String(), "\r\n", params)
 	_, e := self.db.Exec(buffer.String(), params...)
 	if nil != e && sql.ErrNoRows != e {
-		return e
+		return i18n(self.dbType, self.drv, e)
 	}
 	return nil
 }
@@ -500,12 +556,12 @@ func (self *dbBackend) destroy(id int64) error {
 	}
 
 	if nil != e && sql.ErrNoRows != e {
-		return e
+		return i18n(self.dbType, self.drv, e)
 	}
 	return nil
 }
 
-func buildSQL(isNumericParams bool, params map[string]interface{}) (string, []interface{}, error) {
+func buildSQL(dbType int, params map[string]interface{}) (string, []interface{}, error) {
 	if nil == params || 0 == len(params) {
 		return "", []interface{}{}, nil
 	}
@@ -535,12 +591,18 @@ func buildSQL(isNumericParams bool, params map[string]interface{}) (string, []in
 			continue
 		}
 
-		if isNumericParams {
-			buffer.WriteString(" = $ ")
+		switch dbType {
+		case ORACLE:
+			buffer.WriteString(" = :")
 			buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
-		} else {
+		case POSTGRESQL:
+			buffer.WriteString(" = $")
+			buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
+		default:
 			buffer.WriteString(" = ? ")
 		}
+
+		arguments = append(arguments, v)
 	}
 
 	if groupBy, ok := params["group_by"]; ok {
@@ -626,7 +688,7 @@ func buildSQL(isNumericParams bool, params map[string]interface{}) (string, []in
 }
 
 func (self *dbBackend) count(params map[string]interface{}) (int64, error) {
-	query, arguments, e := buildSQL(self.isNumericParams, params)
+	query, arguments, e := buildSQL(self.dbType, params)
 	if nil != e {
 		return 0, e
 	}
@@ -637,15 +699,15 @@ func (self *dbBackend) count(params map[string]interface{}) (int64, error) {
 		if sql.ErrNoRows == e {
 			return 0, nil
 		}
-		return 0, e
+		return 0, i18n(self.dbType, self.drv, e)
 	}
 	return count, nil
 }
 
 func (self *dbBackend) where(params map[string]interface{}) ([]map[string]interface{}, error) {
-	query, arguments, e := buildSQL(self.isNumericParams, params)
+	query, arguments, e := buildSQL(self.dbType, params)
 	if nil != e {
-		return nil, e
+		return nil, i18n(self.dbType, self.drv, e)
 	}
 
 	//// fmt.Println(select_sql_string + query)
@@ -654,7 +716,7 @@ func (self *dbBackend) where(params map[string]interface{}) ([]map[string]interf
 		if sql.ErrNoRows == e {
 			return nil, nil
 		}
-		return nil, e
+		return nil, i18n(self.dbType, self.drv, e)
 	}
 	defer rows.Close()
 
@@ -690,7 +752,7 @@ func (self *dbBackend) where(params map[string]interface{}) ([]map[string]interf
 			&created_at,
 			&updated_at)
 		if nil != e {
-			return nil, e
+			return nil, i18n(self.dbType, self.drv, e)
 		}
 
 		result := map[string]interface{}{"id": id,
@@ -745,7 +807,7 @@ func (self *dbBackend) where(params map[string]interface{}) ([]map[string]interf
 
 	e = rows.Err()
 	if nil != e {
-		return nil, e
+		return nil, i18n(self.dbType, self.drv, e)
 	}
 	return results, nil
 }

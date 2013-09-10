@@ -77,6 +77,7 @@ func newJob(backend *dbBackend, priority int, queue string, run_at time.Time, ar
 	if nil != e {
 		return nil, deserializationError(e)
 	}
+
 	j := &Job{backend: backend,
 		priority:           priority,
 		queue:              queue,

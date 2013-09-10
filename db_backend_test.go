@@ -70,6 +70,9 @@ func TestEnqueue(t *testing.T) {
 		var failed_at NullTime
 		var locked_by sql.NullString
 
+		var created_at NullTime
+		var updated_at NullTime
+
 		e = row.Scan(
 			&job.id,
 			&job.priority,
@@ -82,8 +85,8 @@ func TestEnqueue(t *testing.T) {
 			&locked_at,
 			&failed_at,
 			&locked_by,
-			&job.created_at,
-			&job.updated_at)
+			&created_at,
+			&updated_at)
 		if nil != e {
 			t.Error(e)
 			return
@@ -105,20 +108,28 @@ func TestEnqueue(t *testing.T) {
 			t.Error("excepted handler_id is not empty, actual is ", job.handler_id)
 		}
 
-		if last_error.Valid {
-			t.Error("excepted last_error is invalid, actual is ", last_error.String)
+		if last_error.Valid && 0 != len(last_error.String) {
+			t.Error("excepted last_error is valid, actual is ", last_error.String)
 		}
 
-		if locked_at.Valid && !locked_at.Time.IsZero() {
+		if locked_at.Valid && !locked_at.Time.IsZero() && locked_at.Time.Format("2006-01-02") != "0001-01-01" {
 			t.Error("excepted locked_at is invalid actual is ", locked_at.Time)
 		}
 
-		if failed_at.Valid && !failed_at.Time.IsZero() {
+		if failed_at.Valid && !failed_at.Time.IsZero() && failed_at.Time.Format("2006-01-02") != "0001-01-01" {
 			t.Error("excepted failed_at is invalid, actual is ", failed_at.Time)
 		}
 
-		if locked_by.Valid {
+		if locked_by.Valid && 0 != len(locked_by.String) {
 			t.Error("excepted locked_by is invalid, actual is ", locked_by.String)
+		}
+
+		if !created_at.Valid || created_at.Time.IsZero() || created_at.Time.Format("2006-01-02") == "0001-01-01" {
+			t.Error("excepted created_at is invalid actual is ", created_at.Time)
+		}
+
+		if !updated_at.Valid || updated_at.Time.IsZero() || updated_at.Time.Format("2006-01-02") == "0001-01-01" {
+			t.Error("excepted updated_at is valid, actual is ", updated_at.Time)
 		}
 
 		select {
@@ -419,7 +430,11 @@ func TestFailIt(t *testing.T) {
 			return
 		}
 
-		job.failIt("1234")
+		e = job.failIt("1234")
+		if nil != e {
+			t.Error(e)
+			return
+		}
 
 		row := backend.db.QueryRow("SELECT failed_at, last_error FROM " + *table_name + " where id = " + strconv.FormatInt(job.id, 10))
 
@@ -434,19 +449,16 @@ func TestFailIt(t *testing.T) {
 
 		if !failed_at.Valid {
 			t.Error("excepted failed_at is not empty, actual is invalid")
+		} else if math.Abs(float64(failed_at.Time.Unix()-backend.db_time_now().Unix())) > 10 {
+			t.Error("excepted failed_at is now, actual is", failed_at.Time)
 		}
 
 		if !last_error.Valid {
 			t.Error("excepted last_error is not empty, actual is invalid")
-		}
-
-		if "1234" != last_error.String {
+		} else if "1234" != last_error.String {
 			t.Error("excepted last_error is '1234', and actual is ", last_error.String)
 		}
 
-		if math.Abs(float64(failed_at.Time.Unix()-backend.db_time_now().Unix())) > 10 {
-			t.Error("excepted failed_at is now, actual is", failed_at.Time)
-		}
 	})
 }
 

@@ -122,6 +122,33 @@ func transformUrl(drv, url string) (string, error) {
 		fmt.Fprintf(&buffer, "tcp:%s:%s%s*%s/%s/%s", host, port, buffer.String(), dbname, user, password)
 
 		return buffer.String(), nil
+
+	case "oci8":
+		tns_name, ok := options["tns"]
+		if !ok || 0 == len(tns_name) {
+			return "", errors.New("'tns' is required in the url.")
+		}
+		delete(options, "tns")
+		uid, ok := options["user"]
+		if !ok || 0 == len(uid) {
+			return "", errors.New("'user' is required in the url.")
+		}
+		delete(options, "user")
+		password, ok := options["password"]
+		if !ok || 0 == len(password) {
+			return "", errors.New("'password' is required in the url.")
+		}
+		delete(options, "password")
+		var buffer bytes.Buffer
+		//system/123456@TPT
+		fmt.Fprintf(&buffer, "%s/%s@%s", uid, password, tns_name)
+		for k, v := range options {
+			buffer.WriteString(";")
+			buffer.WriteString(k)
+			buffer.WriteString("=")
+			buffer.WriteString(v)
+		}
+		return buffer.String(), nil
 	default:
 		if strings.HasPrefix(drv, "odbc_with_") {
 			dsn_name, ok := options["dsn"]
@@ -204,6 +231,7 @@ func newDbHandler(ctx, params map[string]interface{}) (Handler, error) {
 }
 
 func (self *dbHandler) Perform() error {
+	dbType := DbType(self.drv)
 	drv := self.drv
 	if strings.HasPrefix(self.drv, "odbc_with_") {
 		drv = "odbc"
@@ -215,7 +243,7 @@ func (self *dbHandler) Perform() error {
 	}
 	defer db.Close()
 
-	if MYSQL == *db_type {
+	if MYSQL == dbType {
 		scaner := bufio.NewScanner(bytes.NewBufferString(self.script))
 		scaner.Split(bufio.ScanLines)
 		var line string

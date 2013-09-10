@@ -152,6 +152,41 @@ END`
 			if nil != e {
 				return e
 			}
+		case ORACLE:
+			for _, script := range []string{`BEGIN     EXECUTE IMMEDIATE 'DROP SEQUENCE ` + *table_name + `_sequence_id';     EXCEPTION WHEN OTHERS THEN NULL; END;`,
+				`CREATE SEQUENCE ` + *table_name + `_sequence_id START WITH 1 INCREMENT BY 1 CACHE 100`,
+				`BEGIN EXECUTE IMMEDIATE 'DROP TABLE ` + *table_name + `';     EXCEPTION WHEN OTHERS THEN NULL; END;`,
+				`CREATE TABLE ` + *table_name + ` (
+					  id                NUMBER(10) PRIMARY KEY,
+					  priority          NUMBER(10) DEFAULT 0,
+					  attempts          NUMBER(10) DEFAULT 0,
+					  queue             varchar2(200 BYTE),
+					  handler           clob,--  NOT NULL,
+					  handler_id        varchar2(200 BYTE),
+					  last_error        VARCHAR2(200 BYTE),
+					  run_at            DATE,
+					  locked_at         DATE,
+					  failed_at         DATE,
+					  locked_by         varchar2(200 BYTE),
+					  created_at        DATE, -- NOT NULL,
+					  updated_at        DATE -- timestamp with time zone
+					)`,
+				`BEGIN     EXECUTE IMMEDIATE 'DROP TRIGGER ` + *table_name + `_trigger';     EXCEPTION WHEN OTHERS THEN NULL; END;`,
+				`CREATE OR REPLACE TRIGGER ` + *table_name + `_trigger
+					  BEFORE INSERT ON ` + *table_name + `
+					  FOR EACH ROW
+					BEGIN
+					  SELECT ` + *table_name + `_sequence_id.nextval
+					    INTO :new.id
+					    FROM dual;
+					END;`} {
+				fmt.Println(script)
+				_, e = backend.db.Exec(script)
+				if nil != e {
+					return errors.New(decoder.ConvertString(e.Error()))
+				}
+			}
+
 		default:
 			for _, script := range []string{`DROP TABLE IF EXISTS ` + *table_name + `;`,
 				`CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
@@ -169,6 +204,7 @@ END`
 					  created_at        DATETIME NOT NULL,
 					  updated_at        timestamp NOT NULL
 					);`} {
+				fmt.Println(script)
 				_, e = backend.db.Exec(script)
 				if nil != e {
 					return e

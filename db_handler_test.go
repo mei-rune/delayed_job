@@ -2,9 +2,15 @@ package delayed_job
 
 import (
 	"database/sql"
+	"flag"
 	"runtime"
 	"strings"
 	"testing"
+)
+
+var (
+	test_db_url = flag.String("test_db_url", "", "the db url for test")
+	test_db_drv = flag.String("test_db_drv", "", "the db driver for test")
 )
 
 func TestTransformUrl(t *testing.T) {
@@ -23,9 +29,12 @@ func TestTransformUrl(t *testing.T) {
 		{drv: "odbc_with_mssql",
 			input:  "gdbc:dsn=tt;user=aa;password=abc",
 			output: "DSN=tt;UID=aa;PWD=abc"},
-		{drv: "odbc_with_or",
+		{drv: "odbc_with_oracle",
 			input:  "gdbc:dsn=tt;dbname=cc;user=aa;password=abc",
-			output: "DSN=tt;UID=aa;PWD=abc;dbname=cc"}} {
+			output: "DSN=tt;UID=aa;PWD=abc;dbname=cc"},
+		{drv: "oci8",
+			input:  "gdbc:tns=tt;user=aa;password=abc",
+			output: "aa/abc@tt"}} {
 		out, e := transformUrl(test.drv, test.input)
 		if nil != e {
 			t.Errorf("test[%v] is failed, %v", idx, e)
@@ -59,23 +68,26 @@ func TestDbHandlerParameterIsError(t *testing.T) {
 }
 
 func TestDbHandlerConnectError(t *testing.T) {
-	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "a", "drv": "postgres", "url": "host=127.0.0.1 port=2345 dbname=tpt_data user=tpt password=extreme sslmode=disable"})
-	if nil != e {
-		t.Error(e)
-		return
-	}
-	e = handler.Perform()
-	if nil == e {
-		t.Error("excepted error is not nil, but actual is nil")
-		return
-	}
+	for _, test := range []struct{ drv, url string }{{drv: "postgres", url: "host=127.0.0.1 port=2345 dbname=tpt_data user=tpt password=extreme sslmode=disable"}} {
+		handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "a", "drv": test.drv, "url": test.url})
+		if nil != e {
+			t.Error(e)
+			return
+		}
+		e = handler.Perform()
+		if nil == e {
+			t.Error("excepted error is not nil, but actual is nil")
+			return
+		}
 
-	if !strings.Contains(e.Error(), "dial tcp") {
-		t.Error("excepted error contains [dial tcp], but actual is", e)
+		if !strings.Contains(e.Error(), "dial tcp") {
+			t.Error("excepted error contains [dial tcp], but actual is", e)
+		}
 	}
 }
 
 func TestDbHandlerConnectOkAndDbError(t *testing.T) {
+
 	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "a", "drv": "postgres", "url": "host=127.0.0.1 dbname=sssghssssetdata user=tpt password=extreme sslmode=disable"})
 	if nil != e {
 		t.Error(e)
@@ -114,19 +126,28 @@ func TestDbHandlerAuthError(t *testing.T) {
 }
 
 func dbTest(t *testing.T, cb func(backend *sql.DB)) {
-	initDB()
-	drv := *db_drv
-	if strings.HasPrefix(*db_drv, "odbc_with_") {
+	if 0 == len(*test_db_url) {
+		*test_db_url = *db_url
+	}
+
+	if 0 == len(*test_db_drv) {
+		*test_db_drv = *db_drv
+	}
+
+	drv := *test_db_drv
+	if strings.HasPrefix(*test_db_drv, "odbc_with_") {
 		drv = "odbc"
 	}
-	db, e := sql.Open(drv, *db_url)
+	db, e := sql.Open(drv, *test_db_url)
 	if nil != e {
 		t.Error(e)
 		return
 	}
 	defer db.Close()
 
-	if *db_type == MSSQL {
+	dbType := DbType(*test_db_drv)
+
+	if dbType == MSSQL {
 		script := `
 if object_id('dbo.tpt_test_for_handler', 'U') is not null BEGIN DROP TABLE tpt_test_for_handler; END
 
@@ -163,7 +184,7 @@ if object_id('dbo.tpt_test_for_handler', 'U') is null BEGIN CREATE TABLE tpt_tes
 func TestDbHandlerScriptError(t *testing.T) {
 	initDB()
 
-	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "insert aa"})
+	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"drv": *test_db_drv, "url": *test_db_url, "script": "insert aa"})
 	if nil != e {
 		t.Error(e)
 		return
@@ -175,7 +196,7 @@ func TestDbHandlerScriptError(t *testing.T) {
 		return
 	}
 
-	switch *db_type {
+	switch DbType(*test_db_drv) {
 	case MSSQL:
 		if !strings.Contains(e.Error(), "SQLExecute: {42000} [Microsoft]") {
 			t.Error("excepted error contains [[Microsoft]], but actual is", e)
@@ -207,7 +228,8 @@ func assertCount(t *testing.T, db *sql.DB, sql string, excepted int64) {
 
 func TestDbHandlerSimple(t *testing.T) {
 	dbTest(t, func(db *sql.DB) {
-		handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "insert into tpt_test_for_handler(priority, queue) values(12, 'sss')"})
+		handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"drv": *test_db_drv, "url": *test_db_url,
+			"script": "insert into tpt_test_for_handler(priority, queue) values(12, 'sss')"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -227,7 +249,8 @@ func TestDbHandlerSimple(t *testing.T) {
 func TestDbHandlerMuti(t *testing.T) {
 	dbTest(t, func(db *sql.DB) {
 
-		handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": `insert into tpt_test_for_handler(priority, queue) values(12, 'sss');
+		handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"drv": *test_db_drv, "url": *test_db_url,
+			"script": `insert into tpt_test_for_handler(priority, queue) values(12, 'sss');
 			insert into tpt_test_for_handler(priority, queue) values(112, 'aa')`})
 		if nil != e {
 			t.Error(e)
@@ -250,6 +273,7 @@ func TestDbHandlerArguments(t *testing.T) {
 	dbTest(t, func(db *sql.DB) {
 		handler, e := newDbHandler(map[string]interface{}{},
 			map[string]interface{}{"arguments": map[string]interface{}{"priority1": 23, "queue1": "q1", "priority2": 24, "queue2": "q2"},
+				"drv": *test_db_drv, "url": *test_db_url,
 				"script": `insert into tpt_test_for_handler(priority, queue) values({{.priority1}}, '{{.queue1}}'); 
 			             insert into tpt_test_for_handler(priority, queue) values({{.priority2}}, '{{.queue2}}');`})
 		if nil != e {
