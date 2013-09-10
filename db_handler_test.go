@@ -68,7 +68,10 @@ func TestDbHandlerParameterIsError(t *testing.T) {
 }
 
 func TestDbHandlerConnectError(t *testing.T) {
-	for _, test := range []struct{ drv, url string }{{drv: "postgres", url: "host=127.0.0.1 port=2345 dbname=tpt_data user=tpt password=extreme sslmode=disable"}} {
+	for _, test := range []struct{ drv, url string }{{drv: "postgres", url: "host=127.0.0.1 port=45 dbname=tpt_data user=tpt password=extreme sslmode=disable"},
+		//{drv: "oci8", url: "gdbc:tns=tt;user=aa;password=abc"},
+		{drv: "mymysql", url: "gdbc:host=127.0.0.1;port=33;dbname=cc;user=aa;password=abc"},
+		{drv: "mysql", url: "gdbc:host=127.0.0.1;port=33;dbname=cc;user=aa;password=abc;a1=e1"}} {
 		handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "a", "drv": test.drv, "url": test.url})
 		if nil != e {
 			t.Error(e)
@@ -80,8 +83,29 @@ func TestDbHandlerConnectError(t *testing.T) {
 			return
 		}
 
-		if !strings.Contains(e.Error(), "dial tcp") {
-			t.Error("excepted error contains [dial tcp], but actual is", e)
+		switch DbType(test.drv) {
+		case POSTGRESQL:
+			if !strings.Contains(e.Error(), "dial tcp") {
+				t.Error("test[", test.drv, "] excepted error contains [dial tcp], but actual is", e)
+			}
+		case MYSQL:
+			if "mymysql" == test.drv {
+				if !strings.Contains(e.Error(), "bad connection") {
+					t.Error("test[", test.drv, "] excepted error contains [bad connection], but actual is", e)
+				}
+			} else {
+				if !strings.Contains(e.Error(), "dial tcp") {
+					t.Error("test[", test.drv, "] excepted error contains [dial tcp], but actual is", e)
+				}
+			}
+		case ORACLE:
+			if !strings.Contains(e.Error(), "ORA-12154") {
+				t.Error("test[", test.drv, "] excepted error contains [ORA-12154], but actual is", e)
+			}
+		default:
+			if !strings.Contains(e.Error(), "dial tcp") {
+				t.Error("test[", test.drv, "] excepted error contains [dial tcp], but actual is", e)
+			}
 		}
 	}
 }
@@ -134,20 +158,20 @@ func dbTest(t *testing.T, cb func(backend *sql.DB)) {
 		*test_db_drv = *db_drv
 	}
 
+	dbType := DbType(*test_db_drv)
 	drv := *test_db_drv
 	if strings.HasPrefix(*test_db_drv, "odbc_with_") {
 		drv = "odbc"
 	}
 	db, e := sql.Open(drv, *test_db_url)
 	if nil != e {
-		t.Error(e)
+		t.Error(i18nString(dbType, drv, e))
 		return
 	}
 	defer db.Close()
 
-	dbType := DbType(*test_db_drv)
-
-	if dbType == MSSQL {
+	switch dbType {
+	case MSSQL:
 		script := `
 if object_id('dbo.tpt_test_for_handler', 'U') is not null BEGIN DROP TABLE tpt_test_for_handler; END
 
@@ -162,13 +186,28 @@ if object_id('dbo.tpt_test_for_handler', 'U') is null BEGIN CREATE TABLE tpt_tes
 			t.Error(e)
 			return
 		}
-	} else {
+	case ORACLE:
+		for _, s := range []string{`BEGIN     EXECUTE IMMEDIATE 'DROP TABLE tpt_test_for_handler';     EXCEPTION WHEN OTHERS THEN NULL; END;`,
+			`CREATE TABLE tpt_test_for_handler(priority int, queue varchar(200))`} {
+			t.Log("execute sql:", s)
+			_, e = db.Exec(s)
+			if nil != e {
+				msg := i18nString(dbType, drv, e)
+				if strings.Contains(msg, "ORA-00911") {
+					t.Skip("skip it becase init db failed with error is ORA-00911")
+					return
+				}
+				t.Error(msg)
+				return
+			}
+		}
+	default:
 		for _, s := range []string{`DROP TABLE IF EXISTS tpt_test_for_handler;`,
 			`CREATE TABLE IF NOT EXISTS tpt_test_for_handler (
   id                SERIAL  PRIMARY KEY,
   priority          int DEFAULT 0,
   queue             varchar(200)
-);`} {
+)`} {
 
 			t.Log("execute sql:", s)
 			_, e = db.Exec(s)
@@ -205,6 +244,10 @@ func TestDbHandlerScriptError(t *testing.T) {
 		if !strings.Contains(e.Error(), "Error 1064:") &&
 			!strings.Contains(e.Error(), "#1064 error from MySQL server:") {
 			t.Error("excepted error contains [Error 1064:], but actual is", e)
+		}
+	case ORACLE:
+		if !strings.Contains(e.Error(), "ORA-00925:") {
+			t.Error("excepted error contains [ORA-00925:], but actual is", e)
 		}
 	default:
 		if !strings.Contains(e.Error(), "scanner_yyerror") {

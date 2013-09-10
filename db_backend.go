@@ -11,7 +11,7 @@ import (
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
-	_ "github.com/runner-mei/go-oci8"
+	//_ "github.com/runner-mei/go-oci8"
 	_ "github.com/ziutek/mymysql/godrv"
 	"strconv"
 	"strings"

@@ -230,7 +230,7 @@ func newDbHandler(ctx, params map[string]interface{}) (Handler, error) {
 	return &dbHandler{drv: drv, url: url, script: script}, nil
 }
 
-func (self *dbHandler) Perform() error {
+func (self *dbHandler) Perform() (err error) {
 	dbType := DbType(self.drv)
 	drv := self.drv
 	if strings.HasPrefix(self.drv, "odbc_with_") {
@@ -239,18 +239,34 @@ func (self *dbHandler) Perform() error {
 
 	db, e := sql.Open(drv, self.url)
 	if nil != e {
-		return e
+		return i18n(dbType, self.drv, e)
 	}
 	defer db.Close()
 
-	if MYSQL == dbType {
+	if MYSQL == dbType || ORACLE == dbType {
+		tx, e := db.Begin()
+		if nil != e {
+			return errors.New("open transaction failed, " + i18nString(dbType, self.drv, e))
+		}
+		isCommited := false
+		defer func() {
+			if !isCommited {
+				e := tx.Rollback()
+				if nil == err {
+					err = errors.New("rollback transaction failed, " + i18nString(dbType, self.drv, e))
+				}
+			}
+		}()
+
 		scaner := bufio.NewScanner(bytes.NewBufferString(self.script))
 		scaner.Split(bufio.ScanLines)
 		var line string
 		for scaner.Scan() {
 			line += strings.TrimSpace(scaner.Text())
 			if strings.HasSuffix(line, ";") {
-				fmt.Println("execute ", line)
+				if ORACLE == dbType {
+					line = strings.TrimSuffix(line, ";")
+				}
 				_, e = db.Exec(line)
 				if nil != e {
 					return e
@@ -261,13 +277,25 @@ func (self *dbHandler) Perform() error {
 		}
 		if 0 != len(line) {
 			_, e = db.Exec(line)
-			return e
+			if nil != e {
+				return i18n(dbType, self.drv, e)
+			}
 		}
+
+		isCommited = true
+		e = tx.Commit()
+		if nil != e {
+			return errors.New("commit transaction failed, " + i18nString(dbType, self.drv, e))
+		}
+
 		return nil
 	}
 
 	_, e = db.Exec(self.script)
-	return e
+	if nil != e {
+		return i18n(dbType, drv, e)
+	}
+	return nil
 }
 
 func init() {
