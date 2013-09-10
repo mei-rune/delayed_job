@@ -420,7 +420,7 @@ failed:
 	return
 }
 
-func testHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) {
+func testJobHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) {
 	decoder := json.NewDecoder(r.Body)
 	decoder.UseNumber()
 	var ent map[string]interface{}
@@ -627,7 +627,7 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "PUT":
 		switch r.URL.Path {
 		case "/delayed_jobs/test", "/delayed_jobs/test/":
-			testHandler(w, r, backend)
+			testJobHandler(w, r, backend)
 			return
 
 		case "/delayed_jobs/push", "/delayed_jobs/push/":
@@ -646,7 +646,7 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		switch r.URL.Path {
 		case "/delayed_jobs/test", "/delayed_jobs/test/":
-			testHandler(w, r, backend)
+			testJobHandler(w, r, backend)
 			return
 
 		case "/delayed_jobs/push", "/delayed_jobs/push/":
