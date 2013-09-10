@@ -420,6 +420,34 @@ failed:
 	return
 }
 
+func testHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) {
+	decoder := json.NewDecoder(r.Body)
+	decoder.UseNumber()
+	var ent map[string]interface{}
+	e := decoder.Decode(&ent)
+	if nil != e {
+		w.WriteHeader(http.StatusBadRequest)
+		io.WriteString(w, e.Error())
+		return
+	}
+
+	job, e := createJobFromMap(backend, ent)
+	if nil != e {
+		w.WriteHeader(http.StatusInternalServerError)
+		io.WriteString(w, e.Error())
+		return
+	}
+	e = job.invokeJob()
+	if nil != e {
+		w.WriteHeader(http.StatusInternalServerError)
+		io.WriteString(w, e.Error())
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	io.WriteString(w, "OK")
+	return
+}
+
 func pushHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) {
 	decoder := json.NewDecoder(r.Body)
 	decoder.UseNumber()
@@ -534,8 +562,6 @@ func settingsFileHandler(w http.ResponseWriter, r *http.Request, backend *dbBack
 	return
 }
 
-//http://127.0.0.1:9086/delayed_jobs/1/retry
-
 type webFront struct {
 	*dbBackend
 }
@@ -600,6 +626,10 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	case "PUT":
 		switch r.URL.Path {
+		case "/delayed_jobs/test", "/delayed_jobs/test/":
+			testHandler(w, r, backend)
+			return
+
 		case "/delayed_jobs/push", "/delayed_jobs/push/":
 			pushHandler(w, r, backend)
 			return
@@ -615,6 +645,10 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	case "POST":
 		switch r.URL.Path {
+		case "/delayed_jobs/test", "/delayed_jobs/test/":
+			testHandler(w, r, backend)
+			return
+
 		case "/delayed_jobs/push", "/delayed_jobs/push/":
 			pushHandler(w, r, backend)
 			return
