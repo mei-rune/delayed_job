@@ -221,7 +221,13 @@ if object_id('dbo.tpt_test_for_handler', 'U') is null BEGIN CREATE TABLE tpt_tes
 }
 
 func TestDbHandlerScriptError(t *testing.T) {
-	initDB()
+	if 0 == len(*test_db_url) {
+		*test_db_url = *db_url
+	}
+
+	if 0 == len(*test_db_drv) {
+		*test_db_drv = *db_drv
+	}
 
 	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"drv": *test_db_drv, "url": *test_db_url, "script": "insert aa"})
 	if nil != e {
