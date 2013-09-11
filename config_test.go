@@ -35,7 +35,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Error("db != true")
 	}
 	if "67" != *dc {
-		t.Error("dc != \"67\", actual is %s", *dc)
+		t.Errorf("dc != \"67\", actual is %s", *dc)
 	}
 }
 
@@ -66,7 +66,7 @@ func TestLoadConfigWithNotDefined(t *testing.T) {
 	}
 
 	if "67" != *dc {
-		t.Error("dc != \"67\", actual is %s", *dc)
+		t.Errorf("dc != \"67\", actual is %s", *dc)
 	}
 }
 
@@ -103,7 +103,7 @@ func TestLoadConfigWithNotOverride(t *testing.T) {
 	}
 
 	if "set2" != *dc {
-		t.Error("dc != \"set2\", actual is %s", *dc)
+		t.Errorf("dc != \"set2\", actual is %s", *dc)
 	}
 }
 
@@ -141,6 +141,6 @@ func TestLoadConfigWithOverride(t *testing.T) {
 	}
 
 	if "67" != *dc {
-		t.Error("dc != \"67\", actual is %s", *dc)
+		t.Errorf("dc != \"67\", actual is %s", *dc)
 	}
 }
