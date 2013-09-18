@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -219,6 +220,14 @@ END`
 			return e
 		}
 
+		if !isPidInitialize() {
+			nm := filepath.Base(os.Args[0])
+			if "windows" == runtime.GOOS {
+				flag.Set("pid_file", nm+".pid")
+			} else {
+				flag.Set("pid_file", "/var/run/"+nm+".pid")
+			}
+		}
 		if err := createPidFile(*pidFile); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -231,6 +240,14 @@ END`
 			return e
 		}
 
+		if !isPidInitialize() {
+			nm := filepath.Base(os.Args[0])
+			if "windows" == runtime.GOOS {
+				flag.Set("pid_file", nm+".pid")
+			} else {
+				flag.Set("pid_file", "/var/run/"+nm+".pid")
+			}
+		}
 		if err := createPidFile(*pidFile); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -244,6 +261,14 @@ END`
 			return e
 		}
 
+		if !isPidInitialize() {
+			nm := filepath.Base(os.Args[0])
+			if "windows" == runtime.GOOS {
+				flag.Set("pid_file", nm+".pid")
+			} else {
+				flag.Set("pid_file", "/var/run/"+nm+".pid")
+			}
+		}
 		if err := createPidFile(*pidFile); err != nil {
 			fmt.Println(err)
 			os.Exit(1)

@@ -13,10 +13,20 @@ var pidFile *string
 
 func init() {
 	if "windows" == runtime.GOOS {
-		pidFile = flag.String("p", "delayed_job.pid", "File containing process PID")
+		pidFile = flag.String("pid_file", "delayed_job.pid", "File containing process PID")
 	} else {
-		pidFile = flag.String("p", "/var/run/delayed_job.pid", "File containing process PID")
+		pidFile = flag.String("pid_file", "/var/run/delayed_job.pid", "File containing process PID")
 	}
+}
+
+func isPidInitialize() bool {
+	ret := false
+	flag.Visit(func(f *flag.Flag) {
+		if "pid_file" == f.Name {
+			ret = true
+		}
+	})
+	return ret
 }
 
 func createPidFile(pidFile string) error {
