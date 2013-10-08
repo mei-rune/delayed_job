@@ -28,10 +28,9 @@ const (
 )
 
 var (
-	db_url  = flag.String("db_url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
-	db_drv  = flag.String("db_drv", "postgres", "the db driver")
-	db_type = flag.Int("db_type", AUTO, "the db type, 0 is auto")
-
+	db_url     = flag.String("db_url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
+	db_drv     = flag.String("db_drv", "postgres", "the db driver")
+	db_type    = flag.Int("db_type", AUTO, "the db type, 0 is auto")
 	table_name = flag.String("db_table", "delayed_jobs", "the table name for jobs")
 
 	is_test_for_lock = false
@@ -57,7 +56,7 @@ func DbType(drv string) int {
 	}
 }
 func initDB() {
-	*db_type = DbType(*db_drv)
+	flag.Set("db_type", fmt.Sprint(DbType(*db_drv)))
 	createSQL()
 }
 
