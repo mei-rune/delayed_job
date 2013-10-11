@@ -34,7 +34,7 @@ func createPidFile(pidFile string) error {
 		pid, err := strconv.Atoi(string(pidString))
 		if err == nil {
 			if _, err = os.FindProcess(pid); nil == err {
-				if pidExists(pid) {
+				if processExistsByPid(pid) {
 					return fmt.Errorf("pid file found, ensure "+pidFile+" is not running or delete %s", pidFile)
 				}
 			}
