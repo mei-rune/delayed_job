@@ -124,8 +124,8 @@ func TestDbHandlerConnectOkAndDbError(t *testing.T) {
 		return
 	}
 
-	if !strings.Contains(e.Error(), "sssghssssetdata") {
-		t.Error("excepted error contains [sssghssssetdata], but actual is", e)
+	if !strings.Contains(e.Error(), "bad connection") {
+		t.Error("excepted error contains [bad connection], but actual is", e)
 	}
 }
 
@@ -254,6 +254,11 @@ func TestDbHandlerScriptError(t *testing.T) {
 	case ORACLE:
 		if !strings.Contains(e.Error(), "ORA-00925:") {
 			t.Error("excepted error contains [ORA-00925:], but actual is", e)
+		}
+	case POSTGRESQL:
+		if !strings.Contains(e.Error(), "scanner_yyerror") ||
+			!strings.Contains(e.Error(), "syntax error at or near \"aa\"") {
+			t.Error("excepted error contains [scanner_yyerror], but actual is", e)
 		}
 	default:
 		if !strings.Contains(e.Error(), "scanner_yyerror") {
