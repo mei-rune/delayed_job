@@ -256,7 +256,7 @@ func TestDbHandlerScriptError(t *testing.T) {
 			t.Error("excepted error contains [ORA-00925:], but actual is", e)
 		}
 	case POSTGRESQL:
-		if !strings.Contains(e.Error(), "scanner_yyerror") ||
+		if !strings.Contains(e.Error(), "scanner_yyerror") &&
 			!strings.Contains(e.Error(), "syntax error at or near \"aa\"") {
 			t.Error("excepted error contains [scanner_yyerror], but actual is", e)
 		}
