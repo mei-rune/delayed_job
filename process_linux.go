@@ -115,9 +115,10 @@ func enumProcesses() (map[int]int, error) {
 	for _, pid := range pids {
 		ppid, err := GetPPid(pid)
 		if err != nil {
-			return nil, err
+			res[pid] = -1
+		} else {
+			res[pid] = ppid
 		}
-		res[pid] = ppid
 	}
 	return res, nil
 }
