@@ -33,7 +33,8 @@ func createPidFile(pidFile string) error {
 	if pidString, err := ioutil.ReadFile(pidFile); err == nil {
 		pid, err := strconv.Atoi(string(pidString))
 		if err == nil {
-			if _, err = os.FindProcess(pid); nil == err {
+			if ps, err = os.FindProcess(pid); nil == err {
+				fmt.Printf("%#v", ps)
 				return fmt.Errorf("pid file found, ensure "+pidFile+" is not running or delete %s", pidFile)
 			}
 		}
