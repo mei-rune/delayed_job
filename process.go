@@ -4,9 +4,10 @@ import (
 	"os"
 )
 
-func pidExists(pid int) bool {
+func processExistsByPid(pid int) bool {
 	pids, e := enumProcesses()
 	if nil != e {
+		os.Stderr.WriteString("[warn] enum processes failed, " + e.Error() + "\r\n")
 		return processExists(pid)
 	}
 	if _, ok := pids[pid]; ok {
