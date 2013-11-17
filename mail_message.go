@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/mail"
 	"net/smtp"
+	"strings"
 	"time"
 )
 
@@ -90,6 +91,10 @@ func (self *MailMessage) Send(smtp_server string, auth smtp.Auth) error {
 		if 0 == len(smtp_server) {
 			return errors.New("'smtp_server' is missing or default 'smtp_server' is not set.")
 		}
+	}
+
+	if !strings.Contains(smtp_server, ":") {
+		smtp_server += ":25"
 	}
 
 	to := make([]string, len(self.To))

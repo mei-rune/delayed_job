@@ -251,6 +251,9 @@ func (self *mailHandler) Perform() error {
 				return errors.New("user is missing.")
 			}
 		}
+		if 0 == len(self.host) {
+			self.host = self.smtp_server
+		}
 		auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host)
 	case "cram-md5", "CRAM-MD5":
 		auth = smtp.CRAMMD5Auth(self.user, self.password)
