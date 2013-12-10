@@ -179,6 +179,7 @@ func TestGet(t *testing.T) {
 		}
 
 		if math.Abs(float64(locked_at.Time.Unix()-backend.db_time_now().Unix())) > 10 {
+			t.Log(locked_at.Time, backend.db_time_now())
 			t.Error("excepted locked_at is now, actual is", locked_at.Time)
 		}
 		if w.name != locked_by.String {

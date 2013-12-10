@@ -124,9 +124,7 @@ func (n *NullTime) Scan(value interface{}) error {
 				}
 			}
 		}
-		fmt.Println("--------------------", value)
 	}
-	// fmt.Println("cccccccccccccc", n.Time)
 	return nil
 }
 
@@ -396,8 +394,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 func (self *dbBackend) db_time_now() time.Time {
 	switch *db_type {
 	case MSSQL:
-		t := time.Now().UTC()
-		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), 0, t.Location())
+		return time.Now().UTC()
 	case POSTGRESQL:
 		return time.Now()
 	}
