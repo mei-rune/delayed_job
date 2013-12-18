@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	listenAddress = flag.String("listen", ":39086", "the address of http")
+	listenAddress = flag.String("listen", ":37078", "the address of http")
 	run_mode      = flag.String("mode", "all", "init_db, console, backend, all")
 	config_file   = flag.String("config", "delayed_job.conf", "the config file name")
 
