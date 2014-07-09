@@ -5,7 +5,7 @@ import (
 )
 
 func TestPidfileExist(t *testing.T) {
-	if e := createPidFile("./delayed_job.pid"); nil != e {
+	if e := createPidFile("./delayed_job.pid", ""); nil != e {
 		t.Error(e)
 	}
 }
