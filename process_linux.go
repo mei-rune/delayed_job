@@ -131,3 +131,22 @@ func killProcess(pid int) error {
 
 	return p.Kill()
 }
+
+func processNames() (map[int]string, error) {
+	return nil, errors.New("not implemented.")
+}
+
+func getProcessName(pid int) (string, error) {
+	// /proc/[pid]/stat
+	// https://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
+	filename := `/proc/` + strconv.FormatInt(int64(pid), 10) + `/stat`
+	bs, e := ioutil.ReadFile(filename)
+	if nil != e {
+		return 0, e
+	}
+	ss := bytes.SplitN(bs, []byte(" "), 7)
+	if 7 != len(ss) {
+		return nil, errors.New("'" + string(bs) + "' is unknow style.")
+	}
+	return string(ss[1]), nil
+}

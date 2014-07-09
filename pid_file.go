@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 )
 
 var pidFile *string
@@ -29,12 +30,13 @@ func isPidInitialize() bool {
 	return ret
 }
 
-func createPidFile(pidFile string) error {
+func createPidFile(pidFile, image string) error {
 	if pidString, err := ioutil.ReadFile(pidFile); err == nil {
 		pid, err := strconv.Atoi(string(pidString))
 		if err == nil {
-			if _, err = os.FindProcess(pid); nil == err {
-				if processExistsByPid(pid) {
+			if processExistsByPid(pid) {
+				nm, err := getProcessName(pid)
+				if nil != err || strings.Contains(strings.ToLower(nm), strings.ToLower(image)) {
 					return fmt.Errorf("pid file found, ensure "+pidFile+" is not running or delete %s", pidFile)
 				}
 			}

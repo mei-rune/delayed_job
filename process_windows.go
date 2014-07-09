@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"strconv"
 	"syscall"
 	"unsafe"
 )
@@ -74,4 +75,34 @@ func enumProcesses() (map[int]int, error) {
 		res[int(proc.th32ProcessID)] = int(proc.th32ParentProcessID)
 	}
 	return res, nil
+}
+
+func processNames() (map[int]string, error) {
+	pHandle, _, e := CreateToolhelp32Snapshot.Call(uintptr(0x2), uintptr(0x0))
+	if int(pHandle) == -1 {
+		return nil, errors.New("CreateToolhelp32Snapshot() - " + e.Error())
+	}
+
+	defer CloseHandle.Call(pHandle)
+
+	var proc PROCESSENTRY32
+	h, p, rt := uintptr(pHandle), uintptr(unsafe.Pointer(&proc)), uintptr(0)
+	proc.dwSize = ulong(unsafe.Sizeof(proc))
+
+	res := make(map[int]string)
+	for rt, _, _ = Process32First.Call(h, p); 0 != int(rt); rt, _, _ = Process32Next.Call(h, p) {
+		res[int(proc.th32ProcessID)] = nilString(proc.szExeFile[:])
+	}
+	return res, nil
+}
+
+func getProcessName(pid int) (string, error) {
+	names, e := processNames()
+	if nil != e {
+		return "", e
+	}
+	if nm, ok := names[pid]; ok {
+		return nm, nil
+	}
+	return "", errors.New("process with id is '" + strconv.FormatInt(int64(pid), 10) + "' is not exists.")
 }
