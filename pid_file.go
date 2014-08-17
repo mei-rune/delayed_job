@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/mitchellh/go-ps"
 )
 
 var pidFile *string
@@ -34,11 +36,9 @@ func createPidFile(pidFile, image string) error {
 	if pidString, err := ioutil.ReadFile(pidFile); err == nil {
 		pid, err := strconv.Atoi(string(pidString))
 		if err == nil {
-			if processExistsByPid(pid) {
-				nm, err := getProcessName(pid)
-				if nil != err || strings.Contains(strings.ToLower(nm), strings.ToLower(image)) {
-					return fmt.Errorf("pid file found, ensure "+pidFile+" is not running or delete %s", pidFile)
-				}
+			if pr, e := ps.FindProcess(pid); nil != e || (nil != pr &&
+				strings.Contains(strings.ToLower(pr.Executable()), strings.ToLower(image))) {
+				return fmt.Errorf("pid file found, ensure "+image+" is not running or delete %s", pidFile)
 			}
 		}
 	}
