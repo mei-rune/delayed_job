@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os/exec"
 	"strings"
+	"text/template"
 
 	"errors"
 )
@@ -39,6 +40,20 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if 0 == len(content) {
 		return nil, errors.New("'content' is required.")
 	}
+
+	if args, ok := params["arguments"]; ok && strings.Contains(content, "{{") {
+		t, e := template.New("default").Parse(content)
+		if nil != e {
+			return nil, errors.New("create template failed, " + e.Error())
+		}
+		var buffer bytes.Buffer
+		e = t.Execute(&buffer, args)
+		if nil != e {
+			return nil, errors.New("execute template failed, " + e.Error())
+		}
+		content = buffer.String()
+	}
+
 	return &smsHandler{content: content, phone_numbers: phone_numbers}, nil
 }
 
