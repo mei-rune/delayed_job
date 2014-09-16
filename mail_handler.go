@@ -150,7 +150,7 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("'content' is required.")
 	}
 
-	if args, ok := params["arguments"]; ok {
+	if args, ok := params["arguments"]; ok && strings.Contains(content, "{{") {
 		t, e := template.New("default").Parse(content)
 		if nil != e {
 			return nil, errors.New("create template failed, " + e.Error())
@@ -168,7 +168,7 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("'subject' is required.")
 	}
 
-	if args, ok := params["arguments"]; ok {
+	if args, ok := params["arguments"]; ok && strings.Contains(subject, "{{") {
 		t, e := template.New("default").Parse(subject)
 		if nil != e {
 			return nil, errors.New("create template failed, " + e.Error())
@@ -195,12 +195,21 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
+	users, e := addressesWith(params, "users")
+	if nil != e {
+		return nil, e
+	}
 	to, e := addressesWith(params, "to_address")
 	if nil != e {
 		return nil, e
 	}
-	if nil == to || 0 == len(to) {
+	if 0 == len(to) && 0 == len(users) {
 		return nil, errors.New("'to_address' is missing.")
+	}
+	if 0 == len(to) {
+		to = users
+	} else if 0 != len(users) {
+		to = append(to, users...)
 	}
 
 	cc, e := addressesWith(params, "cc_address")

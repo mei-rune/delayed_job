@@ -46,7 +46,7 @@ func TestRunJob(t *testing.T) {
 	})
 }
 
-func TestRunError(t *testing.T) {
+func TestRunErrorAndRescheduleIt(t *testing.T) {
 	workTest(t, func(w *worker, backend *dbBackend) {
 		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test", "try_interval": "0s", "error": "throw a"})
 		if nil != e {
@@ -106,6 +106,10 @@ func TestRunError(t *testing.T) {
 		//}
 		if !strings.Contains(handler.String, "\"type\": \"test\"") {
 			t.Error("excepted handler contains '\"type\": \"test\"', actual is ", handler.String)
+		}
+
+		if !strings.Contains(handler.String, "UpdatePayloadObject") {
+			t.Error("excepted handler contains 'UpdatePayloadObject', actual is ", handler.String)
 		}
 
 		if "throw a" != last_error.String {
@@ -259,6 +263,5 @@ func TestRunFailedAndDestoryIt(t *testing.T) {
 		if 0 != count {
 			t.Error("excepted jobs is empty, actual is", count)
 		}
-
 	})
 }

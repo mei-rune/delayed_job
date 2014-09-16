@@ -7,6 +7,9 @@ import (
 type Handler interface {
 	Perform() error
 }
+type Updater interface {
+	UpdatePayloadObject(options map[string]interface{})
+}
 
 type MakeHandler func(ctx, options map[string]interface{}) (Handler, error)
 
@@ -38,6 +41,10 @@ func (self testHandler) Perform() error {
 	}
 
 	return errors.New(e)
+}
+
+func (self testHandler) UpdatePayloadObject(options map[string]interface{}) {
+	options["UpdatePayloadObject"] = "UpdatePayloadObject"
 }
 
 func newTest(ctx, options map[string]interface{}) (Handler, error) {

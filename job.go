@@ -214,6 +214,14 @@ func (self *Job) will_update_attributes() map[string]interface{} {
 	if nil == self.changed_attributes {
 		self.changed_attributes = make(map[string]interface{}, 8)
 	}
+
+	if update, ok := self.handler_object.(Updater); ok {
+		if nil != self.handler_attributes {
+			update.UpdatePayloadObject(self.handler_attributes)
+			self.changed_attributes["@handler"] = self.handler_attributes
+		}
+	}
+
 	return self.changed_attributes
 }
 
@@ -225,7 +233,6 @@ func (self *Job) rescheduleIt(next_time time.Time, err string) error {
 	self.last_error = err
 
 	changed := self.will_update_attributes()
-
 	e := stringifiedHander(changed)
 	if nil != e {
 		return e
