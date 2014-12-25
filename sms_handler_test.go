@@ -13,8 +13,8 @@ var (
 
 func TestSMSHandler(t *testing.T) {
 	handler, e := newHandler(nil, map[string]interface{}{"type": "sms",
-		"phone_number": *phone_number,
-		"content":      *sms_content})
+		"phone_numbers": *phone_number,
+		"content":       *sms_content})
 	if nil != e {
 		t.Error(e)
 		return

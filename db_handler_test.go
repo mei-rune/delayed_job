@@ -111,7 +111,6 @@ func TestDbHandlerConnectError(t *testing.T) {
 }
 
 func TestDbHandlerConnectOkAndDbError(t *testing.T) {
-
 	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "a", "drv": "postgres", "url": "host=127.0.0.1 dbname=sssghssssetdata user=tpt password=extreme sslmode=disable"})
 	if nil != e {
 		t.Error(e)
@@ -124,7 +123,7 @@ func TestDbHandlerConnectOkAndDbError(t *testing.T) {
 		return
 	}
 
-	if !strings.Contains(e.Error(), "bad connection") {
+	if !strings.Contains(e.Error(), "bad connection") && !strings.Contains(e.Error(), " database \"sssghssssetdata\" does not exist") {
 		t.Error("excepted error contains [bad connection], but actual is", e)
 	}
 }
