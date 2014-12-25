@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	phone_number = flag.String("phone_number", "", "the phone number")
+	phone_number = flag.String("phone_numbers", "1222", "the phone number")
 	sms_content  = flag.String("sms_content", "恒维tpt软件", "the message")
 )
 
