@@ -11,6 +11,7 @@ func TestWebHandler(t *testing.T) {
 	for _, test := range []struct {
 		method         string
 		url            string
+		excepted_url   string
 		body           interface{}
 		head1          string
 		head2          string
@@ -18,7 +19,9 @@ func TestWebHandler(t *testing.T) {
 		excepted_error string
 	}{{method: "GET", url: "/aaa/bbb", head1: "head1", head2: "head2"},
 		{method: "GEaT", url: "/aaa/bbb", excepted_error: "unsupported http method - GEaT"},
-		{method: "PUT", url: "/aaa/bbb", body: "adsdfdsf", excepted_body: "adsdfdsf", head1: "head1", head2: "head2"}} {
+		{method: "PUT", url: "/aaa/bbb", body: "adsdfdsf", excepted_body: "adsdfdsf", head1: "head1", head2: "head2"},
+		{method: "PUT", url: "/aaa/bbb/{{.abc1}}/{{.abc2}}", excepted_url: "/aaa/bbb/aaa/bbb", body: "adsdfdsf", excepted_body: "adsdfdsf", head1: "head1", head2: "head2"},
+		{method: "PUT", url: "/aaa/bbb/{{.abc1}}/{{.abc2}}", excepted_url: "/aaa/bbb/aaa/bbb", body: "adsdfdsf{{.abc2}}", excepted_body: "adsdfdsfbbb", head1: "head1", head2: "head2"}} {
 		func() {
 			var method, url, body, head1, head2 string
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -39,9 +42,11 @@ func TestWebHandler(t *testing.T) {
 			handler, e := newHandler(nil, map[string]interface{}{"type": "web",
 				"method":     test.method,
 				"url":        srv.URL + test.url,
-				"arguments":  test.body,
+				"body":       test.body,
 				"head.x":     test.head1,
-				"head.aaddd": test.head2})
+				"head.aaddd": test.head2,
+				"abc1":       "aaa",
+				"abc2":       "bbb"})
 			if nil != e {
 				if e.Error() != test.excepted_error {
 					t.Error(e)
@@ -61,12 +66,16 @@ func TestWebHandler(t *testing.T) {
 				t.Error("exepted method is ", test.method, ", but actual is", method)
 			}
 
-			if url != test.url {
+			if "" != test.excepted_url {
+				if url != test.excepted_url {
+					t.Error("exepted url is ", test.excepted_url, ", but actual is", url)
+				}
+			} else if url != test.url {
 				t.Error("exepted url is ", test.url, ", but actual is", url)
 			}
 
 			if body != test.excepted_body {
-				t.Error("exepted url is ", test.excepted_body, ", but actual is", body)
+				t.Error("exepted body is ", test.excepted_body, ", but actual is", body)
 			}
 
 			if head1 != test.head1 {

@@ -8,16 +8,20 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
+	"text/template"
 )
 
 const head_prefix = "head."
 
 type webHandler struct {
-	method string
-	url    string
-	body   interface{}
-	header map[string]interface{}
+	method   string
+	url      string
+	user     string
+	password string
+	body     interface{}
+	headers  map[string]interface{}
 }
 
 func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
@@ -36,23 +40,37 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("unsupported http method - " + method)
 	}
 
+	body := params["body"]
 	url := stringWithDefault(params, "url", "")
 	if 0 == len(url) {
 		return nil, errors.New("'url' is required.")
 	}
-	body := params["arguments"]
+	url, e := genText(url, params)
+	if nil != e {
+		return nil, errors.New("failed to merge 'url' with params, " + e.Error())
+	}
+	if s, ok := body.(string); ok {
+		body, e = genText(s, params)
+		if nil != e {
+			return nil, errors.New("failed to merge 'body' with params, " + e.Error())
+		}
+	}
 
-	header := map[string]interface{}{}
+	headers := map[string]interface{}{}
 	for k, v := range params {
 		if head_prefix == k {
 			continue
 		}
 
 		if strings.HasPrefix(k, head_prefix) {
-			header[k[len(head_prefix):]] = v
+			headers[k[len(head_prefix):]] = v
 		}
 	}
-	return &webHandler{method: method, url: url, body: body, header: header}, nil
+	return &webHandler{method: method,
+		url:      url,
+		user:     stringWithDefault(params, "user_name", ""),
+		password: stringWithDefault(params, "user_password", ""),
+		body:     body, headers: headers}, nil
 }
 
 func (self *webHandler) Perform() error {
@@ -79,8 +97,11 @@ func (self *webHandler) Perform() error {
 		return e
 	}
 
-	if 0 != len(self.header) {
-		for k, v := range self.header {
+	if "" != self.user {
+		req.URL.User = url.UserPassword(self.user, self.password)
+	}
+	if 0 != len(self.headers) {
+		for k, v := range self.headers {
 			req.Header.Set(k, fmt.Sprint(v))
 		}
 	}
@@ -110,4 +131,23 @@ func (self *webHandler) Perform() error {
 
 func init() {
 	Handlers["web"] = newWebHandler
+}
+
+func genText(content string, args interface{}) (string, error) {
+	if nil == args {
+		return content, nil
+	}
+	if !strings.Contains(content, "{{") {
+		return content, nil
+	}
+	t, e := template.New("default").Parse(content)
+	if nil != e {
+		return content, errors.New("create template failed, " + e.Error())
+	}
+	var buffer bytes.Buffer
+	e = t.Execute(&buffer, args)
+	if nil != e {
+		return content, errors.New("execute template failed, " + e.Error())
+	}
+	return buffer.String(), nil
 }
