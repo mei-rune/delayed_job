@@ -137,8 +137,10 @@ func genText(content string, args interface{}) (string, error) {
 	if nil == args {
 		return content, nil
 	}
-	if !strings.Contains(content, "{{") {
-		return content, nil
+	if pos := strings.Index(content, "{{"); pos >= 0 {
+		if !strings.Contains(content[pos+2:], "}}") {
+			return content, nil
+		}
 	}
 	t, e := template.New("default").Parse(content)
 	if nil != e {
