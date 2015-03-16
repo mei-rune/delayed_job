@@ -108,6 +108,7 @@ func (self *webHandler) Perform() error {
 
 	resp, e := http.DefaultClient.Do(req)
 	if nil != e {
+		fmt.Println("======", e)
 		return e
 	}
 
@@ -131,6 +132,9 @@ func (self *webHandler) Perform() error {
 
 func init() {
 	Handlers["web"] = newWebHandler
+	Handlers["web_action"] = newWebHandler
+	Handlers["http"] = newWebHandler
+	Handlers["http_action"] = newWebHandler
 }
 
 func genText(content string, args interface{}) (string, error) {
