@@ -2,20 +2,21 @@ package delayed_job
 
 import (
 	"bytes"
-	"code.google.com/p/mahonia"
 	"database/sql"
 	"database/sql/driver"
 
 	"errors"
 	"flag"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
-	//_ "github.com/runner-mei/go-oci8"
-	_ "github.com/ziutek/mymysql/godrv"
 	"strconv"
 	"strings"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
+	_ "github.com/ziutek/mymysql/godrv"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
 const (
@@ -37,8 +38,6 @@ var (
 	test_ch_for_lock = make(chan int)
 
 	select_sql_string = ""
-
-	decoder = mahonia.NewDecoder("gb18030")
 )
 
 func DbType(drv string) int {
@@ -77,16 +76,32 @@ func SetDbUrl(drv, url string) {
 
 func i18n(dbType int, drv string, e error) error {
 	if ORACLE == dbType && "oci8" == drv {
-		return errors.New(decoder.ConvertString(e.Error()))
+		decoder := simplifiedchinese.GB18030.NewDecoder()
+		msg, _, err := transform.String(decoder, e.Error())
+		if nil == err {
+			return errors.New(msg)
+		}
 	}
 	return e
+	// if ORACLE == dbType && "oci8" == drv {
+	// 	return errors.New(decoder.ConvertString(e.Error()))
+	// }
+	// return e
 }
 
 func i18nString(dbType int, drv string, e error) string {
 	if ORACLE == dbType && "oci8" == drv {
-		return decoder.ConvertString(e.Error())
+		decoder := simplifiedchinese.GB18030.NewDecoder()
+		msg, _, err := transform.String(decoder, e.Error())
+		if nil == err {
+			return msg
+		}
 	}
 	return e.Error()
+	// if ORACLE == dbType && "oci8" == drv {
+	// 	return decoder.ConvertString(e.Error())
+	// }
+	// return e.Error()
 }
 
 func IsNumericParams(drv string) bool {
