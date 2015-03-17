@@ -184,7 +184,7 @@ END`
 				fmt.Println(script)
 				_, e = backend.db.Exec(script)
 				if nil != e {
-					return errors.New(decoder.ConvertString(e.Error()))
+					return i18n(ORACLE, "oci8", e)
 				}
 			}
 
