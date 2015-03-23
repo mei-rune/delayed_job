@@ -35,7 +35,11 @@ func TestWebHandler(t *testing.T) {
 						body = string(bs)
 					}
 				}
-				w.WriteHeader(http.StatusOK)
+				if "PUT" == req.Method {
+					w.WriteHeader(http.StatusAccepted)
+				} else {
+					w.WriteHeader(http.StatusOK)
+				}
 			}))
 			defer srv.Close()
 

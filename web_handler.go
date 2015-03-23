@@ -16,18 +16,20 @@ import (
 const head_prefix = "head."
 
 type webHandler struct {
-	method   string
-	url      string
-	user     string
-	password string
-	body     interface{}
-	headers  map[string]interface{}
+	method     string
+	url        string
+	user       string
+	password   string
+	body       interface{}
+	headers    map[string]interface{}
+	statusCode int
 }
 
 func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if nil == params {
 		return nil, errors.New("params is nil")
 	}
+	statusCode := intWithDefault(params, "statusCode", -1)
 
 	method := stringWithDefault(params, "method", "")
 	if 0 == len(method) {
@@ -67,10 +69,11 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 	return &webHandler{method: method,
-		url:      url,
-		user:     stringWithDefault(params, "user_name", ""),
-		password: stringWithDefault(params, "user_password", ""),
-		body:     body, headers: headers}, nil
+		url:        url,
+		statusCode: statusCode,
+		user:       stringWithDefault(params, "user_name", ""),
+		password:   stringWithDefault(params, "user_password", ""),
+		body:       body, headers: headers}, nil
 }
 
 func (self *webHandler) Perform() error {
@@ -108,7 +111,6 @@ func (self *webHandler) Perform() error {
 
 	resp, e := http.DefaultClient.Do(req)
 	if nil != e {
-		fmt.Println("======", e)
 		return e
 	}
 
@@ -119,7 +121,24 @@ func (self *webHandler) Perform() error {
 		}
 	}()
 
-	if resp.StatusCode != 200 && ("POST" != self.method || resp.StatusCode != 201) {
+	var ok bool
+	if -1 == self.statusCode {
+		ok = resp.StatusCode == 200
+		if !ok && ("POST" == self.method ||
+			"PUT" == self.method ||
+			"PATCH" == self.method ||
+			"DELETE" == self.method) {
+			ok = resp.StatusCode == 201 ||
+				resp.StatusCode == 202 ||
+				resp.StatusCode == 204 ||
+				resp.StatusCode == 205 ||
+				resp.StatusCode == 206
+		}
+	} else {
+		ok = resp.StatusCode == self.statusCode
+	}
+
+	if !ok {
 		resp_body, _ := ioutil.ReadAll(resp.Body)
 		if nil == resp_body || 0 == len(resp_body) {
 			return fmt.Errorf("%v: error", resp.StatusCode)
