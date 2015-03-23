@@ -29,7 +29,7 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if nil == params {
 		return nil, errors.New("params is nil")
 	}
-	statusCode := intWithDefault(params, "statusCode", -1)
+	statusCode := intWithDefault(params, "status_code", -1)
 
 	method := stringWithDefault(params, "method", "")
 	if 0 == len(method) {
