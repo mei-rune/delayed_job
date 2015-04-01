@@ -455,6 +455,9 @@ func testJobHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) 
 		io.WriteString(w, e.Error())
 		return
 	}
+	if _, ok := ent["content"]; !ok {
+		ent["content"] = "this is test job message."
+	}
 
 	job, e := createJobFromMap(backend, ent)
 	if nil != e {
