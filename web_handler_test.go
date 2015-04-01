@@ -88,7 +88,6 @@ func TestWebHandler(t *testing.T) {
 			if head2 != test.head2 {
 				t.Error("exepted head2 is ", test.head2, ", but actual is", head2)
 			}
-
 		}()
 	}
 }

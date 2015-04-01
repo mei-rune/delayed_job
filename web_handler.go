@@ -16,20 +16,22 @@ import (
 const head_prefix = "head."
 
 type webHandler struct {
-	method     string
-	url        string
-	user       string
-	password   string
-	body       interface{}
-	headers    map[string]interface{}
-	statusCode int
+	method          string
+	url             string
+	user            string
+	password        string
+	body            interface{}
+	headers         map[string]interface{}
+	responseCode    int
+	responseContent string
 }
 
 func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if nil == params {
 		return nil, errors.New("params is nil")
 	}
-	statusCode := intWithDefault(params, "status_code", -1)
+	responseCode := intWithDefault(params, "response_code", -1)
+	responseContent := stringWithDefault(params, "response_content", "")
 
 	method := stringWithDefault(params, "method", "")
 	if 0 == len(method) {
@@ -69,11 +71,12 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 	return &webHandler{method: method,
-		url:        url,
-		statusCode: statusCode,
-		user:       stringWithDefault(params, "user_name", ""),
-		password:   stringWithDefault(params, "user_password", ""),
-		body:       body, headers: headers}, nil
+		url:             url,
+		responseCode:    responseCode,
+		responseContent: responseContent,
+		user:            stringWithDefault(params, "user_name", ""),
+		password:        stringWithDefault(params, "user_password", ""),
+		body:            body, headers: headers}, nil
 }
 
 func (self *webHandler) Perform() error {
@@ -122,7 +125,7 @@ func (self *webHandler) Perform() error {
 	}()
 
 	var ok bool
-	if -1 == self.statusCode {
+	if -1 == self.responseCode {
 		ok = resp.StatusCode == 200
 		if !ok && ("POST" == self.method ||
 			"PUT" == self.method ||
@@ -135,7 +138,7 @@ func (self *webHandler) Perform() error {
 				resp.StatusCode == 206
 		}
 	} else {
-		ok = resp.StatusCode == self.statusCode
+		ok = resp.StatusCode == self.responseCode
 	}
 
 	if !ok {
@@ -145,8 +148,49 @@ func (self *webHandler) Perform() error {
 		}
 		return fmt.Errorf("%v: %v", resp.StatusCode, string(resp_body))
 	}
+	if "" == self.responseContent {
+		return nil
+	}
 
+	matched, e := IsContains(resp.Body, self.responseContent)
+	if nil != e {
+		return errors.New("failed to read body - " + e.Error())
+	}
+	if !matched {
+		return errors.New("'" + self.responseContent + "' isn't exists in the response body.")
+	}
 	return nil
+}
+
+func max_int(a, b int) int {
+	if a < b {
+		return b
+	}
+	return a
+}
+func IsContains(r io.Reader, excepted string) (bool, error) {
+	excepted_bytes := []byte(excepted)
+	buffer := make([]byte, 0, max_int(1024, len(excepted_bytes)+256))
+	remain_length := len(excepted_bytes) - 1
+	offset := 0
+	for {
+		n, e := r.Read(buffer[offset:])
+		if nil != e {
+			if e == io.EOF {
+				return false, nil
+			}
+			return false, e
+		}
+
+		if bytes.Contains(buffer[0:n], excepted_bytes) {
+			return true, nil
+		}
+
+		copy(buffer, buffer[n-remain_length:n])
+		offset = remain_length
+	}
+
+	return false, nil
 }
 
 func init() {
