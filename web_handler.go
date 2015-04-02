@@ -125,7 +125,7 @@ func (self *webHandler) Perform() error {
 	}()
 
 	var ok bool
-	if -1 == self.responseCode {
+	if self.responseCode <= 0 {
 		ok = resp.StatusCode == 200
 		if !ok && ("POST" == self.method ||
 			"PUT" == self.method ||
