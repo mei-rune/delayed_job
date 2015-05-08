@@ -142,11 +142,14 @@ func TestEnqueue(t *testing.T) {
 
 func TestGetSimple(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
-		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
-		if nil != e {
-			t.Error(e)
-			return
+		for i := 0; i < 10; i++ {
+			e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+			if nil != e {
+				t.Error(e)
+				return
+			}
 		}
+
 		w := &worker{min_priority: -1, max_priority: -1, name: "aa_pid:123", max_run_time: 1 * time.Minute}
 		job, e := backend.reserve(w)
 		if nil != e {
@@ -224,6 +227,18 @@ func TestGetSimple(t *testing.T) {
 		case <-test_chan:
 			t.Error("unexcepted recv")
 		default:
+		}
+
+		row = backend.db.QueryRow("SELECT count(*) FROM " + *table_name + " where  locked_by is NULL AND locked_at is NULL")
+		var count int = 0
+		e = row.Scan(&count)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		if 9 != count {
+			t.Error("excepted read 1, actual is ", 10-count)
 		}
 	})
 }
