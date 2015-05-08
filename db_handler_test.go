@@ -142,7 +142,7 @@ func TestDbHandlerAuthError(t *testing.T) {
 	}
 
 	if "windows" == runtime.GOOS {
-		if !strings.Contains(e.Error(), "Password") {
+		if !strings.Contains(strings.ToLower(e.Error()), "password") {
 			t.Error("excepted error contains [Password], but actual is", e)
 		}
 	}
