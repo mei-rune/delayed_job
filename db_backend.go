@@ -38,6 +38,7 @@ var (
 	test_ch_for_lock = make(chan int)
 
 	select_sql_string = ""
+	fields_sql_string = " id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at "
 )
 
 func DbType(drv string) int {
@@ -60,7 +61,7 @@ func initDB() {
 }
 
 func createSQL() {
-	select_sql_string = "SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM " + *table_name + " "
+	select_sql_string = "SELECT " + fields_sql_string + " FROM " + *table_name + " "
 }
 
 func SetTable(table_name string) {
@@ -203,13 +204,89 @@ func (self *dbBackend) clearLocks(worker_name string) error {
 	return i18n(self.dbType, self.drv, e)
 }
 
+func (self *dbBackend) readJobFromRow(row interface {
+	Scan(dest ...interface{}) error
+}) (*Job, error) {
+	job := &Job{}
+	var queue sql.NullString
+	var handler_id sql.NullString
+	var last_error sql.NullString
+	var run_at NullTime
+	var locked_at NullTime
+	var failed_at NullTime
+	var locked_by sql.NullString
+	var created_at NullTime
+	var updated_at NullTime
+
+	e := row.Scan(
+		&job.id,
+		&job.priority,
+		&job.attempts,
+		&queue,
+		&job.handler,
+		&handler_id,
+		&last_error,
+		&run_at,
+		&locked_at,
+		&failed_at,
+		&locked_by,
+		&created_at,
+		&updated_at)
+	if nil != e {
+		return nil, errors.New("scan job failed from the database, " + i18nString(self.dbType, self.drv, e))
+	}
+
+	if queue.Valid {
+		job.queue = queue.String
+	}
+
+	if handler_id.Valid {
+		job.handler_id = handler_id.String
+	}
+
+	if last_error.Valid {
+		job.last_error = last_error.String
+	}
+
+	if run_at.Valid {
+		job.run_at = run_at.Time
+	}
+
+	if locked_at.Valid {
+		job.locked_at = locked_at.Time
+	}
+
+	if failed_at.Valid {
+		job.failed_at = failed_at.Time
+	}
+
+	if locked_by.Valid {
+		job.locked_by = locked_by.String
+	}
+
+	if created_at.Valid {
+		job.created_at = created_at.Time
+	}
+
+	if updated_at.Valid {
+		job.updated_at = updated_at.Time
+	}
+
+	job.backend = self
+	return job, nil
+}
+
 func (self *dbBackend) reserve(w *worker) (*Job, error) {
 	var buffer bytes.Buffer
 
 	//buffer.WriteString("SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM "+ *table_name+"")
-	buffer.WriteString(select_sql_string)
+	//buffer.WriteString(select_sql_string)
 	if self.isNumericParams {
-		buffer.WriteString(" WHERE (run_at <= $1 AND (locked_at IS NULL OR locked_at < $2) OR locked_by = $3) AND failed_at IS NULL")
+		if self.dbType == POSTGRESQL {
+			buffer.WriteString(" WHERE (run_at <= $3 AND (locked_at IS NULL OR locked_at < $4) OR locked_by = $5) AND failed_at IS NULL")
+		} else {
+			buffer.WriteString(" WHERE (run_at <= $1 AND (locked_at IS NULL OR locked_at < $2) OR locked_by = $3) AND failed_at IS NULL")
+		}
 	} else {
 		buffer.WriteString(" WHERE (run_at <= ? AND (locked_at IS NULL OR locked_at < ?) OR locked_by = ?) AND failed_at IS NULL")
 	}
@@ -249,117 +326,76 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 	buffer.WriteString(" ORDER BY priority ASC, run_at ASC")
 
 	now := self.db_time_now()
-	// fmt.Println(buffer.String(), ",", now, now.Truncate(w.max_run_time), w.name)
-	rows, e := self.db.Query(buffer.String(), now, now.Truncate(w.max_run_time), w.name)
-	if nil != e {
-		if sql.ErrNoRows == e {
-			return nil, nil
-		}
-		return nil, errors.New("execute query sql failed while fetch job from the database, " + i18nString(self.dbType, self.drv, e))
-	}
-	defer rows.Close()
 
-	for rows.Next() {
-		// fmt.Println("================next=================")
-		job := &Job{}
-		var queue sql.NullString
-		var handler_id sql.NullString
-		var last_error sql.NullString
-		var run_at NullTime
-		var locked_at NullTime
-		var failed_at NullTime
-		var locked_by sql.NullString
-		var created_at NullTime
-		var updated_at NullTime
-
-		e = rows.Scan(
-			&job.id,
-			&job.priority,
-			&job.attempts,
-			&queue,
-			&job.handler,
-			&handler_id,
-			&last_error,
-			&run_at,
-			&locked_at,
-			&failed_at,
-			&locked_by,
-			&created_at,
-			&updated_at)
+	// Optimizations for faster lookups on some common databases
+	switch self.dbType {
+	case POSTGRESQL:
+		sql_str := "UPDATE " + *table_name + " SET locked_at = $1, locked_by = $2 WHERE id in (SELECT id FROM " + *table_name +
+			buffer.String() + " LIMIT 1) RETURNING " + fields_sql_string
+		//fmt.Println(sql_str, now, w.name, now, now.Truncate(w.max_run_time), w.name)
+		rows, e := self.db.Query(sql_str, now, w.name, now, now.Truncate(w.max_run_time), w.name)
 		if nil != e {
-			return nil, errors.New("scan job failed from the database, " + i18nString(self.dbType, self.drv, e))
+			if sql.ErrNoRows == e {
+				return nil, nil
+			}
+			return nil, errors.New("execute query sql failed while fetch job from the database, " + i18nString(self.dbType, self.drv, e))
 		}
 
-		if is_test_for_lock {
-			test_ch_for_lock <- 1
-			<-test_ch_for_lock
+		for rows.Next() {
+			return self.readJobFromRow(rows)
 		}
-
-		var c int64
-		var result sql.Result
-		if self.isNumericParams {
-			result, e = self.db.Exec("UPDATE "+*table_name+" SET locked_at = $1, locked_by = $2 WHERE id = $3 AND (locked_at IS NULL OR locked_at < $4 OR locked_by = $5) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
-		} else {
-			result, e = self.db.Exec("UPDATE "+*table_name+" SET locked_at = ?, locked_by = ? WHERE id = ? AND (locked_at IS NULL OR locked_at < ? OR locked_by = ?) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
-			// fmt.Println("UPDATE "+*table_name+" SET locked_at = ?, locked_by = ? WHERE id = ? AND (locked_at IS NULL OR locked_at < ? OR locked_by = ?) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
-		}
+		return nil, nil
+	default:
+		// fmt.Println(buffer.String(), ",", now, now.Truncate(w.max_run_time), w.name)
+		rows, e := self.db.Query(select_sql_string+buffer.String(), now, now.Truncate(w.max_run_time), w.name)
 		if nil != e {
-			return nil, errors.New("lock job failed from the database, " + i18nString(self.dbType, self.drv, e))
+			if sql.ErrNoRows == e {
+				return nil, nil
+			}
+			return nil, errors.New("execute query sql failed while fetch job from the database, " + i18nString(self.dbType, self.drv, e))
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			job, e := self.readJobFromRow(rows)
+			if nil != e {
+				return nil, e
+			}
+
+			if is_test_for_lock {
+				test_ch_for_lock <- 1
+				<-test_ch_for_lock
+			}
+
+			var c int64
+			var result sql.Result
+			if self.isNumericParams {
+				result, e = self.db.Exec("UPDATE "+*table_name+" SET locked_at = $1, locked_by = $2 WHERE id = $3 AND (locked_at IS NULL OR locked_at < $4 OR locked_by = $5) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
+			} else {
+				result, e = self.db.Exec("UPDATE "+*table_name+" SET locked_at = ?, locked_by = ? WHERE id = ? AND (locked_at IS NULL OR locked_at < ? OR locked_by = ?) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
+				// fmt.Println("UPDATE "+*table_name+" SET locked_at = ?, locked_by = ? WHERE id = ? AND (locked_at IS NULL OR locked_at < ? OR locked_by = ?) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
+			}
+			if nil != e {
+				return nil, errors.New("lock job failed from the database, " + i18nString(self.dbType, self.drv, e))
+			}
+
+			c, e = result.RowsAffected()
+			if nil != e {
+				return nil, errors.New("lock job failed from the database, " + i18nString(self.dbType, self.drv, e))
+			}
+
+			if c > 0 {
+				return job, nil
+			}
 		}
 
-		c, e = result.RowsAffected()
+		e = rows.Err()
 		if nil != e {
-			return nil, errors.New("lock job failed from the database, " + i18nString(self.dbType, self.drv, e))
+			return nil, errors.New("next job failed from the database, " + i18nString(self.dbType, self.drv, e))
 		}
 
-		if c > 0 {
-			if queue.Valid {
-				job.queue = queue.String
-			}
-
-			if handler_id.Valid {
-				job.handler_id = handler_id.String
-			}
-
-			if last_error.Valid {
-				job.last_error = last_error.String
-			}
-
-			if run_at.Valid {
-				job.run_at = run_at.Time
-			}
-
-			if locked_at.Valid {
-				job.locked_at = locked_at.Time
-			}
-
-			if failed_at.Valid {
-				job.failed_at = failed_at.Time
-			}
-
-			if locked_by.Valid {
-				job.locked_by = locked_by.String
-			}
-
-			if created_at.Valid {
-				job.created_at = created_at.Time
-			}
-
-			if updated_at.Valid {
-				job.updated_at = updated_at.Time
-			}
-
-			job.backend = self
-			return job, nil
-		}
+		return nil, nil
 	}
-
-	e = rows.Err()
-	if nil != e {
-		return nil, errors.New("next job failed from the database, " + i18nString(self.dbType, self.drv, e))
-	}
-
-	return nil, nil
 
 	//     ready_scope.limit(worker.read_ahead).detect do |job|
 	//     count = ready_scope.where(:id => job.id).update_all(:locked_at => now, :locked_by => worker.name)

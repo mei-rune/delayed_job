@@ -140,13 +140,16 @@ func TestEnqueue(t *testing.T) {
 	})
 }
 
-func TestGet(t *testing.T) {
+func TestGetSimple(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
-		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
-		if nil != e {
-			t.Error(e)
-			return
+		for i := 0; i < 10; i++ {
+			e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+			if nil != e {
+				t.Error(e)
+				return
+			}
 		}
+
 		w := &worker{min_priority: -1, max_priority: -1, name: "aa_pid:123", max_run_time: 1 * time.Minute}
 		job, e := backend.reserve(w)
 		if nil != e {
@@ -206,22 +209,36 @@ func TestGet(t *testing.T) {
 			t.Error("excepted last_error is invalid, actual is ", job.last_error)
 		}
 
-		if !job.locked_at.IsZero() {
-			t.Error("excepted locked_at is invalid actual is ", job.locked_at)
-		}
-
 		if !job.failed_at.IsZero() {
 			t.Error("excepted failed_at is invalid, actual is ", job.failed_at)
 		}
 
-		if "" != job.locked_by {
-			t.Error("excepted locked_by is invalid, actual is ", job.locked_by)
+		if "postgres" != backend.drv {
+			if !job.locked_at.IsZero() {
+				t.Error("excepted locked_at is invalid actual is ", job.locked_at)
+			}
+
+			if "" != job.locked_by {
+				t.Error("excepted locked_by is invalid, actual is ", job.locked_by)
+			}
 		}
 
 		select {
 		case <-test_chan:
 			t.Error("unexcepted recv")
 		default:
+		}
+
+		row = backend.db.QueryRow("SELECT count(*) FROM " + *table_name + " where  locked_by is NULL AND locked_at is NULL")
+		var count int = 0
+		e = row.Scan(&count)
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		if 9 != count {
+			t.Error("excepted read 1, actual is ", 10-count)
 		}
 	})
 }
@@ -290,8 +307,12 @@ func TestGetWithFailed(t *testing.T) {
 	})
 }
 
-func TestLockedInGet(t *testing.T) {
+func TestLockedJobInGet(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
+		if "postgres" == backend.drv {
+			t.Skip("postgres is skipped.")
+		}
+
 		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
@@ -332,8 +353,12 @@ func TestLockedInGet(t *testing.T) {
 	})
 }
 
-func TestFailedInGet(t *testing.T) {
+func TestFailedJobInGet(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
+		if "postgres" == backend.drv {
+			t.Skip("postgres is skipped.")
+		}
+
 		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
