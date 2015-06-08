@@ -340,6 +340,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 			}
 			return nil, errors.New("execute query sql failed while fetch job from the database, " + i18nString(self.dbType, self.drv, e))
 		}
+		defer rows.Close()
 
 		for rows.Next() {
 			return self.readJobFromRow(rows)
@@ -445,7 +446,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 func (self *dbBackend) db_time_now() time.Time {
 	switch *db_type {
 	case MSSQL:
-		return time.Now().UTC()
+		return time.Now() //.UTC()
 	case POSTGRESQL:
 		return time.Now()
 	}
