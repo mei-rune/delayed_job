@@ -54,6 +54,11 @@ func newMultiplexedHandler(ctx, params map[string]interface{}) (Handler, error) 
 		return &multiplexedHandler{backend: backend}, nil
 	}
 
+	var m_args map[string]interface{}
+	if nil != args {
+		m_args, ok = args.(map[string]interface{})
+	}
+
 	rules := make([]*Job, 0, len(array))
 	for idx, v := range array {
 		options, ok := v.(map[string]interface{})
@@ -68,8 +73,13 @@ func newMultiplexedHandler(ctx, params map[string]interface{}) (Handler, error) 
 		run_at := timeWithDefault(options, "run_at", grun_at)
 
 		if nil != args {
-			if _, ok = options["arguments"]; !ok {
+			if own_args, ok := options["arguments"]; !ok || nil == own_args {
 				options["arguments"] = args
+			} else if mm, ok := own_args.(map[string]interface{}); ok && nil != mm && nil != m_args {
+				for k, v := range m_args {
+					mm[k] = v
+				}
+				options["arguments"] = mm
 			}
 		}
 
