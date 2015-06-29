@@ -29,6 +29,8 @@ const (
 )
 
 var (
+	ProcessArgs func(args interface{}) interface{}
+
 	db_url     = flag.String("db_url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
 	db_drv     = flag.String("db_drv", "postgres", "the db driver")
 	db_type    = flag.Int("db_type", AUTO, "the db type, 0 is auto")
@@ -40,6 +42,13 @@ var (
 	select_sql_string = ""
 	fields_sql_string = " id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at "
 )
+
+func processArgs(args interface{}) interface{} {
+	if nil != ProcessArgs {
+		return ProcessArgs(args)
+	}
+	return args
+}
 
 func DbType(drv string) int {
 	switch drv {

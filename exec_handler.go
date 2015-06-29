@@ -5,12 +5,13 @@ import (
 	"bytes"
 	"errors"
 	"flag"
-	"github.com/fd/go-shellwords/shellwords"
-	"os"
+	"io"
 	"os/exec"
 	"strings"
 	"sync"
 	"text/template"
+
+	"github.com/fd/go-shellwords/shellwords"
 )
 
 var default_directory = flag.String("exec.directory", ".", "the work directory for execute")
@@ -42,6 +43,7 @@ func newExecHandler(ctx, params map[string]interface{}) (Handler, error) {
 		if nil != e {
 			return nil, errors.New("create template failed, " + e.Error())
 		}
+		args = processArgs(args)
 		var buffer bytes.Buffer
 		e = t.Execute(&buffer, args)
 		if nil != e {
@@ -66,10 +68,10 @@ func (self *execHandler) Perform() error {
 		return cmd.Start()
 	}
 
-	pr, pw, err := os.Pipe()
-	if err != nil {
-		return errors.New("create pipe failed, " + err.Error())
-	}
+	pr, pw := io.Pipe()
+	//if err != nil {
+	//	return errors.New("create pipe failed, " + err.Error())
+	//}
 	defer func() {
 		pr.Close()
 		pw.Close()
@@ -102,13 +104,16 @@ func (self *execHandler) Perform() error {
 		scan_error = errors.New(buffer.String())
 	}()
 
-	err = cmd.Run()
-	if nil != err {
-		return errors.New("start cmd failed, " + err.Error())
-	}
+	err := cmd.Run()
 	pw.Close()
 	pr.Close()
 	wait.Wait()
+	if nil != err {
+		if nil != scan_error {
+			return errors.New("start cmd failed, " + err.Error() + "\r\n" + scan_error.Error())
+		}
+		return errors.New("start cmd failed, " + err.Error())
+	}
 
 	return scan_error
 }

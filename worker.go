@@ -1,6 +1,8 @@
 package delayed_job
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"expvar"
 	"flag"
@@ -15,6 +17,7 @@ import (
 )
 
 var (
+	dump_job                    = false
 	default_priority            = flag.Int("default_priority", 0, "the default priority of job")
 	default_queue_name          = flag.String("default_queue_name", "", "the default queue name")
 	delay_jobs                  = flag.Bool("delay_jobs", true, "can delay job")
@@ -284,7 +287,12 @@ func (self *worker) failed(job *Job, e error) error {
 
 func (self *worker) job_say(job *Job, text ...interface{}) {
 	args := make([]interface{}, 0, 3+len(text))
-	args = append(args, "Job ", job.name(), " (id=", job.id, ") ")
+	if dump_job {
+		txt, _ := json.Marshal(job.handler_attributes)
+		args = append(args, "Job ", job.name(), string(txt))
+	} else {
+		args = append(args, "Job ", job.name(), " (id=", job.id, ") ")
+	}
 	args = append(args, text...)
 	self.say(args...)
 }
@@ -325,9 +333,17 @@ func (self *worker) reschedule(job *Job, next_time time.Time, e error) error {
 
 type TestWorker struct {
 	*worker
+	Buffer bytes.Buffer
 }
 
 func (self *TestWorker) WorkOff(num int) (int, int, error) {
+	dump_job = true
+	log.SetOutput(&self.Buffer)
+	defer func() {
+		log.SetOutput(os.Stderr)
+		dump_job = false
+	}()
+
 	return self.work_off(num)
 }
 
@@ -348,5 +364,5 @@ func WorkTest(t *testing.T, cb func(w *TestWorker)) {
 		return
 	}
 
-	cb(&TestWorker{w})
+	cb(&TestWorker{worker: w})
 }
