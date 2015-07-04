@@ -10,6 +10,7 @@ import (
 	"errors"
 )
 
+var gammu_config = flag.String("gammu_config", "data/etc/gammu.conf", "the path of gaummu")
 var gammu = flag.String("gammu", "runtime_env/gammu/gammu.exe", "the path of gaummu")
 
 type smsHandler struct {
@@ -70,7 +71,7 @@ func (self *smsHandler) Perform() error {
 			continue
 		}
 
-		cmd := exec.Command(*gammu, "sendsms", "TEXT", phone, "-unicode", "-textutf8", self.content)
+		cmd := exec.Command(*gammu, "-c", *gammu_config, "sendsms", "TEXT", phone, "-unicode", "-textutf8", self.content)
 		output, e := cmd.CombinedOutput()
 		if nil != e {
 			phone_numbers = append(phone_numbers, phone)
