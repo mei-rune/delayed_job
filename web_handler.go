@@ -49,6 +49,9 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if 0 == len(url) {
 		return nil, errors.New("'url' is required.")
 	}
+	if _, ok := params["self"]; !ok {
+		params["self"] = params
+	}
 	url, e := genText(url, params)
 	if nil != e {
 		return nil, errors.New("failed to merge 'url' with params, " + e.Error())
