@@ -157,6 +157,7 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		if props, ok := args.(map[string]interface{}); ok {
 			if _, ok := props["self"]; !ok {
 				props["self"] = params
+				defer delete(props, "self")
 			}
 		}
 
