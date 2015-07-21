@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"text/template"
 
 	"github.com/fd/go-shellwords/shellwords"
 )
@@ -39,17 +38,17 @@ func newExecHandler(ctx, params map[string]interface{}) (Handler, error) {
 	}
 
 	if args, ok := params["arguments"]; ok {
-		t, e := template.New("default").Parse(command)
-		if nil != e {
-			return nil, errors.New("create template failed, " + e.Error())
+		if props, ok := args.(map[string]interface{}); ok {
+			if _, ok := props["self"]; !ok {
+				props["self"] = params
+			}
 		}
-		args = processArgs(args)
-		var buffer bytes.Buffer
-		e = t.Execute(&buffer, args)
+
+		var e error
+		command, e = genText(command, args)
 		if nil != e {
-			return nil, errors.New("execute template failed, " + e.Error())
+			return nil, e
 		}
-		command = buffer.String()
 	}
 
 	arguments, e := shellwords.Split(command)

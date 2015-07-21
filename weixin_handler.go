@@ -63,9 +63,18 @@ func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("content is missing.")
 	}
 	var e error
-	msg.Text.Content, e = genText(msg.Text.Content, params)
-	if nil != e {
-		return nil, e
+
+	if args, ok := params["arguments"]; ok {
+		if props, ok := args.(map[string]interface{}); ok {
+			if _, ok := props["self"]; !ok {
+				props["self"] = params
+			}
+		}
+
+		msg.Text.Content, e = genText(msg.Text.Content, args)
+		if nil != e {
+			return nil, e
+		}
 	}
 
 	switch strings.ToLower(target_type) {

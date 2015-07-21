@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"strings"
-	"text/template"
 	"time"
 )
 
@@ -218,16 +217,16 @@ func newSyslogHandler(ctx, params map[string]interface{}) (Handler, error) {
 	}
 
 	if args, ok := params["arguments"]; ok {
-		t, e := template.New("default").Parse(content)
-		if nil != e {
-			return nil, errors.New("create template failed, " + e.Error())
+		if props, ok := args.(map[string]interface{}); ok {
+			if _, ok := props["self"]; !ok {
+				props["self"] = params
+			}
 		}
-		var buffer bytes.Buffer
-		e = t.Execute(&buffer, args)
+		var e error
+		content, e = genText(content, args)
 		if nil != e {
-			return nil, errors.New("execute template failed, " + e.Error())
+			return nil, e
 		}
-		content = buffer.String()
 	}
 
 	return &syslogHandler{to: to_addr, message: message_printf(facility,

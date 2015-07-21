@@ -1,13 +1,11 @@
 package delayed_job
 
 import (
-	"bytes"
 	"errors"
 	"flag"
 	"net/mail"
 	"net/smtp"
 	"strings"
-	"text/template"
 )
 
 var default_mail_auth_type = flag.String("mail.auth.type", "", "the auth type of smtp")
@@ -150,35 +148,27 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("'content' is required.")
 	}
 
-	if args, ok := params["arguments"]; ok && strings.Contains(content, "{{") {
-		t, e := template.New("default").Parse(content)
-		if nil != e {
-			return nil, errors.New("create template failed, " + e.Error())
-		}
-		var buffer bytes.Buffer
-		e = t.Execute(&buffer, args)
-		if nil != e {
-			return nil, errors.New("execute template failed, " + e.Error())
-		}
-		content = buffer.String()
-	}
-
 	subject := stringWithDefault(params, "subject", "")
 	if 0 == len(subject) {
 		return nil, errors.New("'subject' is required.")
 	}
 
 	if args, ok := params["arguments"]; ok && strings.Contains(subject, "{{") {
-		t, e := template.New("default").Parse(subject)
-		if nil != e {
-			return nil, errors.New("create template failed, " + e.Error())
+		if props, ok := args.(map[string]interface{}); ok {
+			if _, ok := props["self"]; !ok {
+				props["self"] = params
+			}
 		}
-		var buffer bytes.Buffer
-		e = t.Execute(&buffer, args)
+
+		var e error
+		subject, e = genText(subject, args)
 		if nil != e {
-			return nil, errors.New("execute template failed, " + e.Error())
+			return nil, e
 		}
-		subject = buffer.String()
+		content, e = genText(content, args)
+		if nil != e {
+			return nil, e
+		}
 	}
 
 	from, e := addressWith(params, "from_address")

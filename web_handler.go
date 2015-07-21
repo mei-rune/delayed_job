@@ -49,17 +49,24 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if 0 == len(url) {
 		return nil, errors.New("'url' is required.")
 	}
-	if _, ok := params["self"]; !ok {
-		params["self"] = params
-	}
-	url, e := genText(url, params)
-	if nil != e {
-		return nil, errors.New("failed to merge 'url' with params, " + e.Error())
-	}
-	if s, ok := body.(string); ok {
-		body, e = genText(s, params)
+
+	args, ok := params["arguments"]
+	if ok {
+		if props, ok := args.(map[string]interface{}); ok {
+			if _, ok := props["self"]; !ok {
+				props["self"] = params
+			}
+		}
+		var e error
+		url, e = genText(url, params)
 		if nil != e {
-			return nil, errors.New("failed to merge 'body' with params, " + e.Error())
+			return nil, errors.New("failed to merge 'url' with params, " + e.Error())
+		}
+		if s, ok := body.(string); ok {
+			body, e = genText(s, params)
+			if nil != e {
+				return nil, errors.New("failed to merge 'body' with params, " + e.Error())
+			}
 		}
 	}
 
