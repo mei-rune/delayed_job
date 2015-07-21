@@ -20,11 +20,8 @@ import (
 )
 
 var (
-	listenAddress = flag.String("listen", ":37078", "the address of http")
-	run_mode      = flag.String("mode", "all", "init_db, console, backend, all")
-	config_file   = flag.String("config", "delayed_job.conf", "the config file name")
-
-	cd_dir, _ = os.Getwd()
+	config_file = flag.String("config", "delayed_job.conf", "the config file name")
+	cd_dir, _   = os.Getwd()
 
 	retry_list = []*regexp.Regexp{regexp.MustCompile(`^/?[0-9]+/retry/?$`),
 		regexp.MustCompile(`^/?delayed_jobs/[0-9]+/retry/?$`),
@@ -72,13 +69,7 @@ func searchFile() (string, bool) {
 	return abs(filepath.Join("delayed_job.conf")), false
 }
 
-func Main() error {
-	flag.Parse()
-	if nil != flag.Args() && 0 != len(flag.Args()) {
-		flag.Usage()
-		return nil
-	}
-
+func Main(listenAddress, run_mode string) error {
 	default_actuals = loadActualFlags(nil)
 	initDB()
 
@@ -94,7 +85,7 @@ func Main() error {
 		}
 	}
 
-	switch *run_mode {
+	switch run_mode {
 	case "init_db":
 		ctx := map[string]interface{}{}
 		backend, e := newBackend(*db_drv, *db_url, ctx)
@@ -233,7 +224,7 @@ END`
 			os.Exit(1)
 		}
 		defer removePidFile(*pidFile)
-		httpServe(backend)
+		httpServe(backend, listenAddress)
 	case "backend":
 		w, e := newWorker(map[string]interface{}{})
 		if nil != e {
@@ -275,7 +266,7 @@ END`
 		}
 		defer removePidFile(*pidFile)
 
-		go httpServe(w.backend)
+		go httpServe(w.backend, listenAddress)
 		w.RunForever()
 	}
 	return nil
@@ -750,8 +741,8 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNotFound)
 }
-func httpServe(backend *dbBackend) {
+func httpServe(backend *dbBackend, listenAddress string) {
 	http.Handle("/", &webFront{backend})
-	log.Println("[delayed_job] serving at '" + *listenAddress + "'")
-	http.ListenAndServe(*listenAddress, nil)
+	log.Println("[delayed_job] serving at '" + listenAddress + "'")
+	http.ListenAndServe(listenAddress, nil)
 }

@@ -10,12 +10,12 @@ import (
 )
 
 func backendTest(t *testing.T, cb func(backend *dbBackend)) {
-	old_mode := *run_mode
-	*run_mode = "init_db"
-	defer func() {
-		*run_mode = old_mode
-	}()
-	e := Main()
+	// old_mode := *run_mode
+	// *run_mode = "init_db"
+	// defer func() {
+	// 	*run_mode = old_mode
+	// }()
+	e := Main(":0", "init_db")
 	if nil != e {
 		t.Error(e)
 		return
