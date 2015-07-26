@@ -217,6 +217,7 @@ func newSyslogHandler(ctx, params map[string]interface{}) (Handler, error) {
 	}
 
 	if args, ok := params["arguments"]; ok {
+		args = processArgs(args)
 		if props, ok := args.(map[string]interface{}); ok {
 			if _, ok := props["self"]; !ok {
 				props["self"] = params

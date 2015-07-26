@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"text/template"
 )
 
 type dbHandler struct {
@@ -215,16 +214,19 @@ func newDbHandler(ctx, params map[string]interface{}) (Handler, error) {
 	}
 
 	if args, ok := params["arguments"]; ok {
-		t, e := template.New("default").Parse(script)
-		if nil != e {
-			return nil, errors.New("create template failed, " + e.Error())
+		args = processArgs(args)
+
+		if props, ok := args.(map[string]interface{}); ok {
+			if _, ok := props["self"]; !ok {
+				props["self"] = params
+				defer delete(props, "self")
+			}
 		}
-		var buffer bytes.Buffer
-		e = t.Execute(&buffer, args)
+
+		script, e = genText(script, args)
 		if nil != e {
-			return nil, errors.New("execute template failed, " + e.Error())
+			return nil, e
 		}
-		script = buffer.String()
 	}
 
 	return &dbHandler{drv: drv, url: url, script: script}, nil

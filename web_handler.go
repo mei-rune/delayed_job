@@ -52,6 +52,7 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 	args, ok := params["arguments"]
 	if ok {
+		args = processArgs(args)
 		if props, ok := args.(map[string]interface{}); ok {
 			if _, ok := props["self"]; !ok {
 				props["self"] = params
@@ -224,6 +225,7 @@ func genText(content string, args interface{}) (string, error) {
 	if nil != e {
 		return content, errors.New("create template failed, " + e.Error())
 	}
+	args = processArgs(args)
 	var buffer bytes.Buffer
 	e = t.Execute(&buffer, args)
 	if nil != e {
