@@ -153,7 +153,8 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("'subject' is required.")
 	}
 
-	if args, ok := params["arguments"]; ok && strings.Contains(subject, "{{") {
+	if args, ok := params["arguments"]; ok {
+		args = preprocessArgs(args)
 		if props, ok := args.(map[string]interface{}); ok {
 			if _, ok := props["self"]; !ok {
 				props["self"] = params

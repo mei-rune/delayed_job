@@ -29,7 +29,7 @@ const (
 )
 
 var (
-	ProcessArgs func(args interface{}) interface{}
+	PreprocessArgs func(args interface{}) interface{}
 
 	db_url     = flag.String("db_url", "host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable", "the db url")
 	db_drv     = flag.String("db_drv", "postgres", "the db driver")
@@ -43,9 +43,9 @@ var (
 	fields_sql_string = " id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at "
 )
 
-func processArgs(args interface{}) interface{} {
-	if nil != ProcessArgs {
-		return ProcessArgs(args)
+func preprocessArgs(args interface{}) interface{} {
+	if nil != PreprocessArgs {
+		return PreprocessArgs(args)
 	}
 	return args
 }
