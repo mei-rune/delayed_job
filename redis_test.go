@@ -2,11 +2,13 @@ package delayed_job
 
 import (
 	"fmt"
-	"github.com/garyburd/redigo/redis"
 	"net/http"
 	_ "net/http/pprof"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/garyburd/redigo/redis"
 )
 
 func clearRedis(t *testing.T, c redis.Conn, key string) {
@@ -89,4 +91,23 @@ func TestRedisEmpty(t *testing.T) {
 		checkResult(t, c, "GET", "a4", "1226")
 		checkResult(t, c, "GET", "a5", "1227")
 	})
+}
+
+func TestRedisConnectFailed(t *testing.T) {
+	redis_client, err := newRedis("127.0.0.1:3")
+	if nil != err {
+		t.Error(err)
+		return
+	}
+	defer redis_client.Close()
+
+	e := redis_client.Call([][]string{{}})
+	if nil == e {
+		t.Error("excepted is error, actual is ok")
+		return
+	}
+	if !strings.Contains(e.Error(), "127.0.0.1:3") {
+		t.Error(e)
+	}
+	t.Log(e)
 }
