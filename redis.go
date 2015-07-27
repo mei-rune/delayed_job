@@ -6,13 +6,14 @@ import (
 	"expvar"
 	"flag"
 	"fmt"
-	"github.com/garyburd/redigo/redis"
 	"log"
 	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/garyburd/redigo/redis"
 )
 
 var redisAddress = flag.String("redis", "127.0.0.1:6379", "the address of redis")
@@ -60,12 +61,13 @@ func (self *redis_gateway) serve() {
 		log.Println("redis client is exit.")
 	}()
 
+	error_count := uint(0)
 	for self.isRunning() {
-		self.runOnce()
+		self.runOnce(&error_count)
 	}
 }
 
-func (self *redis_gateway) runOnce() {
+func (self *redis_gateway) runOnce(error_count *uint) {
 	defer func() {
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
@@ -83,14 +85,40 @@ func (self *redis_gateway) runOnce() {
 		}
 	}()
 
-	c, err := redis.DialTimeout("tcp", self.Address, 0, 1*time.Second, 1*time.Second)
+	c, err := redis.DialTimeout("tcp", self.Address, 1*time.Second, 1*time.Second, 1*time.Second)
 	if err != nil {
 		msg := fmt.Sprintf("[redis] connect to '%s' failed, %v", self.Address, err)
 		redis_error.Set(msg)
 		log.Println(msg)
+
+		*error_count++
+		if *error_count < 5 {
+			log.Println(msg)
+		} else if 0 == (*error_count % 10) {
+			log.Println(msg)
+
+			for {
+				select {
+				case req, ok := <-self.c:
+					if !ok {
+						return
+					}
+					if nil != req && nil != req.c {
+						select {
+						case req.c <- err:
+						default:
+						}
+					}
+				default:
+					return
+				}
+			}
+		}
+
 		return
 	}
 
+	*error_count = 0
 	redis_error.Set("")
 
 	for self.isRunning() {
