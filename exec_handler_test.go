@@ -4,6 +4,7 @@ import (
 
 	//"net/http"
 	//_ "net/http/pprof"
+	"flag"
 	"runtime"
 	"strings"
 	"testing"
@@ -147,6 +148,31 @@ func TestExecHandlerWorkdirectory(t *testing.T) {
 	} else {
 		args = map[string]interface{}{"command": "pwd", "prompt": "usr", "work_directory": "/usr/"}
 	}
+
+	handler, e := newExecHandler(map[string]interface{}{}, args)
+	if nil != e {
+		t.Error(e)
+		return
+	}
+	e = handler.Perform()
+	if nil != e {
+		t.Error(e)
+		return
+	}
+}
+
+var plink_work_directory = flag.String("plink_work_directory", "C:\\Program Files (x86)\\hengwei", "")
+var plink_command = flag.String("plink_command", "", "")
+var plink_prompt = flag.String("plink_prompt", "aaa", "")
+
+func TestExecPlink(t *testing.T) {
+	// go func() {
+	//  http.ListenAndServe(":7078", nil)
+	// }()
+	if "windows" != runtime.GOOS || "" == *plink_command {
+		return
+	}
+	args := map[string]interface{}{"command": *plink_command, "prompt": *plink_prompt, "work_directory": *plink_work_directory}
 
 	handler, e := newExecHandler(map[string]interface{}{}, args)
 	if nil != e {

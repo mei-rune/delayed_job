@@ -13,7 +13,7 @@ var weixin_lock sync.Mutex
 var weixin_clients = map[string]*WeixinClient{}
 
 type WeixinClient struct {
-	client send.Client
+	client *send.Client
 	mu     sync.Mutex
 }
 
