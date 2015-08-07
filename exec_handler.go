@@ -79,6 +79,9 @@ func (self *execHandler) Perform() error {
 		pw.Close()
 	}()
 
+	if strings.Contains(strings.ToLower(cmd.Path), "plink") {
+		cmd.Stdin = strings.NewReader("y\ny\ny\ny\ny\ny\ny\ny\n")
+	}
 	cmd.Stdout = pw
 	cmd.Stderr = pw
 
