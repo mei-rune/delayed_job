@@ -6,7 +6,6 @@ import (
 	_ "expvar"
 	"flag"
 	"fmt"
-	"html"
 	"io"
 	"log"
 	"net/http"
@@ -17,6 +16,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/rakyll/statik/fs"
 )
 
 var (
@@ -224,7 +225,7 @@ END`
 			os.Exit(1)
 		}
 		defer removePidFile(*pidFile)
-		httpServe(backend, listenAddress)
+		httpServe(backend, findFs(), listenAddress)
 	case "backend":
 		w, e := newWorker(map[string]interface{}{})
 		if nil != e {
@@ -265,9 +266,21 @@ END`
 			os.Exit(1)
 		}
 		defer removePidFile(*pidFile)
-
-		go httpServe(w.backend, listenAddress)
+		go httpServe(w.backend, findFs(), listenAddress)
 		w.RunForever()
+	}
+	return nil
+}
+
+func findFs() http.Handler {
+	for _, s := range []string{ filepath.Join(".", "index.html"),
+	filepath.Join("public", "index.html"),
+	filepath.Join("..", "public", "index.html"),
+	filepath.Join("lib", "delayed_jobs", "index.html")}{
+		if fileExists(s) {
+			log.Println("public directory is found in the", s)
+			return http.FileServer(http.Dir(filepath.Dir(s)))
+		}
 	}
 	return nil
 }
@@ -295,57 +308,17 @@ func fileHandler(w http.ResponseWriter, r *http.Request, path, default_content s
 	io.WriteString(w, default_content)
 }
 
-func bootstrapCssHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header()["Content-Type"] = []string{"text/css; charset=utf-8"}
-	fileHandler(w, r, "/static/delayed_jobs/bootstrap.css", bootstrap_css)
-}
-func bootstrapModalJsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header()["Content-Type"] = []string{"text/javascript; charset=utf-8"}
-	fileHandler(w, r, "/static/delayed_jobs/bootstrap_modal.js", bootstrap_modal_js)
-}
-func bootstrapPopoverJsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header()["Content-Type"] = []string{"text/javascript; charset=utf-8"}
-	fileHandler(w, r, "/static/delayed_jobs/bootstrap_popover.js", bootstrap_popover_js)
-}
-func bootstrapTabJsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header()["Content-Type"] = []string{"text/javascript; charset=utf-8"}
-	fileHandler(w, r, "/static/delayed_jobs/bootstrap_tab.js", bootstrap_tab_js)
-}
-func bootstrapTooltipJsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header()["Content-Type"] = []string{"text/javascript; charset=utf-8"}
-	fileHandler(w, r, "/static/delayed_jobs/bootstrap_tooltip.js", bootstrap_tooltip_js)
-}
-func djmonCssHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header()["Content-Type"] = []string{"text/css; charset=utf-8"}
-	fileHandler(w, r, "/static/delayed_jobs/dj_mon.css", dj_mon_css)
-}
-func djmonJsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header()["Content-Type"] = []string{"text/javascript; charset=utf-8"}
-	fileHandler(w, r, "/static/delayed_jobs/dj_mon.js", dj_mon_js)
-}
-func jqueryJsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header()["Content-Type"] = []string{"text/javascript; charset=utf-8"}
-	fileHandler(w, r, "/static/delayed_jobs/jquery.min.js", jquery_min_js)
-}
-func mustascheJsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header()["Content-Type"] = []string{"text/javascript; charset=utf-8"}
-	fileHandler(w, r, "/static/delayed_jobs/mustasche.js", mustasche_js)
-}
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	fileHandler(w, r, "/index.html", index_html)
-}
+// func indexHandlerWithMessage(w http.ResponseWriter, r *http.Request, level, message string) {
+// 	io.WriteString(w, index_html_1)
 
-func indexHandlerWithMessage(w http.ResponseWriter, r *http.Request, level, message string) {
-	io.WriteString(w, index_html_1)
+// 	io.WriteString(w, "<div class=\"alert alert-")
+// 	io.WriteString(w, level)
+// 	io.WriteString(w, "\"> ")
+// 	io.WriteString(w, html.EscapeString(message))
+// 	io.WriteString(w, " </div>")
 
-	io.WriteString(w, "<div class=\"alert alert-")
-	io.WriteString(w, level)
-	io.WriteString(w, "\"> ")
-	io.WriteString(w, html.EscapeString(message))
-	io.WriteString(w, " </div>")
-
-	io.WriteString(w, index_html_2)
-}
+// 	io.WriteString(w, index_html_2)
+// }
 
 // func (self *dbBackend) all() ([]map[string]interface{}, error) {
 // 	return self.where("")
@@ -582,101 +555,84 @@ func settingsFileHandler(w http.ResponseWriter, r *http.Request, backend *dbBack
 }
 
 type webFront struct {
+	fs               http.Handler
 	*dbBackend
 }
 
 func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	backend := self.dbBackend
 
+	fmt.Println(r.Method, r.URL.Path)
 	switch r.Method {
 	case "GET":
 		switch r.URL.Path {
-		case "/", "/index.html", "/index.htm", "/delayed_jobs", "/delayed_jobs/":
-			indexHandler(w, r)
-			return
-		case "/static/delayed_jobs/bootstrap.css":
-			bootstrapCssHandler(w, r)
-			return
-		case "/static/delayed_jobs/bootstrap_modal.js":
-			bootstrapModalJsHandler(w, r)
-			return
-		case "/static/delayed_jobs/bootstrap_popover.js":
-			bootstrapPopoverJsHandler(w, r)
-			return
-		case "/static/delayed_jobs/bootstrap_tab.js":
-			bootstrapTabJsHandler(w, r)
-			return
-		case "/static/delayed_jobs/bootstrap_tooltip.js":
-			bootstrapTooltipJsHandler(w, r)
-			return
-		case "/static/delayed_jobs/dj_mon.css":
-			djmonCssHandler(w, r)
-			return
-		case "/static/delayed_jobs/dj_mon.js":
-			djmonJsHandler(w, r)
-			return
-		case "/static/delayed_jobs/jquery.min.js":
-			jqueryJsHandler(w, r)
-			return
-		case "/static/delayed_jobs/mustache.js":
-			mustascheJsHandler(w, r)
-			return
-
-		case "/all", "/delayed_jobs/all", "/delayed_jobs/delayed_jobs/all":
+		case "/all":
 			allHandler(w, r, backend)
 			return
-		case "/failed", "/delayed_jobs/failed", "/delayed_jobs/delayed_jobs/failed":
+		case "/failed":
 			failedHandler(w, r, backend)
 			return
-		case "/queued", "/delayed_jobs/queued", "/delayed_jobs/delayed_jobs/queued":
+		case "/queued":
 			queuedHandler(w, r, backend)
 			return
-		case "/active", "/delayed_jobs/active", "/delayed_jobs/delayed_jobs/active":
+		case "/active":
 			activeHandler(w, r, backend)
 			return
-		case "/counts", "/delayed_jobs/counts", "/delayed_jobs/delayed_jobs/counts":
+		case "/counts":
 			countsHandler(w, r, backend)
 			return
-
-		case "/delayed_jobs/settings_file", "/delayed_jobs/settings_file/":
+		case "/settings_file":
 			readSettingsFileHandler(w, r, backend)
+			return
+		default:
+			if nil == self.fs {
+				statikFS, err := fs.New()
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					io.WriteString(w, err.Error())
+					return
+				}
+				//http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(statikFS)))
+				self.fs = http.StripPrefix("/", http.FileServer(statikFS))
+			}
+			self.fs.ServeHTTP(w, r)
 			return
 		}
 
 	case "PUT":
 		switch r.URL.Path {
-		case "/delayed_jobs/test", "/delayed_jobs/test/":
+		case "/test":
 			testJobHandler(w, r, backend)
 			return
 
-		case "/delayed_jobs/push", "/delayed_jobs/push/":
+		case "/push":
 			pushHandler(w, r, backend)
 			return
 
-		case "/delayed_jobs/pushAll", "/delayed_jobs/pushAll/":
+		case "/pushAll":
 			pushAllHandler(w, r, backend)
 			return
 
-		case "/delayed_jobs/settings_file", "/delayed_jobs/settings_file/":
+		case "/settings_file":
 			settingsFileHandler(w, r, backend)
 			return
 		}
 
 	case "POST":
 		switch r.URL.Path {
-		case "/delayed_jobs/test", "/delayed_jobs/test/":
+		case "/test":
 			testJobHandler(w, r, backend)
 			return
 
-		case "/delayed_jobs/push", "/delayed_jobs/push/":
+		case "/push":
 			pushHandler(w, r, backend)
 			return
 
-		case "/delayed_jobs/pushAll", "/delayed_jobs/pushAll/":
+		case "/pushAll":
 			pushAllHandler(w, r, backend)
 			return
 
-		case "/delayed_jobs/settings_file", "/delayed_jobs/settings_file/":
+		case "/settings_file":
 			settingsFileHandler(w, r, backend)
 			return
 		}
@@ -686,15 +642,18 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				ss := strings.Split(r.URL.Path, "/")
 				id, e := strconv.ParseInt(ss[len(ss)-2], 10, 0)
 				if nil != e {
-					indexHandlerWithMessage(w, r, "error", e.Error())
+					w.WriteHeader(http.StatusBadRequest)
+					io.WriteString(w, e.Error())
 					return
 				}
 
 				e = backend.retry(id)
 				if nil == e {
-					indexHandlerWithMessage(w, r, "success", "The job has been queued for a re-run")
+					w.WriteHeader(http.StatusOK)
+					io.WriteString(w, "The job has been queued for a re-run")
 				} else {
-					indexHandlerWithMessage(w, r, "error", e.Error())
+					w.WriteHeader(http.StatusInternalServerError)
+					io.WriteString(w, e.Error())
 				}
 				return
 			}
@@ -705,15 +664,18 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				ss := strings.Split(r.URL.Path, "/")
 				id, e := strconv.ParseInt(ss[len(ss)-2], 10, 0)
 				if nil != e {
-					indexHandlerWithMessage(w, r, "error", e.Error())
+					w.WriteHeader(http.StatusBadRequest)
+					io.WriteString(w, e.Error())
 					return
 				}
 
 				e = backend.destroy(id)
 				if nil == e {
-					indexHandlerWithMessage(w, r, "success", "The job was deleted")
+					w.WriteHeader(http.StatusOK)
+					io.WriteString(w,  "The job was deleted")
 				} else {
-					indexHandlerWithMessage(w, r, "error", e.Error())
+					w.WriteHeader(http.StatusInternalServerError)
+					io.WriteString(w, e.Error())
 				}
 				return
 			}
@@ -724,15 +686,18 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				ss := strings.Split(r.URL.Path, "/")
 				id, e := strconv.ParseInt(ss[len(ss)-1], 10, 0)
 				if nil != e {
-					indexHandlerWithMessage(w, r, "error", e.Error())
+					w.WriteHeader(http.StatusBadRequest)
+					io.WriteString(w, e.Error())
 					return
 				}
 
 				e = backend.destroy(id)
 				if nil == e {
-					indexHandlerWithMessage(w, r, "success", "The job was deleted")
+					w.WriteHeader(http.StatusOK)
+					io.WriteString(w,  "The job was deleted")
 				} else {
-					indexHandlerWithMessage(w, r, "error", e.Error())
+					w.WriteHeader(http.StatusInternalServerError)
+					io.WriteString(w, e.Error())
 				}
 				return
 			}
@@ -741,8 +706,10 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNotFound)
 }
-func httpServe(backend *dbBackend, listenAddress string) {
-	http.Handle("/", &webFront{backend})
+
+
+func httpServe(backend *dbBackend, handler http.Handler, listenAddress string) {
+	http.Handle("/", &webFront{dbBackend: backend, fs: handler})
 	log.Println("[delayed_job] serving at '" + listenAddress + "'")
 	http.ListenAndServe(listenAddress, nil)
 }

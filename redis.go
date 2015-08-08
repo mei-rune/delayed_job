@@ -89,8 +89,6 @@ func (self *redis_gateway) runOnce(error_count *uint) {
 	if err != nil {
 		msg := fmt.Sprintf("[redis] connect to '%s' failed, %v", self.Address, err)
 		redis_error.Set(msg)
-		log.Println(msg)
-
 		*error_count++
 		if *error_count < 5 {
 			log.Println(msg)

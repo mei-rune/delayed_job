@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+
+<head lang='en'>
+    <link href="dj_mon.css" media="screen, projection" rel="stylesheet" type="text/css" />
+    <link href="bootstrap.css" media="screen, projection" rel="stylesheet" type="text/css" />
+
+    <script src="jquery.min.js" type="text/javascript"></script>
+    <script src="dj_mon.js" type="text/javascript"></script>
+    <script src="bootstrap_tooltip.js" type="text/javascript"></script>
+    <script src="bootstrap_tab.js" type="text/javascript"></script>
+    <script src="bootstrap_popover.js" type="text/javascript"></script>
+    <script src="bootstrap_modal.js" type="text/javascript"></script>
+    <script src="mustache.js" type="text/javascript"></script>
+</head>
+
+<body>
+    <header>
+        <div class='navbar navbar-fixed-top'>
+            <div class='navbar-inner'>
+                <div class='container'>
+                    <div class='pull-left'>
+                        <a href="http://github.com/runner-mei/delayed_job" class="brand">Delayed Job</a>
+                    </div>
+                    <div class='pull-right'>
+                        <a href="#dj_settings_template" class="btn btn-primary btn-mini" data-content="{&quot;destroy_failed_jobs&quot;:false,&quot;sleep_delay&quot;:5,&quot;max_attempts&quot;:1,&quot;max_run_time&quot;:14400,&quot;read_ahead&quot;:5,&quot;delay_jobs&quot;:true,&quot;delayed_job_version&quot;:&quot;3.0.3&quot;,&quot;dj_mon_version&quot;:&quot;1.1.0&quot;}" id="settings" rel="modal">Settings</a>
+                    </div>
+                    <div class='pull-right'>
+                        <div id='dj-counts-view'></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+    <div class='container centered'></div>
+    <div class='container centered' id="dj-message-view"></div>
+    <div class='container'>
+        <p>
+            <div class='lead'>
+                Delayed Jobs
+            </div>
+        </p>
+        <ul class='nav nav-tabs'>
+            <li class='active'>
+                <a href="#all" data-toggle="tab">All</a>
+            </li>
+            <li>
+                <a href="#failed" data-toggle="tab">Failed</a>
+            </li>
+            <li>
+                <a href="#queued" data-toggle="tab">Queued</a>
+            </li>
+            <li>
+                <a href="#active" data-toggle="tab">Active</a>
+            </li>
+        </ul>
+        <div class='tab-content'>
+            <div class='tab-pane active' data-url='all' id='all'></div>
+            <div class='tab-pane' data-url='failed' id='failed'></div>
+            <div class='tab-pane' data-url='active' id='active'></div>
+            <div class='tab-pane' data-url='queued' id='queued'></div>
+        </div>
+        <script id='dj_reports_template' type='text/x-handlebars-template'>
+        <table class='table table-striped' id='jobs-table'>
+        <thead>
+          <tr>
+          <th>Queue</th>
+          <th>ID</th>
+          <th>Priority</th>
+          <th>Attempts</th>
+          <th>Last Error</th>
+          <th class='date'>Run at</th>
+          <th class='date'>Created at</th>
+          <th class='date'>Failed at</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#.}}
+          <tr>
+            <td><div class='label label-info'>{{queue}}</div></td>
+            <td> <a href="#" data-content="<code class='block'>{{payload}}</code>" rel='popover' title='Payload'> {{id}} </a> </td>
+            <td> {{priority}} </td>
+            <td> {{attempts}} </td>
+            <td> <a href="#last_error_template" data-content="{{last_error}}" rel='modal' title='Last Error'> {{last_error_summary}} </a> </td>
+            <td class='date'> {{run_at}} </td>
+            <td class='date'> {{created_at}} </td>
+            <td class='date'>
+              {{#failed}}
+              {{failed_at}}
+              <form accept-charset="UTF-8" action="/delayed_jobs/{{id}}/retry" class="form-inline" method="post"><div style="margin:0;padding:0;display:inline">
+                <input name="utf8" type="hidden" value="&#x2713;" />
+                <input name="authenticity_token" type="hidden" value="iObCtI46KYbhjIJCA4w01FI/nkV6PQyRxJkkSympj8A=" /></div>
+                <input class="btn btn-info btn-mini" name="commit" type="submit" value="Retry" />
+              </form>
+
+              <form accept-charset="UTF-8" action="/delayed_jobs/{{id}}/delete" class="form-inline" method="post">
+                <div style="margin:0;padding:0;display:inline"><input name="utf8" type="hidden" value="&#x2713;" />
+                  <input name="_method" type="hidden" value="delete" />
+                  <input name="authenticity_token" type="hidden" value="iObCtI46KYbhjIJCA4w01FI/nkV6PQyRxJkkSympj8A=" />
+                </div>
+                <input class="btn btn-danger btn-mini" name="commit" type="submit" value="Delete" />
+              </form>
+              {{/failed}}
+            </td>
+          </tr>
+          {{/.}}
+        </tbody>
+        </table>
+        </script>
+        <script id='last_error_template' type='text/x-handlebars-template'>
+        <div class='modal hide'>
+          <div class='modal-header'>
+          <button class='close' data-dismiss='modal' type='button'>×</button>
+          <h3>Last Error</h3>
+          </div>
+
+          <div class='modal-body'><code>{{content}}</code></div>
+          <div class='modal-footer'>
+            <a href="#" class="btn btn-primary" data-dismiss="modal">Close</a>
+          </div>
+        </div>
+        </script>
+    </div>
+  
+
+  <script>
+  var dj_counts_dj_reports_url = "/counts"
+  </script>
+
+
+  <script id='dj_message_template' type='text/x-handlebars-template'>
+    <div class="alert alert-{{level}} alert-dismissible" role="alert">
+      <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      {{data}}
+    </div>
+  </script>
+
+  <script id='dj_counts_template' type='text/x-handlebars-template'>
+    <span class='badge badge-warning'> {{failed}} failed </span>
+    <span class='badge badge-info'> {{queued}} queued </span>
+    <span class='badge badge-info'> {{active}} active </span>
+    <span class='badge badge-info'> {{all}} all </span>
+  </script>
+
+  <script id='dj_settings_template' type='text/x-handlebars-template'>
+    <div class='modal hide'>
+      <div class='modal-header'>
+        <button class='close' data-dismiss='modal' type='button'>×</button>
+        <h3> Settings </h3>
+      </div>
+
+      <div class='modal-body'>
+        <table class='table table-bordered table-striped'>
+          <tr>
+            <td>Delayed Job version</td>
+            <td><code>{{content.delayed_job_version}}</code></td>
+          </tr>
+          <tr>
+            <td>DJ Mon version</td>
+            <td><code>{{content.dj_mon_version}}</code></td>
+          </tr>
+          <tr>
+            <td>Destroy failed jobs</td>
+            <td><code>{{content.destroy_failed_jobs}}</code></td>
+          </tr>
+          <tr>
+            <td>Sleep delay</td>
+            <td><code>{{content.sleep_delay}}</code> seconds</td>
+          </tr>
+          <tr>
+            <td>Max attempts</td>
+            <td><code>{{content.max_attempts}}</code></td>
+          </tr>
+          <tr>
+            <td>Max run time</td>
+            <td><code>{{content.max_run_time}}</code> seconds</td>
+          </tr>
+          <tr>
+            <td>Read ahead</td>
+            <td><code>{{content.read_ahead}}</code></td>
+          </tr>
+          <tr>
+            <td>Delay Jobs</td>
+            <td><code>{{content.delay_jobs}}</code></td>
+          </tr>
+        </table>
+      </div>
+      <div class='modal-footer'> <a href="#" class="btn btn-primary" data-dismiss="modal">Close</a> </div>
+    </div>
+  </script>
+</body>
+
+</html>

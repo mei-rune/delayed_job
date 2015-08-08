@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"os/exec"
 	"strings"
@@ -63,6 +64,7 @@ func newExecHandler(ctx, params map[string]interface{}) (Handler, error) {
 }
 
 func (self *execHandler) Perform() error {
+	fmt.Println(self.command, self.arguments)
 	cmd := exec.Command(self.command, self.arguments...)
 	cmd.Dir = self.work_directory
 
