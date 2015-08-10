@@ -18,6 +18,8 @@ import (
 	"strings"
 
 	"github.com/rakyll/statik/fs"
+
+	_ "github.com/runner-mei/delayed_job/statik"
 )
 
 var (
@@ -273,10 +275,10 @@ END`
 }
 
 func findFs() http.Handler {
-	for _, s := range []string{ filepath.Join(".", "index.html"),
-	filepath.Join("public", "index.html"),
-	filepath.Join("..", "public", "index.html"),
-	filepath.Join("lib", "delayed_jobs", "index.html")}{
+	for _, s := range []string{filepath.Join(".", "index.html"),
+		filepath.Join("public", "index.html"),
+		filepath.Join("..", "public", "index.html"),
+		filepath.Join("lib", "delayed_jobs", "index.html")} {
 		if fileExists(s) {
 			log.Println("public directory is found in the", s)
 			return http.FileServer(http.Dir(filepath.Dir(s)))
@@ -555,7 +557,7 @@ func settingsFileHandler(w http.ResponseWriter, r *http.Request, backend *dbBack
 }
 
 type webFront struct {
-	fs               http.Handler
+	fs http.Handler
 	*dbBackend
 }
 
@@ -672,7 +674,7 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				e = backend.destroy(id)
 				if nil == e {
 					w.WriteHeader(http.StatusOK)
-					io.WriteString(w,  "The job was deleted")
+					io.WriteString(w, "The job was deleted")
 				} else {
 					w.WriteHeader(http.StatusInternalServerError)
 					io.WriteString(w, e.Error())
@@ -694,7 +696,7 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				e = backend.destroy(id)
 				if nil == e {
 					w.WriteHeader(http.StatusOK)
-					io.WriteString(w,  "The job was deleted")
+					io.WriteString(w, "The job was deleted")
 				} else {
 					w.WriteHeader(http.StatusInternalServerError)
 					io.WriteString(w, e.Error())
@@ -706,7 +708,6 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNotFound)
 }
-
 
 func httpServe(backend *dbBackend, handler http.Handler, listenAddress string) {
 	http.Handle("/", &webFront{dbBackend: backend, fs: handler})
