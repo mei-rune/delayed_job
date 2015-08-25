@@ -49,8 +49,9 @@ func TestWebHandler(t *testing.T) {
 				"body":       test.body,
 				"head.x":     test.head1,
 				"head.aaddd": test.head2,
-				"abc1":       "aaa",
-				"abc2":       "bbb"})
+				"arguments": map[string]interface{}{
+					"abc1": "aaa",
+					"abc2": "bbb"}})
 			if nil != e {
 				if e.Error() != test.excepted_error {
 					t.Error(e)

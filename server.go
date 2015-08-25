@@ -49,10 +49,10 @@ func abs(pa string) string {
 
 func searchFile() (string, bool) {
 	files := []string{*config_file,
-		filepath.Join("conf", "delayed_job.conf"),
-		filepath.Join("etc", "delayed_job.conf"),
-		filepath.Join("..", "conf", "delayed_job.conf"),
-		filepath.Join("..", "etc", "delayed_job.conf")}
+		filepath.Join("data", "conf", "delayed_job.conf"),
+		filepath.Join("data", "etc", "delayed_job.conf"),
+		filepath.Join("..", "data", "conf", "delayed_job.conf"),
+		filepath.Join("..", "data", "etc", "delayed_job.conf")}
 
 	for _, file := range files {
 		if st, e := os.Stat(file); nil == e && nil != st && !st.IsDir() {
@@ -61,15 +61,15 @@ func searchFile() (string, bool) {
 	}
 
 	files = []string{filepath.Join("conf"),
-		filepath.Join("etc"),
-		filepath.Join("..", "conf"),
-		filepath.Join("..", "etc")}
+		filepath.Join("data", "etc"),
+		filepath.Join("..", "data", "conf"),
+		filepath.Join("..", "data", "etc")}
 	for _, file := range files {
 		if st, e := os.Stat(file); nil == e && nil != st && st.IsDir() {
 			return abs(filepath.Join(file, "delayed_job.conf")), false
 		}
 	}
-	return abs(filepath.Join("delayed_job.conf")), false
+	return abs(filepath.Join("data/conf/delayed_job.conf")), false
 }
 
 func Main(listenAddress, run_mode string) error {

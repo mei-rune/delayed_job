@@ -15,7 +15,7 @@ import (
 func TestPush(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
 
-		srv := httptest.NewServer(&webFront{backend})
+		srv := httptest.NewServer(&webFront{nil, backend})
 		defer srv.Close()
 
 		var buffer bytes.Buffer
