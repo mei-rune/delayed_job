@@ -234,33 +234,35 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 func (self *mailHandler) Perform() error {
 	var auth smtp.Auth = nil
-	switch self.auth_type {
-	case "":
-		if 0 != len(self.password) {
+	if "" != self.password {
+		switch self.auth_type {
+		case "":
+			if 0 != len(self.password) {
+				if 0 == len(self.user) {
+					self.user = toMailString(&self.message.From)
+
+					if 0 == len(self.user) {
+						return errors.New("user is missing.")
+					}
+				}
+				auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host)
+			}
+		case "plain", "PLAIN":
 			if 0 == len(self.user) {
 				self.user = toMailString(&self.message.From)
-
 				if 0 == len(self.user) {
 					return errors.New("user is missing.")
 				}
 			}
-			auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host)
-		}
-	case "plain", "PLAIN":
-		if 0 == len(self.user) {
-			self.user = toMailString(&self.message.From)
-			if 0 == len(self.user) {
-				return errors.New("user is missing.")
+			if 0 == len(self.host) {
+				self.host = self.smtp_server
 			}
+			auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host)
+		case "cram-md5", "CRAM-MD5":
+			auth = smtp.CRAMMD5Auth(self.user, self.password)
+		default:
+			return errors.New("unsupported auth type - " + self.auth_type)
 		}
-		if 0 == len(self.host) {
-			self.host = self.smtp_server
-		}
-		auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host)
-	case "cram-md5", "CRAM-MD5":
-		auth = smtp.CRAMMD5Auth(self.user, self.password)
-	default:
-		return errors.New("unsupported auth type - " + self.auth_type)
 	}
 	return self.message.Send(self.smtp_server, auth)
 }
