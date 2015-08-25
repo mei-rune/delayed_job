@@ -583,7 +583,7 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "/counts":
 			countsHandler(w, r, backend)
 			return
-		case "/settings_file", "/delayed_jobs/settings_file":
+		case "/settings_file", "/delayed_jobs/settings_file", "/delayed_job/settings_file":
 			readSettingsFileHandler(w, r, backend)
 			return
 		default:
@@ -603,7 +603,7 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	case "PUT":
 		switch r.URL.Path {
-		case "/test", "/delayed_jobs/test":
+		case "/test", "/delayed_jobs/test", "/delayed_job/test":
 			testJobHandler(w, r, backend)
 			return
 
@@ -615,7 +615,7 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			pushAllHandler(w, r, backend)
 			return
 
-		case "/settings_file", "/delayed_jobs/settings_file":
+		case "/settings_file", "/delayed_jobs/settings_file", "/delayed_job/settings_file":
 			settingsFileHandler(w, r, backend)
 			return
 		}
@@ -634,7 +634,7 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			pushAllHandler(w, r, backend)
 			return
 
-		case "/settings_file", "/delayed_jobs/settings_file":
+		case "/settings_file", "/delayed_jobs/settings_file", "/delayed_job/settings_file":
 			settingsFileHandler(w, r, backend)
 			return
 		}
