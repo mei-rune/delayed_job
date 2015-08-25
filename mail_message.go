@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"io"
 	"net/mail"
-	"net/smtp"
 	"strings"
 	"time"
+
+	"github.com/runner-mei/delayed_job/smtp"
 )
 
 const crlf = "\r\n"

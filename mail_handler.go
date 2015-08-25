@@ -4,8 +4,9 @@ import (
 	"errors"
 	"flag"
 	"net/mail"
-	"net/smtp"
 	"strings"
+
+	"github.com/runner-mei/delayed_job/smtp"
 )
 
 var default_mail_auth_type = flag.String("mail.auth.type", "", "the auth type of smtp")
