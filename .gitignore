@@ -32,3 +32,4 @@ ipch/
 *.orig
 tools/gyp
 run_test.bat
+test_mail.bat

@@ -3,7 +3,12 @@ package delayed_job
 import (
 	"errors"
 	"flag"
+	"fmt"
+	"io"
+	"log"
 	"net/mail"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/runner-mei/delayed_job/smtp"
@@ -22,11 +27,13 @@ type mailHandler struct {
 	smtp_server string
 	message     *MailMessage
 
-	auth_type string
-	identity  string
-	user      string
-	password  string
-	host      string
+	auth_type    string
+	identity     string
+	user         string
+	password     string
+	host         string
+	remove_files []string
+	closers      []io.Closer
 }
 
 func addressesWith(params map[string]interface{}, nm string) ([]*mail.Address, error) {
@@ -144,9 +151,16 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
+	var contentText string
+	var contentHtml string
 	content := stringWithDefault(params, "content", "")
 	if 0 == len(content) {
-		return nil, errors.New("'content' is required.")
+		contentText = stringWithDefault(params, "content_html", "")
+		contentHtml = stringWithDefault(params, "content_text", "")
+
+		if "" == contentHtml && "" == contentText {
+			return nil, errors.New("'content' is required.")
+		}
 	}
 
 	subject := stringWithDefault(params, "subject", "")
@@ -168,9 +182,24 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		if nil != e {
 			return nil, e
 		}
-		content, e = genText(content, args)
-		if nil != e {
-			return nil, e
+		if "" != content {
+			content, e = genText(content, args)
+			if nil != e {
+				return nil, e
+			}
+		}
+		if "" != contentHtml {
+			contentHtml, e = genText(contentHtml, args)
+			if nil != e {
+				return nil, e
+			}
+		}
+
+		if "" != contentText {
+			contentText, e = genText(contentText, args)
+			if nil != e {
+				return nil, e
+			}
 		}
 	}
 
@@ -215,24 +244,85 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, e
 	}
 
-	contentType := stringWithDefault(params, "content_type", "")
+	if "" != content {
+		contentType := stringWithDefault(params, "content_type", "")
+		switch contentType {
+		case "html":
+			contentHtml = content
+		case "text", "":
+			contentText = content
+		default:
+			return nil, errors.New("'" + contentType + "' is unsupported.")
+		}
+	}
+	var remove_files []string
+	var closers []io.Closer
+	var attachments []Attachment
+	if args, ok := params["attachments"]; ok {
+		if ar, ok := args.([]interface{}); ok {
+			for _, a := range ar {
+				var nm, file string
+				var is_removed bool
+
+				if param, ok := a.(map[string]interface{}); ok {
+					nm = stringWithDefault(param, "name", "")
+					file = stringWithDefault(param, "file", "")
+					is_removed = boolWithDefault(param, "is_removed", false)
+				} else {
+					file = fmt.Sprint(a)
+					nm = filepath.Base(file)
+				}
+
+				if "" == file {
+					continue
+				}
+
+				if "" == nm {
+					nm = filepath.Base(file)
+				}
+
+				if is_removed {
+					remove_files = append(remove_files, file)
+				}
+
+				f, e := os.Open(file)
+				if nil != e {
+					return nil, e
+				}
+
+				attachments = append(attachments, Attachment{Name: nm, Content: f})
+			}
+		}
+	}
 
 	return &mailHandler{smtp_server: smtp_server,
-		auth_type: auth_type,
-		identity:  identity,
-		user:      user,
-		password:  password,
-		host:      host,
+		auth_type:    auth_type,
+		identity:     identity,
+		user:         user,
+		password:     password,
+		host:         host,
+		remove_files: remove_files,
+		closers:      closers,
 		message: &MailMessage{From: *from,
 			To:          to,
 			Cc:          cc,
 			Bcc:         bcc,
 			Subject:     subject,
-			Content:     content,
-			ContentType: contentType}}, nil
+			ContentText: contentText,
+			ContentHtml: contentHtml,
+			Attachments: attachments}}, nil
 }
 
 func (self *mailHandler) Perform() error {
+	close := func() {
+		if len(self.closers) > 0 {
+			for _, closer := range self.closers {
+				closer.Close()
+			}
+			self.closers = nil
+		}
+	}
+	defer close()
 	var auth smtp.Auth = nil
 	if "" != self.password {
 		switch self.auth_type {
@@ -264,7 +354,17 @@ func (self *mailHandler) Perform() error {
 			return errors.New("unsupported auth type - " + self.auth_type)
 		}
 	}
-	return self.message.Send(self.smtp_server, auth)
+	if e := self.message.Send(self.smtp_server, auth); nil != e {
+		return e
+	}
+	close()
+
+	for _, nm := range self.remove_files {
+		if e := os.Remove(nm); nil != e {
+			log.Println("[warn] [mail] remove file - '"+nm+"',", e)
+		}
+	}
+	return nil
 }
 
 func init() {

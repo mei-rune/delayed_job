@@ -71,3 +71,27 @@ func TestMailHandlerWithArguments(t *testing.T) {
 		return
 	}
 }
+
+func TestMailHandlerAttachments(t *testing.T) {
+	if "" == *default_smtp_server {
+		t.Skip("please set 'test.mail_to', 'mail.from' and 'mail.smtp_server'")
+		return
+	}
+
+	handler, e := newMailHandler(map[string]interface{}{}, map[string]interface{}{"to_address": *test_mail_to, "subject": "this is test subject!", "content": `
+		this is a test mail!
+		`,
+		"attachments": []interface{}{
+			map[string]interface{}{"file": ".travis.yml"},
+		}})
+	if nil != e {
+		t.Error(e)
+		return
+	}
+
+	e = handler.Perform()
+	if nil != e {
+		t.Error(e)
+		return
+	}
+}
