@@ -17,18 +17,18 @@ func TestMailMessageTextAndHtml(t *testing.T) {
 			Name:    "收件人的名字",
 			Address: *test_mail_to}},
 		Subject:     "这是一个 增 消息",
-		ContentText: "这是一个Text消息.",
+		ContentText: "这是一个Text消息",
 		ContentHtml: `<!doctype html>
-<html lang="en">
- <head>
-  <meta charset="UTF-8">
-  <title>test</title>
- </head>
- <body>
-  这是一个 Html 消息
- </body>
-</html>
-`,
+		<html lang="en">
+		 <head>
+		  <meta charset="UTF-8">
+		  <title>test</title>
+		 </head>
+		 <body>
+		  这是一个 Html 消息
+		 </body>
+		</html>
+		`,
 		Attachments: []Attachment{
 			{Name: "中文名的附件.txt", Content: strings.NewReader("aaaaaoooo")},
 		}}

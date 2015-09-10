@@ -96,10 +96,10 @@ func (self *MailMessage) Bytes() ([]byte, error) {
 	}
 
 	if "" != self.ContentHtml {
-		alternative.AddText("text/html", self.ContentHtml)
+		alternative.AddText("text/html; charset=\"utf-8\"", self.ContentHtml)
 	}
 	if "" != self.ContentText {
-		alternative.AddText("text/plain", self.ContentText)
+		alternative.AddText("text/plain; charset=\"utf-8\"", self.ContentText)
 	}
 	alternative.Close()
 
@@ -276,9 +276,9 @@ func (p *Multipart) AddTextReader(mediaType string, r io.Reader) error {
 		}
 		encoder.Write(buffer[:read])
 	}
-	fmt.Fprintf(w, crlf)
-	fmt.Fprintf(w, crlf)
 	encoder.Close()
+	fmt.Fprintf(w, crlf)
+	fmt.Fprintf(w, crlf)
 	return nil
 }
 
@@ -303,9 +303,10 @@ func (p *Multipart) AddText(mediaType string, txt string) error {
 		return err
 	}
 
-	fmt.Fprintf(w, crlf)
-	fmt.Fprintf(w, crlf)
 	encoder.Close()
+
+	fmt.Fprintf(w, crlf)
+	fmt.Fprintf(w, crlf)
 	return nil
 }
 
