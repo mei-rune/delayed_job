@@ -60,7 +60,7 @@ func searchFile() (string, bool) {
 		}
 	}
 
-	files = []string{filepath.Join("conf"),
+	files = []string{filepath.Join("data", "conf"),
 		filepath.Join("data", "etc"),
 		filepath.Join("..", "data", "conf"),
 		filepath.Join("..", "data", "etc")}
