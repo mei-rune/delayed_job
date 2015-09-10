@@ -155,8 +155,8 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 	var contentHtml string
 	content := stringWithDefault(params, "content", "")
 	if 0 == len(content) {
-		contentText = stringWithDefault(params, "content_html", "")
-		contentHtml = stringWithDefault(params, "content_text", "")
+		contentText = stringWithDefault(params, "content_text", "")
+		contentHtml = stringWithDefault(params, "content_html", "")
 
 		if "" == contentHtml && "" == contentText {
 			return nil, errors.New("'content' is required.")
