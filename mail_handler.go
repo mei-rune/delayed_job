@@ -14,11 +14,16 @@ import (
 	"github.com/runner-mei/delayed_job/smtp"
 )
 
+var default_mail_subject_encoding string
 var default_mail_auth_type = flag.String("mail.auth.type", "", "the auth type of smtp")
 var default_mail_auth_user = flag.String("mail.auth.user", "", "the auth user of smtp")
 var default_mail_auth_identity = flag.String("mail.auth.identity", "", "the auth identity of smtp")
 var default_mail_auth_password = flag.String("mail.auth.password", "", "the auth password of smtp")
 var default_mail_auth_host = flag.String("mail.auth.host", "", "the auth host of smtp")
+
+func init() {
+	flag.StringVar(&default_mail_subject_encoding, "mail.subject_encoding", "gb2312_base64", "")
+}
 
 var default_smtp_server = flag.String("mail.smtp_server", "", "the address of smtp server")
 var default_mail_address = flag.String("mail.from", "", "the from address of mail")

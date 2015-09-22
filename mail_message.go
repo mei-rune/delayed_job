@@ -18,6 +18,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/text/transform"
+
+	"golang.org/x/text/encoding/simplifiedchinese"
+
 	"github.com/runner-mei/delayed_job/smtp"
 
 	qp "gopkg.in/alexcesaro/quotedprintable.v3"
@@ -78,7 +82,7 @@ func (self *MailMessage) Bytes() ([]byte, error) {
 	write("Cc: ", self.Cc)
 	write("Bcc: ", self.Bcc)
 	fmt.Fprintf(buf, "Date: %s%s", time.Now().UTC().Format(time.RFC822), crlf)
-	fmt.Fprintf(buf, "Subject: %s%s", qpString(self.Subject), crlf)
+	fmt.Fprintf(buf, "Subject: %s%s", encodeSubject(self.Subject), crlf)
 
 	var parts *Multipart
 	var alternative *Multipart
@@ -149,7 +153,59 @@ func (self *MailMessage) Send(smtp_server string, auth smtp.Auth) error {
 	}
 
 	//fmt.Println(string(self.Bytes()))
-	return smtp.SendMail(smtp_server, auth, from, to, body)
+
+	e = smtp.SendMail(smtp_server, auth, from, to, body)
+	if nil != e {
+		err := smtp.SendMail(smtp_server, nil, from, to, body)
+		if nil == err {
+			return nil
+		}
+	}
+	return e
+}
+
+func encodeSubject(txt string) string {
+	switch default_mail_subject_encoding {
+	case "gb2312_base64":
+		return base64StringWithGB2312(txt)
+	case "gb2312_qp":
+		return qpStringWithGB2312(txt)
+	case "gb2312":
+		s, _, e := transform.String(simplifiedchinese.GB18030.NewEncoder(), txt)
+		if nil != e {
+			return qpString(txt)
+		}
+		return s
+	case "utf8_qp":
+		return qpString(txt)
+	default:
+		return qpString(txt)
+	}
+}
+
+func base64StringWithGB2312(txt string) string {
+	buf := bytes.NewBufferString("=?GB2312?B?")
+	bs, _, e := transform.Bytes(simplifiedchinese.GB18030.NewEncoder(), []byte(txt))
+	if nil != e {
+		return qpString(txt)
+	}
+	buf.WriteString(base64.StdEncoding.EncodeToString(bs))
+	buf.WriteString("?=")
+	return buf.String()
+}
+
+func qpStringWithGB2312(txt string) string {
+	buf := bytes.NewBufferString("=?GB2312?Q?")
+	bs, _, e := transform.Bytes(simplifiedchinese.GB18030.NewEncoder(), []byte(txt))
+	if nil != e {
+		return qpString(txt)
+	}
+	w := qp.NewWriter(buf)
+	w.Write(bs)
+	w.Close()
+
+	buf.WriteString("?=")
+	return buf.String()
 }
 
 func qpString(txt string) string {
