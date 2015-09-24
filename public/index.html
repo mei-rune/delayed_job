@@ -87,13 +87,13 @@
             <td class='date'>
               {{#failed}}
               {{failed_at}}
-              <form accept-charset="UTF-8" action="/delayed_jobs/{{id}}/retry" class="form-inline" method="post"><div style="margin:0;padding:0;display:inline">
+              <form accept-charset="UTF-8" action="delayed_jobs/{{id}}/retry" class="form-inline" method="post"><div style="margin:0;padding:0;display:inline">
                 <input name="utf8" type="hidden" value="&#x2713;" />
                 <input name="authenticity_token" type="hidden" value="iObCtI46KYbhjIJCA4w01FI/nkV6PQyRxJkkSympj8A=" /></div>
                 <input class="btn btn-info btn-mini" name="commit" type="submit" value="Retry" />
               </form>
 
-              <form accept-charset="UTF-8" action="/delayed_jobs/{{id}}/delete" class="form-inline" method="post">
+              <form accept-charset="UTF-8" action="delayed_jobs/{{id}}/delete" class="form-inline" method="post">
                 <div style="margin:0;padding:0;display:inline"><input name="utf8" type="hidden" value="&#x2713;" />
                   <input name="_method" type="hidden" value="delete" />
                   <input name="authenticity_token" type="hidden" value="iObCtI46KYbhjIJCA4w01FI/nkV6PQyRxJkkSympj8A=" />
