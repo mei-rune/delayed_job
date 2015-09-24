@@ -13,7 +13,7 @@ $(function(){
 
     $.getJSON(dataUrl).success(function(data){
       var template = $('#dj_reports_template').html();
-      if(data.length > 0)
+      if(!! data && data.length > 0)
         var output = Mustache.render(template, data);
       else
         var output = "<div class='alert centered'>No Jobs</div>";
@@ -36,6 +36,11 @@ $(function(){
             var template = $('#dj_message_template').html();
             var output = Mustache.render(template, params);
             $('#dj-message-view').html(output);
+
+            $('[data-dismiss="alert"]').live('click', function(){
+              $('.alert').hide().remove();
+            });
+
            } //回传函数(这里是函数名)
          });
          return false
