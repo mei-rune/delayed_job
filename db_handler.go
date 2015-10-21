@@ -9,6 +9,18 @@ import (
 	"strings"
 )
 
+type DBPlugin interface {
+	Name() string
+	TransformUrl(options map[string]string) (string, error)
+	Exec(url, scripts string) error
+}
+
+var db_plugins []DBPlugin
+
+func RegisterDBPlugin(plugin DBPlugin) {
+	db_plugins = append(db_plugins, plugin)
+}
+
 type dbHandler struct {
 	drv string
 	url string
@@ -119,9 +131,7 @@ func transformUrl(drv, url string) (string, error) {
 		}
 
 		fmt.Fprintf(&buffer, "tcp:%s:%s%s*%s/%s/%s", host, port, buffer.String(), dbname, user, password)
-
 		return buffer.String(), nil
-
 	case "oci8":
 		tns_name, ok := options["tns"]
 		if !ok || 0 == len(tns_name) {
@@ -174,6 +184,12 @@ func transformUrl(drv, url string) (string, error) {
 				buffer.WriteString(v)
 			}
 			return buffer.String(), nil
+		} else {
+			for _, plugin := range db_plugins {
+				if plugin.Name() == drv {
+					return plugin.TransformUrl(options)
+				}
+			}
 		}
 		return "", errors.New("unsupported driver - " + drv)
 	}
@@ -237,6 +253,12 @@ func (self *dbHandler) Perform() (err error) {
 	drv := self.drv
 	if strings.HasPrefix(self.drv, "odbc_with_") {
 		drv = "odbc"
+	}
+
+	for _, plugin := range db_plugins {
+		if plugin.Name() == drv {
+			return plugin.Exec(self.url, self.script)
+		}
 	}
 
 	db, e := sql.Open(drv, self.url)
