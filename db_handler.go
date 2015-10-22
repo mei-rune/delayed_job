@@ -194,6 +194,7 @@ func transformUrl(drv, url string) (string, error) {
 		return "", errors.New("unsupported driver - " + drv)
 	}
 }
+
 func newDbHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if nil == ctx {
 		return nil, errors.New("ctx is nil")
