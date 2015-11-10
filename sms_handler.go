@@ -77,7 +77,13 @@ func (self *smsHandler) Perform() error {
 		output, e := cmd.CombinedOutput()
 		if nil != e {
 			phone_numbers = append(phone_numbers, phone)
-			last = e
+			txt := strings.TrimSpace(string(output))
+			if "" == txt {
+				last = e
+				continue
+			}
+
+			last = errors.New(txt)
 			continue
 		}
 		if !bytes.Contains(output, []byte("waiting for network answer..OK")) {
