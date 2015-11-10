@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"flag"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 
 var gammu_config = flag.String("gammu_config", "data/etc/gammu.conf", "the path of gaummu")
 var gammu = flag.String("gammu", "runtime_env/gammu/gammu.exe", "the path of gaummu")
+var gammu_with_smsd = flag.Bool("with_smsd", false, "send sms by smsd")
 
 type smsHandler struct {
 	content              string
@@ -74,7 +77,22 @@ func (self *smsHandler) Perform() error {
 			continue
 		}
 
-		cmd := exec.Command(*gammu, "-c", *gammu_config, "sendsms", "TEXT", phone, "-unicode", "-text", self.content)
+		//gammu-smsd-inject TEXT 123456 -text "All your base are belong to us"
+
+		var excepted string
+		var cmd *exec.Cmd
+		if *gammu_with_smsd {
+			var gammu_path = filepath.Join(filepath.Dir(*gammu), "gammu-smsd-inject")
+			if "windows" == runtime.GOOS {
+				gammu_path = gammu_path + ".exe"
+			}
+
+			cmd = exec.Command(gammu_path, "-c", *gammu_config, "TEXT", phone, "-unicode", "-text", self.content)
+			excepted = "Written message with ID"
+		} else {
+			cmd = exec.Command(*gammu, "-c", *gammu_config, "sendsms", "TEXT", phone, "-unicode", "-text", self.content)
+			excepted = "waiting for network answer..OK"
+		}
 
 		timer := time.AfterFunc(10*time.Minute, func() {
 			cmd.Process.Kill()
@@ -93,7 +111,8 @@ func (self *smsHandler) Perform() error {
 			last = errors.New(txt)
 			continue
 		}
-		if !bytes.Contains(output, []byte("waiting for network answer..OK")) {
+
+		if !bytes.Contains(output, []byte(excepted)) {
 			phone_numbers = append(phone_numbers, phone)
 			last = errors.New(string(output))
 			continue

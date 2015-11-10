@@ -33,3 +33,5 @@ ipch/
 tools/gyp
 run_test.bat
 test_mail.bat
+data
+test_sms.bat
