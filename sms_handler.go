@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os/exec"
 	"strings"
+	"time"
 
 	"errors"
 )
@@ -74,7 +75,13 @@ func (self *smsHandler) Perform() error {
 		}
 
 		cmd := exec.Command(*gammu, "-c", *gammu_config, "sendsms", "TEXT", phone, "-unicode", "-text", self.content)
+
+		timer := time.AfterFunc(10*time.Minute, func() {
+			cmd.Process.Kill()
+		})
 		output, e := cmd.CombinedOutput()
+		timer.Stop()
+
 		if nil != e {
 			phone_numbers = append(phone_numbers, phone)
 			txt := strings.TrimSpace(string(output))
