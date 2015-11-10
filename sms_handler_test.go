@@ -8,7 +8,7 @@ import (
 
 var (
 	phone_number = flag.String("phone_numbers", "1222", "the phone number")
-	sms_content  = flag.String("sms_content", "恒维tpt软件", "the message")
+	sms_content  = flag.String("sms_content", "恒维软件himp", "the message")
 	sms_skipped  = flag.Bool("sms_skipped", true, "the message")
 )
 

@@ -73,14 +73,14 @@ func (self *smsHandler) Perform() error {
 			continue
 		}
 
-		cmd := exec.Command(*gammu, "-c", *gammu_config, "sendsms", "TEXT", phone, "-unicode", "-textutf8", self.content)
+		cmd := exec.Command(*gammu, "-c", *gammu_config, "sendsms", "TEXT", phone, "-unicode", "-text", self.content)
 		output, e := cmd.CombinedOutput()
 		if nil != e {
 			phone_numbers = append(phone_numbers, phone)
 			last = e
 			continue
 		}
-		if !bytes.Contains(output, []byte("OK")) {
+		if !bytes.Contains(output, []byte("waiting for network answer..OK")) {
 			phone_numbers = append(phone_numbers, phone)
 			last = errors.New(string(output))
 			continue
