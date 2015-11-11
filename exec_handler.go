@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fd/go-shellwords/shellwords"
 )
@@ -111,7 +112,13 @@ func (self *execHandler) Perform() error {
 		scan_error = errors.New(buffer.String())
 	}()
 
+	timer := time.AfterFunc(10*time.Minute, func() {
+		defer recover()
+		cmd.Process.Kill()
+	})
 	err := cmd.Run()
+
+	timer.Stop()
 	pw.Close()
 	pr.Close()
 	wait.Wait()

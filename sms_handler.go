@@ -95,6 +95,7 @@ func (self *smsHandler) Perform() error {
 		}
 
 		timer := time.AfterFunc(10*time.Minute, func() {
+			defer recover()
 			cmd.Process.Kill()
 		})
 		output, e := cmd.CombinedOutput()
