@@ -88,6 +88,18 @@ func Main(listenAddress, run_mode string) error {
 		}
 	}
 
+	if !fileExists(*gammu_config) {
+		for _, s := range []string{"data/conf/gammu.conf",
+			"data/etc/gammu.conf",
+			"../data/conf/gammu.conf",
+			"../data/etc/gammu.conf"} {
+			if fileExists(s) {
+				flag.Set("gammu_config", s)
+				break
+			}
+		}
+	}
+
 	switch run_mode {
 	case "init_db":
 		ctx := map[string]interface{}{}
