@@ -222,7 +222,7 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
-	users, e := addressesWith(params, "users")
+	users, e := addressesWith(params, "to_mail_addresses")
 	if nil != e {
 		return nil, e
 	}
