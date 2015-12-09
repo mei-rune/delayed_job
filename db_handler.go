@@ -37,6 +37,10 @@ func parseUrl(url string) (map[string]string, error) {
 	url = strings.TrimSpace(url)
 	ps := strings.Split(url, ";")
 	for _, p := range ps {
+		if "" == p {
+			continue
+		}
+
 		kv := strings.Split(p, "=")
 		if len(kv) < 2 {
 			return nil, fmt.Errorf("invalid option: %q", p)
