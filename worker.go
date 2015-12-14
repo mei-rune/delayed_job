@@ -24,7 +24,7 @@ var (
 	name_prefix                 = flag.String("name_prefix", "tpt_worker", "the prefix of worker name")
 	default_min_priority        = flag.Int("min_priority", -1, "the min priority")
 	default_max_priority        = flag.Int("max_priority", -1, "the max priority")
-	default_max_attempts        = flag.Int("max_attempts", 25, "the max attempts")
+	default_max_attempts        = flag.Int("max_attempts", 3, "the max attempts")
 	default_max_run_time        = flag.Duration("max_run_time", 1*time.Minute, "the max run time")
 	default_sleep_delay         = flag.Duration("sleep_delay", 10*time.Second, "the sleep delay")
 	default_read_ahead          = flag.Int("read_ahead", 10, "the read ahead")
