@@ -12,7 +12,7 @@ import (
 	"errors"
 )
 
-var gammu_config = flag.String("gammu_config", "data/etc/gammu.conf", "the path of gaummu")
+var gammu_config = flag.String("gammu_config", "data/conf/gammu.conf", "the path of gaummu")
 var gammu = flag.String("gammu", "runtime_env/gammu/gammu.exe", "the path of gaummu")
 var gammu_with_smsd = flag.Bool("with_smsd", false, "send sms by smsd")
 
