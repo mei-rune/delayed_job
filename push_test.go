@@ -30,7 +30,7 @@ func TestPush(t *testing.T) {
 			return
 		}
 
-		resp, e := http.Post(srv.URL+"/delayed_jobs/push", "application/json", &buffer)
+		resp, e := http.Post(srv.URL+"/push", "application/json", &buffer)
 		if nil != e {
 			t.Error(e)
 			return
