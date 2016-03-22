@@ -9,6 +9,11 @@ import (
 )
 
 func TestMailMessageTextAndHtml(t *testing.T) {
+	if "" == *default_smtp_server {
+		t.Skip("please set 'test.mail_to', 'mail.from' and 'mail.smtp_server'")
+		return
+	}
+
 	msg := &MailMessage{
 		From: mail.Address{
 			Name:    "发件人的名字",
