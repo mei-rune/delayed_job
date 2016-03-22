@@ -15,6 +15,7 @@ install:
   - go get github.com/chanxuehong/wechat
   - go get github.com/rakyll/statik
   - go get gopkg.in/alexcesaro/quotedprintable.v3
+  - go get github.com/chanxuehong/util/security
   
 services:
   - redis-server
