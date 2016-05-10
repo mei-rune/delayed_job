@@ -230,9 +230,6 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if nil != e {
 		return nil, e
 	}
-	if 0 == len(to) && 0 == len(users) {
-		return nil, errors.New("'to_address' is missing.")
-	}
 	if 0 == len(to) {
 		to = users
 	} else if 0 != len(users) {
@@ -319,6 +316,10 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 }
 
 func (self *mailHandler) Perform() error {
+	if 0 == len(self.message.To) {
+		return nil
+	}
+
 	close := func() {
 		if len(self.closers) > 0 {
 			for _, closer := range self.closers {
