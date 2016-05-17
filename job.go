@@ -146,12 +146,26 @@ func (self *Job) payload_object() (Handler, error) {
 	return self.handler_object, nil
 }
 
+var ErrTimeout = errors.New("time out")
+
 func (self *Job) invokeJob() error {
 	job, e := self.payload_object()
 	if nil != e {
 		return e
 	}
-	return job.Perform()
+	ch := make(chan error, 1)
+	go func() {
+		ch <- job.Perform()
+	}()
+
+	timer := time.NewTimer(11 * time.Minute)
+	select {
+	case err := <-ch:
+		timer.Stop()
+		return err
+	case <-timer.C:
+		return ErrTimeout
+	}
 }
 
 func (self *Job) reschedule_at() time.Time {

@@ -16,7 +16,7 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-var redisAddress = flag.String("redis", "127.0.0.1:6379", "the address of redis")
+var redisAddress = flag.String("redis", "127.0.0.1:36379", "the address of redis")
 var redis_error = expvar.NewString("redis")
 
 type redis_request struct {
