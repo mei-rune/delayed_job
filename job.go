@@ -240,6 +240,10 @@ func (self *Job) will_update_attributes() map[string]interface{} {
 }
 
 func (self *Job) rescheduleIt(next_time time.Time, err string) error {
+	if len(err) > 2000 {
+		err = err[:1950] + "\n        trancate error"
+	}
+
 	self.attempts += 1
 	self.run_at = next_time
 	self.locked_at = time.Time{}
@@ -263,6 +267,9 @@ func (self *Job) rescheduleIt(next_time time.Time, err string) error {
 }
 
 func (self *Job) failIt(e string) error {
+	if len(e) > 2000 {
+		e = e[:1950] + "\n        trancate error"
+	}
 	now := self.backend.db_time_now()
 	self.failed_at = now
 	self.last_error = e
