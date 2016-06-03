@@ -3,17 +3,24 @@ package delayed_job
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
+	"log"
 	"strconv"
 	"sync"
 	"time"
 )
 
 var (
+	MaxJobTimeout = 15 * time.Minute
 	sequeuce_lock sync.Mutex
 	sequence_id   = uint64(0)
 	sequeuce_seed = strconv.FormatInt(time.Now().Unix(), 10) + "_"
 )
+
+func init() {
+	flag.DurationVar(&MaxJobTimeout, "max_job_timeout", 15*time.Minute, "the max time of execute job.")
+}
 
 func generate_id() string {
 	sequeuce_lock.Lock()
@@ -158,7 +165,7 @@ func (self *Job) invokeJob() error {
 		ch <- job.Perform()
 	}()
 
-	timer := time.NewTimer(11 * time.Minute)
+	timer := time.NewTimer(self.execTimeout())
 	select {
 	case err := <-ch:
 		timer.Stop()
@@ -202,6 +209,22 @@ func (self *Job) max_attempts() int {
 	return -1
 }
 
+func (self *Job) execTimeout() time.Duration {
+	options, e := self.attributes()
+	if nil != e {
+		return MaxJobTimeout
+	}
+
+	if m, ok := options["exec_timeout"]; ok {
+		i, e := time.ParseDuration(fmt.Sprint(m))
+		if nil == e {
+			return i
+		}
+		log.Println("[warn] [", self.id, self.name(), "] parse exec_timeout(", m, ") failed,", e)
+	}
+	return MaxJobTimeout
+}
+
 func stringifiedHander(params map[string]interface{}) error {
 	handler, ok := params["@handler"]
 	if !ok {
@@ -241,7 +264,7 @@ func (self *Job) will_update_attributes() map[string]interface{} {
 
 func (self *Job) rescheduleIt(next_time time.Time, err string) error {
 	if len(err) > 2000 {
-		err = err[:1950] + "\n        trancate error"
+		err = err[:1900] + "\r\n===========================\r\n**error message is overflow."
 	}
 
 	self.attempts += 1
@@ -266,14 +289,14 @@ func (self *Job) rescheduleIt(next_time time.Time, err string) error {
 	return e
 }
 
-func (self *Job) failIt(e string) error {
-	if len(e) > 2000 {
-		e = e[:1950] + "\n        trancate error"
+func (self *Job) failIt(err string) error {
+	if len(err) > 2000 {
+		err = err[:1900] + "\r\n===========================\r\n**error message is overflow."
 	}
 	now := self.backend.db_time_now()
 	self.failed_at = now
-	self.last_error = e
-	return self.backend.update(self.id, map[string]interface{}{"@failed_at": now, "@last_error": e})
+	self.last_error = err
+	return self.backend.update(self.id, map[string]interface{}{"@failed_at": now, "@last_error": err})
 }
 
 func (self *Job) destroyIt() error {
