@@ -36,19 +36,20 @@ func generate_id() string {
 type Job struct {
 	backend *dbBackend
 
-	id         int64
-	priority   int
-	attempts   int
-	queue      string
-	handler    string
-	handler_id string
-	last_error string
-	run_at     time.Time
-	failed_at  time.Time
-	locked_at  time.Time
-	locked_by  string
-	created_at time.Time
-	updated_at time.Time
+	id           int64
+	priority     int
+	attempts     int
+	max_attempts int
+	queue        string
+	handler      string
+	handler_id   string
+	last_error   string
+	run_at       time.Time
+	failed_at    time.Time
+	locked_at    time.Time
+	locked_by    string
+	created_at   time.Time
+	updated_at   time.Time
 
 	changed_attributes map[string]interface{}
 	handler_attributes map[string]interface{}
@@ -194,7 +195,10 @@ default_duration:
 	return self.backend.db_time_now().Add(duration).Add(5 + time.Second)
 }
 
-func (self *Job) max_attempts() int {
+func (self *Job) get_max_attempts() int {
+	if self.max_attempts > 0 {
+		return self.max_attempts
+	}
 	options, e := self.attributes()
 	if nil != e {
 		return -1

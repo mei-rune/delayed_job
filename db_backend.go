@@ -41,7 +41,7 @@ var (
 	test_ch_for_lock = make(chan int)
 
 	select_sql_string = ""
-	fields_sql_string = " id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at "
+	fields_sql_string = " id, priority, attempts, max_attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at "
 )
 
 func preprocessArgs(args interface{}) interface{} {
@@ -98,6 +98,10 @@ func SetDbUrl(drv, url string) {
 }
 
 func i18n(dbType int, drv string, e error) error {
+	return I18n(dbType, drv, e)
+}
+
+func I18n(dbType int, drv string, e error) error {
 	if ORACLE == dbType && "oci8" == drv {
 		decoder := simplifiedchinese.GB18030.NewDecoder()
 		msg, _, err := transform.String(decoder, e.Error())
@@ -244,6 +248,7 @@ func (self *dbBackend) readJobFromRow(row interface {
 		&job.id,
 		&job.priority,
 		&job.attempts,
+		&job.max_attempts,
 		&queue,
 		&job.handler,
 		&handler_id,
@@ -795,6 +800,7 @@ func (self *dbBackend) where(params map[string]interface{}) ([]map[string]interf
 		var id int64
 		var priority int
 		var attempts int
+		var max_attempts int
 		var handler string
 		var handler_id sql.NullString
 		var created_at time.Time
@@ -811,6 +817,7 @@ func (self *dbBackend) where(params map[string]interface{}) ([]map[string]interf
 			&id,
 			&priority,
 			&attempts,
+			&max_attempts,
 			&queue,
 			&handler,
 			&handler_id,
@@ -826,12 +833,13 @@ func (self *dbBackend) where(params map[string]interface{}) ([]map[string]interf
 		}
 
 		result := map[string]interface{}{"id": id,
-			"priority":   priority,
-			"attempts":   attempts,
-			"handler":    handler,
-			"handler_id": handler_id,
-			"created_at": created_at,
-			"updated_at": updated_at}
+			"priority":     priority,
+			"attempts":     attempts,
+			"max_attempts": max_attempts,
+			"handler":      handler,
+			"handler_id":   handler_id,
+			"created_at":   created_at,
+			"updated_at":   updated_at}
 
 		// var queue sql.NullString
 		// var last_error sql.NullString

@@ -305,7 +305,7 @@ func (self *worker) say(text ...interface{}) {
 }
 
 func (self *worker) get_max_attempts(job *Job) int {
-	job_max_attempts := job.max_attempts()
+	job_max_attempts := job.get_max_attempts()
 	if -1 == job_max_attempts {
 		return self.max_attempts
 	}
