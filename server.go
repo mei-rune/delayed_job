@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	config_file = flag.String("config", "delayed_job.conf", "the config file name")
+	config_file = flag.String("delayed-config", "delayed_job.conf", "the config file name")
 	cd_dir, _   = os.Getwd()
 
 	retry_list = []*regexp.Regexp{regexp.MustCompile(`^/?[0-9]+/retry/?$`),
