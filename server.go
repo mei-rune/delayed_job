@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	config_file = flag.String("delayed-config", "delayed_job.conf", "the config file name")
+	config_file = flag.String("delayed-config", "", "the config file name")
 	cd_dir, _   = os.Getwd()
 
 	retry_list = []*regexp.Regexp{regexp.MustCompile(`^/?[0-9]+/retry/?$`),
@@ -77,7 +77,7 @@ func Main(listenAddress, run_mode string) error {
 	initDB()
 
 	file, found := searchFile()
-	flag.Set("config", file)
+	flag.Set("delayed-config", file)
 	fmt.Println("[info] config file is '" + file + "'")
 
 	if found {
