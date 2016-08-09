@@ -119,6 +119,7 @@ BEGIN
  CREATE TABLE dbo.` + *table_name + ` (
 		  id                INT IDENTITY(1,1)  PRIMARY KEY,
 		  priority          int DEFAULT 0,
+		  repeat_count      int DEFAULT 0,
 		  attempts          int DEFAULT 0,
 		  max_attempts      int DEFAULT 0,
 		  queue             varchar(200),
@@ -143,6 +144,7 @@ END`
 				CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
 				  id                SERIAL PRIMARY KEY,
 				  priority          int DEFAULT 0,
+		      repeat_count      int DEFAULT 0,
 				  attempts          int DEFAULT 0,
 		      max_attempts      int DEFAULT 0,
 				  queue             varchar(200),
@@ -168,6 +170,7 @@ END`
 				`CREATE TABLE ` + *table_name + ` (
 					  id                NUMBER(10) PRIMARY KEY,
 					  priority          NUMBER(10) DEFAULT 0,
+		        repeat_count      NUMBER(10) DEFAULT 0,
 					  attempts          NUMBER(10) DEFAULT 0,
 		        max_attempts      NUMBER(10) DEFAULT 0,
 					  queue             varchar2(200 BYTE),
@@ -202,6 +205,7 @@ END`
 				`CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
 					  id                SERIAL PRIMARY KEY,
 					  priority          int DEFAULT 0,
+		        repeat_count      int DEFAULT 0,
 					  attempts          int DEFAULT 0,
 		        max_attempts      int DEFAULT 0,
 					  queue             varchar(200),

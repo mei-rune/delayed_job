@@ -270,6 +270,11 @@ func (self *worker) run(job *Job) (bool, error) {
 		return false, e // work failed
 	}
 
+	if next_time, need := job.needReschedule(); need {
+		e = job.rescheduleIt(next_time, "")
+		return true, e
+	}
+
 	e = job.destroyIt()
 	self.job_say(job, "COMPLETED after ", time.Now().Sub(now))
 	return true, e // did work

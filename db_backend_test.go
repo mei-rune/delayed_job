@@ -55,7 +55,7 @@ func backendTest(t *testing.T, cb func(backend *dbBackend)) {
 
 func TestEnqueue(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
-		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		e := backend.enqueue(1, 0, 0, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -143,7 +143,7 @@ func TestEnqueue(t *testing.T) {
 func TestGetSimple(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
 		for i := 0; i < 10; i++ {
-			e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+			e := backend.enqueue(1, 0, 0, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 			if nil != e {
 				t.Error(e)
 				return
@@ -245,7 +245,7 @@ func TestGetSimple(t *testing.T) {
 
 func TestGetWithLocked(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
-		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		e := backend.enqueue(1, 0, 0, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -277,7 +277,7 @@ func TestGetWithLocked(t *testing.T) {
 
 func TestGetWithFailed(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
-		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		e := backend.enqueue(1, 0, 0, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -313,7 +313,7 @@ func TestLockedJobInGet(t *testing.T) {
 			t.Skip("postgres is skipped.")
 		}
 
-		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		e := backend.enqueue(1, 0, 0, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -359,7 +359,7 @@ func TestFailedJobInGet(t *testing.T) {
 			t.Skip("postgres is skipped.")
 		}
 
-		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		e := backend.enqueue(1, 0, 0, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -403,7 +403,7 @@ func TestFailedJobInGet(t *testing.T) {
 
 func TestDestory(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
-		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		e := backend.enqueue(1, 0, 0, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -439,7 +439,7 @@ func TestDestory(t *testing.T) {
 
 func TestFailIt(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
-		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		e := backend.enqueue(1, 0, 0, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -490,7 +490,7 @@ func TestFailIt(t *testing.T) {
 
 func TestRescheduleIt(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
-		e := backend.enqueue(1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		e := backend.enqueue(1, 0, 0, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
 			return
