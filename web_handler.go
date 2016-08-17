@@ -7,10 +7,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
 	"text/template"
+
+	"golang.org/x/text/transform"
 )
 
 const head_prefix = "head."
@@ -57,6 +60,17 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("'url' is required.")
 	}
 
+	headers := map[string]interface{}{}
+	for k, v := range params {
+		if head_prefix == k {
+			continue
+		}
+
+		if strings.HasPrefix(k, head_prefix) {
+			headers[k[len(head_prefix):]] = v
+		}
+	}
+
 	args, ok := params["arguments"]
 	if ok {
 		args = preprocessArgs(args)
@@ -66,27 +80,19 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 				defer delete(props, "self")
 			}
 		}
-		var e error
-		url, e = genText(url, args)
-		if nil != e {
-			return nil, errors.New("failed to merge 'url' with params, " + e.Error())
-		}
-		if s, ok := body.(string); ok {
-			body, e = genText(s, args)
-			if nil != e {
-				return nil, errors.New("failed to merge 'body' with params, " + e.Error())
-			}
-		}
+	} else {
+		args = params
 	}
 
-	headers := map[string]interface{}{}
-	for k, v := range params {
-		if head_prefix == k {
-			continue
-		}
-
-		if strings.HasPrefix(k, head_prefix) {
-			headers[k[len(head_prefix):]] = v
+	var e error
+	url, e = genText(url, args)
+	if nil != e {
+		return nil, errors.New("failed to merge 'url' with params, " + e.Error())
+	}
+	if s, ok := body.(string); ok {
+		body, e = genText(s, args)
+		if nil != e {
+			return nil, errors.New("failed to merge 'body' with params, " + e.Error())
 		}
 	}
 
@@ -141,6 +147,7 @@ func (self *webHandler) Perform() error {
 		}
 	}
 
+	log.Println("execute web:", self.method, self.url)
 	resp, e := http.DefaultClient.Do(req)
 	if nil != e {
 		return e
@@ -252,7 +259,17 @@ func genText(content string, args interface{}) (string, error) {
 			return content, nil
 		}
 	}
-	t, e := template.New("default").Parse(content)
+	t, e := template.New("default").Funcs(template.FuncMap{
+		"toString": func(v interface{}) string {
+			return fmt.Sprint(v)
+		},
+		"toLower": strings.ToLower,
+		"toUpper": strings.ToUpper,
+		"toTitle": strings.ToTitle,
+		"replace": func(old_s, new_s, content string) string {
+			return strings.Replace(content, old_s, new_s, -1)
+		},
+		"queryEscape": QueryEscape}).Parse(content)
 	if nil != e {
 		return content, errors.New("create template failed, " + e.Error())
 	}
@@ -263,4 +280,13 @@ func genText(content string, args interface{}) (string, error) {
 		return content, errors.New("execute template failed, " + e.Error())
 	}
 	return buffer.String(), nil
+}
+
+func QueryEscape(charset, content string) string {
+	encoding := GetCharset(charset)
+	new_content, _, err := transform.String(encoding.NewEncoder(), content)
+	if err != nil {
+		return content
+	}
+	return url.QueryEscape(new_content)
 }
