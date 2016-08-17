@@ -181,6 +181,18 @@ func (self *webHandler) Perform() error {
 		return nil
 	}
 
+	if resp.ContentLength < 1024*1024 {
+		resp_body, err := ioutil.ReadAll(resp.Body)
+		if nil == resp_body || 0 == len(resp_body) {
+			return errors.New("failed to read body - " + err.Error())
+		}
+
+		if bytes.Contains(resp_body, []byte(self.responseContent)) {
+			return nil
+		}
+		return errors.New("'" + self.responseContent + "' isn't exists in the response body:\r\n" + string(resp_body))
+	}
+
 	matched, e := IsContains(resp.Body, self.responseContent)
 	if nil != e {
 		return errors.New("failed to read body - " + e.Error())
@@ -215,8 +227,10 @@ func IsContains(r io.Reader, excepted string) (bool, error) {
 			return true, nil
 		}
 
-		copy(buffer, buffer[n-remain_length:n])
-		offset = remain_length
+		if n-remain_length >= 0 {
+			copy(buffer, buffer[n-remain_length:n])
+			offset = remain_length
+		}
 	}
 
 	return false, nil

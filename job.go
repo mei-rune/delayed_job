@@ -1,11 +1,13 @@
 package delayed_job
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -167,6 +169,22 @@ func (self *Job) invokeJob() error {
 	}
 	ch := make(chan error, 1)
 	go func() {
+		defer func() {
+			if e := recover(); nil != e {
+				var buffer bytes.Buffer
+				buffer.WriteString(fmt.Sprintf("[panic]%v", e))
+				for i := 1; ; i += 1 {
+					_, file, line, ok := runtime.Caller(i)
+					if !ok {
+						break
+					}
+					buffer.WriteString(fmt.Sprintf("    %s:%d\r\n", file, line))
+				}
+				msg := buffer.String()
+				ch <- errors.New(msg)
+			}
+		}()
+
 		ch <- job.Perform()
 	}()
 
