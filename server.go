@@ -451,6 +451,7 @@ func testJobHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) 
 		io.WriteString(w, e.Error())
 		return
 	}
+	fmt.Println("============")
 	e = job.invokeJob()
 	if nil != e {
 		w.WriteHeader(http.StatusInternalServerError)

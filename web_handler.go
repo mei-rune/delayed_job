@@ -31,7 +31,14 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("params is nil")
 	}
 	responseCode := intWithDefault(params, "response_code", -1)
+	if -1 == responseCode {
+		responseCode = intWithDefault(params, "responseCode", -1)
+	}
+
 	responseContent := stringWithDefault(params, "response_content", "")
+	if "" == responseContent {
+		responseContent = stringWithDefault(params, "responseContent", "")
+	}
 
 	method := stringWithDefault(params, "method", "")
 	if 0 == len(method) {
@@ -82,12 +89,22 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 			headers[k[len(head_prefix):]] = v
 		}
 	}
+
+	user := stringWithDefault(params, "user_name", "")
+	if "" == user {
+		user = stringWithDefault(params, "userName", "")
+	}
+	password := stringWithDefault(params, "user_password", "")
+	if "" == password {
+		password = stringWithDefault(params, "userPassword", "")
+	}
+
 	return &webHandler{method: method,
 		url:             url,
 		responseCode:    responseCode,
 		responseContent: responseContent,
-		user:            stringWithDefault(params, "user_name", ""),
-		password:        stringWithDefault(params, "user_password", ""),
+		user:            user,
+		password:        password,
 		body:            body, headers: headers}, nil
 }
 
