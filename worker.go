@@ -368,6 +368,7 @@ func WorkTest(t *testing.T, cb func(w *TestWorker)) {
 		t.Error(e)
 		return
 	}
+	defer w.Close()
 
 	cb(&TestWorker{worker: w})
 }
