@@ -95,19 +95,23 @@ func newWorker(options map[string]interface{}) (*worker, error) {
 }
 
 func (w *worker) RunForever() {
-	w.wait.Add(1)
-	w.serve()
+	w.serve(false)
 }
 
 func (w *worker) start() {
 	w.wait.Add(1)
-	go w.serve()
+	go w.serve(true)
 }
 
-func (self *worker) Close() {
-	self.shutdown <- 0
+func (self *worker) Close() error {
+	close(self.shutdown)
 	self.wait.Wait()
 
+	self.innerClose()
+	return nil
+}
+
+func (self *worker) innerClose() {
 	if nil != self.closes {
 		for _, cl := range self.closes {
 			cl.Close()
@@ -175,10 +179,10 @@ func (self *worker) lifecycle() {
 	//@lifecycle ||= Delayed::Lifecycle.new
 }
 
-func (self *worker) serve() {
-	defer func() {
-		self.wait.Done()
-	}()
+func (self *worker) serve(in_goroutine bool) {
+	if in_goroutine {
+		defer self.wait.Done()
+	}
 
 	self.say("Starting job worker")
 
@@ -353,11 +357,6 @@ func (self *TestWorker) WorkOff(num int) (int, int, error) {
 }
 
 func WorkTest(t *testing.T, cb func(w *TestWorker)) {
-	// old_mode := *run_mode
-	// *run_mode = "init_db"
-	// defer func() {
-	// 	*run_mode = old_mode
-	// }()
 	e := Main(":0", "init_db")
 	if nil != e {
 		t.Error(e)
@@ -368,7 +367,7 @@ func WorkTest(t *testing.T, cb func(w *TestWorker)) {
 		t.Error(e)
 		return
 	}
-	defer w.Close()
+	defer w.innerClose()
 
 	cb(&TestWorker{worker: w})
 }
