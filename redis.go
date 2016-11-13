@@ -64,6 +64,9 @@ func (self *redis_gateway) serve() {
 	error_count := uint(0)
 	for self.isRunning() {
 		self.runOnce(&error_count)
+		if error_count > 5 {
+			time.Sleep(1 * time.Second)
+		}
 	}
 }
 
