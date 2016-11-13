@@ -1,5 +1,5 @@
 language: go
-go: 1.3
+go: 1.6
 install:
   - export PATH=$PATH:$HOME/gopath/bin
   - go get github.com/fd/go-shellwords/shellwords
@@ -12,7 +12,7 @@ install:
   - go get github.com/mattn/go-sqlite3
   - go get github.com/mitchellh/go-ps
   - go get golang.org/x/text
-  - go get github.com/chanxuehong/wechat
+  - go get github.com/chanxuehong/wechat/corp
   - go get github.com/rakyll/statik
   - go get gopkg.in/alexcesaro/quotedprintable.v3
   - go get github.com/chanxuehong/util/security
@@ -28,12 +28,12 @@ before_script:
   - mysql -e "CREATE USER 'tpt' IDENTIFIED BY 'extreme';"
   - mysql -e "create database tpt_data;"
 script:
-  - go test -v
-  - go test -v -test_db_drv=mysql -test_db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true" -test.run=DbHandler
-  - go test -v -test_db_drv=mymysql -test_db_url=tcp:127.0.0.1:3306*tpt_data/travis/  -test.run=DbHandler
-  - go test -v -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*tpt_data/travis/
-  - go test -v -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*tpt_data/travis/  -test_db_drv=mysql -test_db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true" -test.run=DbHandler
-  - go test -v -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*tpt_data/travis/ -test_db_drv=postgres -test_db_url="host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable"  -test.run=DbHandler
-  - go test -v -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true"
-  - go test -v -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true" -test_db_drv=mymysql -test_db_url=tcp:127.0.0.1:3306*tpt_data/travis/  -test.run=DbHandler
-  - go test -v -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true" -test_db_drv=postgres -test_db_url="host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable"  -test.run=DbHandler
+  - go test -v -redis=127.0.0.1:6379
+  - go test -v -redis=127.0.0.1:6379 -test_db_drv=mysql -test_db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true" -test.run=DbHandler
+  - go test -v -redis=127.0.0.1:6379 -test_db_drv=mymysql -test_db_url=tcp:127.0.0.1:3306*tpt_data/travis/  -test.run=DbHandler
+  - go test -v -redis=127.0.0.1:6379 -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*tpt_data/travis/
+  - go test -v -redis=127.0.0.1:6379 -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*tpt_data/travis/  -test_db_drv=mysql -test_db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true" -test.run=DbHandler
+  - go test -v -redis=127.0.0.1:6379 -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*tpt_data/travis/ -test_db_drv=postgres -test_db_url="host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable"  -test.run=DbHandler
+  - go test -v -redis=127.0.0.1:6379 -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true"
+  - go test -v -redis=127.0.0.1:6379 -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true" -test_db_drv=mymysql -test_db_url=tcp:127.0.0.1:3306*tpt_data/travis/  -test.run=DbHandler
+  - go test -v -redis=127.0.0.1:6379 -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true" -test_db_drv=postgres -test_db_url="host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable"  -test.run=DbHandler
