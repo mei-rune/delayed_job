@@ -52,7 +52,8 @@ func searchFile() (string, bool) {
 		filepath.Join("data", "conf", "delayed_job.conf"),
 		filepath.Join("data", "etc", "delayed_job.conf"),
 		filepath.Join("..", "data", "conf", "delayed_job.conf"),
-		filepath.Join("..", "data", "etc", "delayed_job.conf")}
+		filepath.Join("..", "data", "etc", "delayed_job.conf"),
+		"/etc/tpt/delayed_job.conf"}
 
 	for _, file := range files {
 		if st, e := os.Stat(file); nil == e && nil != st && !st.IsDir() {
@@ -63,13 +64,18 @@ func searchFile() (string, bool) {
 	files = []string{filepath.Join("data", "conf"),
 		filepath.Join("data", "etc"),
 		filepath.Join("..", "data", "conf"),
-		filepath.Join("..", "data", "etc")}
+		filepath.Join("..", "data", "etc"),
+		"/etc/tpt"}
 	for _, file := range files {
 		if st, e := os.Stat(file); nil == e && nil != st && st.IsDir() {
 			return abs(filepath.Join(file, "delayed_job.conf")), false
 		}
 	}
-	return abs(filepath.Join("data/conf/delayed_job.conf")), false
+	if runtime.GOOS == "windows" {
+		return abs(filepath.Join("data/conf/delayed_job.conf")), false
+	} else {
+		return abs(filepath.Join("/etc/tpt/delayed_job.conf")), false
+	}
 }
 
 func Main(listenAddress, run_mode string) error {
@@ -92,7 +98,8 @@ func Main(listenAddress, run_mode string) error {
 		for _, s := range []string{"data/conf/gammu.conf",
 			"data/etc/gammu.conf",
 			"../data/conf/gammu.conf",
-			"../data/etc/gammu.conf"} {
+			"../data/etc/gammu.conf",
+			"/etc/tpt/gammu.conf"} {
 			if fileExists(s) {
 				flag.Set("gammu_config", s)
 				break
@@ -239,7 +246,7 @@ END`
 			if "windows" == runtime.GOOS {
 				flag.Set("pid_file", nm+".pid")
 			} else {
-				flag.Set("pid_file", "/var/run/"+nm+".pid")
+				flag.Set("pid_file", "/var/run/tpt/"+nm+".pid")
 			}
 		}
 		if err := createPidFile(*pidFile, nm); err != nil {
@@ -259,7 +266,7 @@ END`
 			if "windows" == runtime.GOOS {
 				flag.Set("pid_file", nm+".pid")
 			} else {
-				flag.Set("pid_file", "/var/run/"+nm+".pid")
+				flag.Set("pid_file", "/var/run/tpt/"+nm+".pid")
 			}
 		}
 		if err := createPidFile(*pidFile, nm); err != nil {
@@ -280,7 +287,7 @@ END`
 			if "windows" == runtime.GOOS {
 				flag.Set("pid_file", nm+".pid")
 			} else {
-				flag.Set("pid_file", "/var/run/"+nm+".pid")
+				flag.Set("pid_file", "/var/run/tpt/"+nm+".pid")
 			}
 		}
 		if err := createPidFile(*pidFile, nm); err != nil {
@@ -551,7 +558,7 @@ func settingsFileHandler(w http.ResponseWriter, r *http.Request, backend *dbBack
 		return
 	}
 
-	f, e := os.OpenFile(*config_file, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0)
+	f, e := os.OpenFile(*config_file, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0666)
 	if nil != e {
 		w.WriteHeader(http.StatusBadRequest)
 		io.WriteString(w, e.Error())

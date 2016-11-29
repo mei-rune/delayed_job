@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -45,9 +47,14 @@ func createPidFile(pidFile, image string) error {
 
 	file, err := os.Create(pidFile)
 	if err != nil {
-		return err
+		if e := os.MkdirAll(filepath.Dir(pidFile), 0666); e != nil {
+			log.Println("[warn] mkdir '"+filepath.Dir(pidFile)+"' fail:", e)
+		}
+		file, err = os.Create(pidFile)
+		if err != nil {
+			return err
+		}
 	}
-
 	defer file.Close()
 
 	_, err = fmt.Fprintf(file, "%d", os.Getpid())
