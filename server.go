@@ -448,9 +448,6 @@ func testJobHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) 
 		io.WriteString(w, e.Error())
 		return
 	}
-	if _, ok := ent["content"]; !ok {
-		ent["content"] = "this is test job message."
-	}
 
 	job, e := createJobFromMap(backend, ent)
 	if nil != e {
@@ -458,7 +455,13 @@ func testJobHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) 
 		io.WriteString(w, e.Error())
 		return
 	}
-	fmt.Println("============")
+
+	if args, _ := job.attributes(); args != nil {
+		if _, ok := args["content"]; !ok {
+			args["content"] = "this is test job message."
+		}
+	}
+
 	e = job.invokeJob()
 	if nil != e {
 		w.WriteHeader(http.StatusInternalServerError)
