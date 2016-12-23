@@ -286,10 +286,10 @@ func (self *worker) run(job *Job) (bool, error) {
 
 func (self *worker) failed(job *Job, e error) error {
 	if self.destroy_failed_jobs {
-		self.job_say(job, "REMOVED permanently because of ", job.attempts, " consecutive failures")
+		self.job_say(job, "REMOVED permanently because of attempts = ", job.attempts, "and max_attempts = ", self.get_max_attempts(job), " consecutive failures")
 		return job.destroyIt()
 	} else {
-		self.job_say(job, "STOPPED permanently because of ", job.attempts, " consecutive failures")
+		self.job_say(job, "STOPPED permanently because of attempts = ", job.attempts, "and max_attempts = ", self.get_max_attempts(job), " consecutive failures")
 		return job.failIt(e.Error())
 	}
 }
@@ -315,14 +315,14 @@ func (self *worker) say(text ...interface{}) {
 
 func (self *worker) get_max_attempts(job *Job) int {
 	job_max_attempts := job.get_max_attempts()
-	if -1 == job_max_attempts {
+	if job_max_attempts <= 0 {
 		return self.max_attempts
 	}
 	return job_max_attempts
 }
 
 func (self *worker) handle_failed_job(job *Job, e error) error {
-	self.job_say(job, "FAILED (", job.attempts, " prior attempts) with ", e)
+	self.job_say(job, "FAILED (", job.attempts, " attempts and", self.get_max_attempts(job), " max_attempts) with ", e)
 	return self.reschedule(job, time.Time{}, e)
 }
 
@@ -330,7 +330,7 @@ func (self *worker) handle_failed_job(job *Job, e error) error {
 // Uses an exponential scale depending on the number of failed attempts.
 func (self *worker) reschedule(job *Job, next_time time.Time, e error) error {
 	attempts := job.attempts + 1
-	if attempts < self.get_max_attempts(job) {
+	if attempts <= self.get_max_attempts(job) {
 		if next_time.IsZero() {
 			next_time = job.reschedule_at()
 		}

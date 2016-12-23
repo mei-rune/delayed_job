@@ -207,9 +207,9 @@ func newSyslogHandler(ctx, params map[string]interface{}) (Handler, error) {
 	}
 
 	tag := stringWithDefault(params, "tag", *default_tag)
-	if 0 == len(tag) {
-		return nil, errors.New("'tag' is required.")
-	}
+	//if 0 == len(tag) {
+	//	return nil, errors.New("'tag' is required.")
+	//}
 
 	content := stringWithDefault(params, "content", "")
 	if 0 == len(content) {

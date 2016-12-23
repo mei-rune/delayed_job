@@ -241,21 +241,7 @@ default_duration:
 }
 
 func (self *Job) get_max_attempts() int {
-	if self.max_attempts > 0 {
-		return self.max_attempts
-	}
-	options, e := self.attributes()
-	if nil != e {
-		return -1
-	}
-
-	if m, ok := options["max_attempts"]; ok {
-		i, e := strconv.ParseInt(fmt.Sprint(m), 10, 0)
-		if nil == e {
-			return int(i)
-		}
-	}
-	return -1
+	return self.max_attempts
 }
 
 func (self *Job) execTimeout() time.Duration {
