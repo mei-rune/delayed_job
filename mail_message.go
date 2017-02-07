@@ -11,6 +11,7 @@ import (
 	"math"
 	"mime"
 	"mime/multipart"
+	qp "mime/quotedprintable"
 	"net/mail"
 	"net/textproto"
 	"path/filepath"
@@ -23,8 +24,6 @@ import (
 	"golang.org/x/text/encoding/simplifiedchinese"
 
 	"github.com/runner-mei/delayed_job/smtp"
-
-	qp "gopkg.in/alexcesaro/quotedprintable.v3"
 )
 
 const maxLineLen = 76 // RFC 2045
