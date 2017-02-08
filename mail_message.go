@@ -80,7 +80,7 @@ func (self *MailMessage) Bytes() ([]byte, error) {
 	write("To: ", self.To)
 	write("Cc: ", self.Cc)
 	write("Bcc: ", self.Bcc)
-	fmt.Fprintf(buf, "Date: %s%s", time.Now().UTC().Format(time.RFC822), crlf)
+	fmt.Fprintf(buf, "Date: %s%s", time.Now().UTC().Format(time.RFC1123Z), crlf)
 	fmt.Fprintf(buf, "Subject: %s%s", encodeSubject(self.Subject), crlf)
 
 	var parts *Multipart
