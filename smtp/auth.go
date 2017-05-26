@@ -82,13 +82,9 @@ func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
 		if !advertised {
 			for _, mechanism := range server.Auth {
 				if mechanism == "NTLM" {
-					advertised = true
-					break
+					a.auth = NTLMAuth(a.username, a.password)
+					return a.auth.Start(server)
 				}
-			}
-			if advertised {
-				a.auth = NTLMAuth(a.username, a.password)
-				return a.auth.Start(server)
 			}
 		}
 	}

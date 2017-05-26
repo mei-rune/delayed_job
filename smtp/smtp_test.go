@@ -25,8 +25,8 @@ type authTest struct {
 }
 
 var authTests = []authTest{
-	{PlainAuth("", "user", "pass", "testserver"), []string{}, "PLAIN", []string{"\x00user\x00pass"}},
-	{PlainAuth("foo", "bar", "baz", "testserver"), []string{}, "PLAIN", []string{"foo\x00bar\x00baz"}},
+	{PlainAuth("", "user", "pass", "testserver", false), []string{}, "PLAIN", []string{"\x00user\x00pass"}},
+	{PlainAuth("foo", "bar", "baz", "testserver", false), []string{}, "PLAIN", []string{"foo\x00bar\x00baz"}},
 	{CRAMMD5Auth("user", "pass"), []string{"<123456.1322876914@testserver>"}, "CRAM-MD5", []string{"", "user 287eb355114cf5c471c26a875f1ca4ae"}},
 }
 
@@ -60,7 +60,7 @@ testLoop:
 }
 
 func TestAuthPlain(t *testing.T) {
-	auth := PlainAuth("foo", "bar", "baz", "servername")
+	auth := PlainAuth("foo", "bar", "baz", "servername", false)
 
 	tests := []struct {
 		server *ServerInfo
@@ -147,7 +147,7 @@ func TestBasic(t *testing.T) {
 	// fake TLS so authentication won't complain
 	c.tls = true
 	c.serverName = "smtp.google.com"
-	if err := c.Auth(PlainAuth("", "user", "pass", "smtp.google.com")); err != nil {
+	if err := c.Auth(PlainAuth("", "user", "pass", "smtp.google.com", false)); err != nil {
 		t.Fatalf("AUTH failed: %s", err)
 	}
 
@@ -344,7 +344,7 @@ func TestHello(t *testing.T) {
 		case 3:
 			c.tls = true
 			c.serverName = "smtp.google.com"
-			err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com"))
+			err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com", false))
 		case 4:
 			err = c.Mail("test@example.com")
 		case 5:
@@ -522,7 +522,7 @@ func TestAuthFailed(t *testing.T) {
 
 	c.tls = true
 	c.serverName = "smtp.google.com"
-	err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com"))
+	err = c.Auth(PlainAuth("", "user", "pass", "smtp.google.com", false))
 
 	if err == nil {
 		t.Error("Auth: expected error; got none")
@@ -659,7 +659,7 @@ func sendMail(hostPort string) error {
 	if err != nil {
 		return err
 	}
-	auth := PlainAuth("", "", "", host)
+	auth := PlainAuth("", "", "", host, false)
 	from := "joe1@example.com"
 	to := []string{"joe2@example.com"}
 	return SendMail(hostPort, auth, from, to, []byte("Subject: test\n\nhowdy!"))
