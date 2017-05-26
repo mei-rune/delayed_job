@@ -17,6 +17,7 @@ import (
 	"github.com/runner-mei/delayed_job/smtp"
 )
 
+var tryNTLM = os.Getenv("try_ntlm") == "true"
 var BlatExecute = os.Getenv("blat_path")
 
 var default_mail_subject_encoding string
@@ -419,7 +420,7 @@ func (self *mailHandler) Perform() error {
 						return errors.New("user is missing.")
 					}
 				}
-				auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host)
+				auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host, true)
 			}
 		case "plain", "PLAIN":
 			if 0 == len(self.user) {
@@ -431,7 +432,7 @@ func (self *mailHandler) Perform() error {
 			if 0 == len(self.host) {
 				self.host = self.smtp_server
 			}
-			auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host)
+			auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host, tryNTLM)
 		case "cram-md5", "CRAM-MD5":
 			auth = smtp.CRAMMD5Auth(self.user, self.password)
 

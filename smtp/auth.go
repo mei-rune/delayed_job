@@ -42,6 +42,9 @@ type ServerInfo struct {
 type plainAuth struct {
 	identity, username, password string
 	host                         string
+
+	tryNTLM bool
+	auth    Auth
 }
 
 // PlainAuth returns an Auth that implements the PLAIN authentication
@@ -49,8 +52,8 @@ type plainAuth struct {
 // The returned Auth uses the given username and password to authenticate
 // on TLS connections to host and act as identity. Usually identity will be
 // left blank to act as username.
-func PlainAuth(identity, username, password, host string) Auth {
-	return &plainAuth{identity, username, password, host}
+func PlainAuth(identity, username, password, host string, tryNTLM bool) Auth {
+	return &plainAuth{identity, username, password, host, tryNTLM, nil}
 }
 
 func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
@@ -66,6 +69,29 @@ func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
 			return "", nil, errors.New("unencrypted connection")
 		}
 	}
+
+	if a.tryNTLM {
+		advertised := false
+		for _, mechanism := range server.Auth {
+			if mechanism == "PLAIN" {
+				advertised = true
+				break
+			}
+		}
+
+		if !advertised {
+			for _, mechanism := range server.Auth {
+				if mechanism == "NTLM" {
+					advertised = true
+					break
+				}
+			}
+			if advertised {
+				a.auth = NTLMAuth(a.username, a.password)
+				return a.auth.Start(server)
+			}
+		}
+	}
 	if server.Name != a.host {
 		return "", nil, errors.New("wrong host name")
 	}
@@ -74,6 +100,10 @@ func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
 }
 
 func (a *plainAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if a.auth != nil {
+		return a.auth.Next(fromServer, more)
+	}
+
 	if more {
 		// We've already sent everything.
 		return nil, errors.New("unexpected server challenge")

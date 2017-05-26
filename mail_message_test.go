@@ -48,7 +48,8 @@ func TestMailMessageTextAndHtml(t *testing.T) {
 	if e := msg.Send(*default_smtp_server, smtp.PlainAuth(*default_mail_auth_identity,
 		*default_mail_address,
 		*default_mail_auth_password,
-		*default_mail_auth_host)); nil != e {
+		*default_mail_auth_host,
+		tryNTLM)); nil != e {
 		t.Error(e)
 	}
 }
