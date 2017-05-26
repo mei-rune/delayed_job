@@ -203,7 +203,7 @@ func (self *execHandler) Perform() error {
 				goto end
 			}
 		}
-		buffer.WriteString("\r\n ************************* not found *************************\r\n")
+		buffer.WriteString("\r\n ************************* prompt `" + self.prompt + "` not found *************************\r\n")
 	end:
 		scan_error = errors.New(buffer.String())
 	}()
