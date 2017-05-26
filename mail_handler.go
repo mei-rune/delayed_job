@@ -1,6 +1,7 @@
 package delayed_job
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -8,11 +9,15 @@ import (
 	"log"
 	"net/mail"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/runner-mei/delayed_job/smtp"
 )
+
+var BlatExecute = os.Getenv("blat_path")
 
 var default_mail_subject_encoding string
 var default_mail_auth_type = flag.String("mail.auth.type", "", "the auth type of smtp")
@@ -41,6 +46,17 @@ type mailHandler struct {
 	closers      []io.Closer
 }
 
+func toAddressListString(addresses []*mail.Address) string {
+	var buf bytes.Buffer
+	for _, a := range addresses {
+		buf.WriteString(a.Address)
+		buf.WriteString(",")
+	}
+	if buf.Len() > 0 {
+		buf.Truncate(buf.Len() - 1)
+	}
+	return buf.String()
+}
 func addressesWith(params map[string]interface{}, nm string) ([]*mail.Address, error) {
 	o, ok := params[nm]
 	if !ok {
@@ -293,6 +309,8 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 				}
 
 				attachments = append(attachments, Attachment{Name: nm, Content: f})
+
+				closers = append(closers, f)
 			}
 		}
 	}
@@ -327,8 +345,68 @@ func (self *mailHandler) Perform() error {
 			}
 			self.closers = nil
 		}
+
+		for _, nm := range self.remove_files {
+			if e := os.Remove(nm); nil != e {
+				log.Println("[warn] [mail] remove file - '"+nm+"',", e)
+			}
+		}
 	}
 	defer close()
+
+	if BlatExecute != "" {
+		cmd := exec.Command(BlatExecute,
+			"-from", self.message.From.Address,
+			"-server", self.smtp_server,
+			"-f", self.message.From.Address,
+			"-u", self.user,
+			"-pw", self.password)
+
+		if len(self.message.To) > 0 {
+			cmd.Args = append(cmd.Args, "-to", toAddressListString(self.message.To))
+		}
+		if len(self.message.Cc) > 0 {
+			cmd.Args = append(cmd.Args, "-cc", toAddressListString(self.message.Cc))
+		}
+		if len(self.message.Bcc) > 0 {
+			cmd.Args = append(cmd.Args, "-bcc", toAddressListString(self.message.Bcc))
+		}
+		cmd.Args = append(cmd.Args, "-subject", self.message.Subject)
+
+		if self.message.ContentHtml == "" {
+			cmd.Args = append(cmd.Args, "-body", self.message.ContentText)
+		} else {
+			cmd.Args = append(cmd.Args, "-html", self.message.ContentHtml)
+			if self.message.ContentHtml == "" {
+				cmd.Args = append(cmd.Args, "-alttext", self.message.ContentText)
+			}
+		}
+		for _, attachment := range self.message.Attachments {
+			if f, ok := attachment.Content.(*os.File); ok {
+				filename := f.Name()
+
+				cmd.Args = append(cmd.Args, "-attach", filename)
+			}
+		}
+
+		timer := time.AfterFunc(10*time.Minute, func() {
+			defer recover()
+			cmd.Process.Kill()
+		})
+		output, e := cmd.CombinedOutput()
+		timer.Stop()
+
+		if nil != e {
+			return e
+		}
+
+		log.Println("################\r\n" + string(output) + "\r\n################")
+		// if !bytes.Contains(output, []byte(excepted)) {
+		// 	return errors.New(string(output))
+		// }
+		return nil
+	}
+
 	var auth smtp.Auth = nil
 	if "" != self.password {
 		switch self.auth_type {
@@ -362,13 +440,6 @@ func (self *mailHandler) Perform() error {
 	}
 	if e := self.message.Send(self.smtp_server, auth); nil != e {
 		return e
-	}
-	close()
-
-	for _, nm := range self.remove_files {
-		if e := os.Remove(nm); nil != e {
-			log.Println("[warn] [mail] remove file - '"+nm+"',", e)
-		}
 	}
 	return nil
 }
