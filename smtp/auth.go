@@ -9,6 +9,7 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Auth is implemented by an SMTP authentication mechanism.
@@ -103,5 +104,53 @@ func (a *cramMD5Auth) Next(fromServer []byte, more bool) ([]byte, error) {
 		s := make([]byte, 0, d.Size())
 		return []byte(fmt.Sprintf("%s %x", a.username, d.Sum(s))), nil
 	}
+	return nil, nil
+}
+
+type ntlmAuth struct {
+	username, password string
+}
+
+// PlainAuth returns an Auth that implements the PLAIN authentication
+// mechanism as defined in RFC 4616.
+// The returned Auth uses the given username and password to authenticate
+// on TLS connections to host and act as identity. Usually identity will be
+// left blank to act as username.
+func NTLMAuth(username, password string) Auth {
+	return &ntlmAuth{username, password}
+}
+
+func (a *ntlmAuth) Start(server *ServerInfo) (string, []byte, error) {
+	if !server.TLS {
+		advertised := false
+		for _, mechanism := range server.Auth {
+			if mechanism == "NTLM" {
+				advertised = true
+				break
+			}
+		}
+		if !advertised {
+			return "", nil, errors.New("unencrypted connection")
+		}
+	}
+
+	return "NTLM", Negotiate(), nil
+}
+
+func (a *ntlmAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if more {
+		challenge, err := ParseChallenge(fromServer)
+		if err != nil {
+			return nil, err
+		}
+
+		if !strings.ContainsRune(a.username, '\\') {
+			return nil, errors.New("domain is missing")
+		}
+
+		ss := strings.SplitN(a.username, "\\", 2)
+		return Authenticate(ss[1], a.password, ss[0], challenge), nil
+	}
+
 	return nil, nil
 }

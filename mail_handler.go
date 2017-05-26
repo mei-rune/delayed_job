@@ -434,6 +434,9 @@ func (self *mailHandler) Perform() error {
 			auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host)
 		case "cram-md5", "CRAM-MD5":
 			auth = smtp.CRAMMD5Auth(self.user, self.password)
+
+		case "ntlm", "NTLM":
+			auth = smtp.NTLMAuth(self.user, self.password)
 		default:
 			return errors.New("unsupported auth type - " + self.auth_type)
 		}
