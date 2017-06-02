@@ -398,7 +398,8 @@ func (self *mailHandler) Perform() error {
 		timer.Stop()
 
 		if nil != e {
-			return e
+			fmt.Println(cmd.Path, cmd.Args)
+			return errors.New(string(output))
 		}
 
 		log.Println("################\r\n" + string(output) + "\r\n################")

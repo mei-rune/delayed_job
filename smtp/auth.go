@@ -66,6 +66,11 @@ func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
 			}
 		}
 		if !advertised {
+			if a.tryNTLM {
+				a.auth = NTLMAuth(a.username, a.password)
+				return a.auth.Start(server)
+			}
+
 			return "", nil, errors.New("unencrypted connection")
 		}
 	}
@@ -147,19 +152,6 @@ func NTLMAuth(username, password string) Auth {
 }
 
 func (a *ntlmAuth) Start(server *ServerInfo) (string, []byte, error) {
-	if !server.TLS {
-		advertised := false
-		for _, mechanism := range server.Auth {
-			if mechanism == "NTLM" {
-				advertised = true
-				break
-			}
-		}
-		if !advertised {
-			return "", nil, errors.New("unencrypted connection")
-		}
-	}
-
 	return "NTLM", Negotiate(), nil
 }
 
