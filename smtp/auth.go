@@ -5,8 +5,10 @@
 package smtp
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/md5"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -67,7 +69,7 @@ func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
 		}
 		if !advertised {
 			if a.tryNTLM {
-				a.auth = NTLMAuth(a.username, a.password)
+				a.auth = NTLMAuth(server.Name, a.username, a.password, "")
 				return a.auth.Start(server)
 			}
 
@@ -87,7 +89,7 @@ func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
 		if !advertised {
 			for _, mechanism := range server.Auth {
 				if mechanism == "NTLM" {
-					a.auth = NTLMAuth(a.username, a.password)
+					a.auth = NTLMAuth(server.Name, a.username, a.password, "")
 					return a.auth.Start(server)
 				}
 			}
@@ -138,37 +140,84 @@ func (a *cramMD5Auth) Next(fromServer []byte, more bool) ([]byte, error) {
 	return nil, nil
 }
 
-type ntlmAuth struct {
-	username, password string
-}
-
 // PlainAuth returns an Auth that implements the PLAIN authentication
 // mechanism as defined in RFC 4616.
 // The returned Auth uses the given username and password to authenticate
 // on TLS connections to host and act as identity. Usually identity will be
 // left blank to act as username.
-func NTLMAuth(username, password string) Auth {
-	return &ntlmAuth{username, password}
-}
-
-func (a *ntlmAuth) Start(server *ServerInfo) (string, []byte, error) {
-	return "NTLM", Negotiate(), nil
-}
-
-func (a *ntlmAuth) Next(fromServer []byte, more bool) ([]byte, error) {
-	if more {
-		challenge, err := ParseChallenge(fromServer)
-		if err != nil {
-			return nil, err
-		}
-
-		if !strings.ContainsRune(a.username, '\\') {
-			return nil, errors.New("domain is missing")
-		}
-
-		ss := strings.SplitN(a.username, "\\", 2)
-		return Authenticate(ss[1], a.password, ss[0], challenge), nil
+func NTLMAuth(host, user, password, workstation string) *ntlmAuth {
+	domanAndUsername := strings.SplitN(user, `\`, 2)
+	if len(domanAndUsername) != 2 {
+		return &ntlmAuth{initErr: errors.New(`Wrong format of username. The required format is 'domain\username'`)}
 	}
 
-	return nil, nil
+	a := NTLMSSP{
+		Domain:      domanAndUsername[0],
+		UserName:    domanAndUsername[1],
+		Password:    password,
+		Workstation: workstation,
+	}
+
+	return &ntlmAuth{
+		NTLMSSP: a,
+		Host:    host,
+	}
+}
+
+// NTLMAuth implements smtp.Auth. The authentication mechanism.
+type ntlmAuth struct {
+	NTLMSSP
+	Host    string
+	initErr error
+}
+
+func (n *ntlmAuth) Start(server *ServerInfo) (string, []byte, error) {
+	if n.initErr != nil {
+		return "", nil, n.initErr
+	}
+	if !server.TLS {
+		var isNTLM bool
+		for _, mechanism := range server.Auth {
+			isNTLM = isNTLM || mechanism == "NTLM"
+		}
+
+		if !isNTLM {
+			return "", nil, errors.New("mail: unknown authentication type:" + fmt.Sprintln(server.Auth))
+		}
+	}
+
+	//if server.Name != n.Host {
+	//	return "", nil, errors.New("mail: wrong host name")
+	//}
+
+	return "NTLM", nil, nil
+}
+
+func (n *ntlmAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if !more {
+		return nil, nil
+	}
+
+	switch {
+	case bytes.Equal(fromServer, []byte("NTLM supported")):
+		return n.InitialBytes()
+	default:
+		maxLen := base64.StdEncoding.DecodedLen(len(fromServer))
+
+		dst := make([]byte, maxLen)
+		resultLen, err := base64.StdEncoding.Decode(dst, fromServer)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("Decode base64 error: %s", err.Error()))
+		}
+
+		var challengeMessage []byte
+		if maxLen == resultLen {
+			challengeMessage = dst
+		} else {
+			challengeMessage = make([]byte, resultLen, resultLen)
+			copy(challengeMessage, dst)
+		}
+
+		return n.NextBytes(challengeMessage)
+	}
 }
