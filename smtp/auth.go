@@ -5,13 +5,10 @@
 package smtp
 
 import (
-	"bytes"
 	"crypto/hmac"
 	"crypto/md5"
-	"encoding/base64"
 	"errors"
 	"fmt"
-	"strings"
 )
 
 // Auth is implemented by an SMTP authentication mechanism.
@@ -138,86 +135,4 @@ func (a *cramMD5Auth) Next(fromServer []byte, more bool) ([]byte, error) {
 		return []byte(fmt.Sprintf("%s %x", a.username, d.Sum(s))), nil
 	}
 	return nil, nil
-}
-
-// PlainAuth returns an Auth that implements the PLAIN authentication
-// mechanism as defined in RFC 4616.
-// The returned Auth uses the given username and password to authenticate
-// on TLS connections to host and act as identity. Usually identity will be
-// left blank to act as username.
-func NTLMAuth(host, user, password, workstation string) *ntlmAuth {
-	domanAndUsername := strings.SplitN(user, `\`, 2)
-	if len(domanAndUsername) != 2 {
-		return &ntlmAuth{initErr: errors.New(`Wrong format of username. The required format is 'domain\username'`)}
-	}
-
-	a := NTLMSSP{
-		Domain:      domanAndUsername[0],
-		UserName:    domanAndUsername[1],
-		Password:    password,
-		Workstation: workstation,
-	}
-
-	return &ntlmAuth{
-		NTLMSSP: a,
-		Host:    host,
-	}
-}
-
-// NTLMAuth implements smtp.Auth. The authentication mechanism.
-type ntlmAuth struct {
-	NTLMSSP
-	Host    string
-	initErr error
-}
-
-func (n *ntlmAuth) Start(server *ServerInfo) (string, []byte, error) {
-	if n.initErr != nil {
-		return "", nil, n.initErr
-	}
-	if !server.TLS {
-		var isNTLM bool
-		for _, mechanism := range server.Auth {
-			isNTLM = isNTLM || mechanism == "NTLM"
-		}
-
-		if !isNTLM {
-			return "", nil, errors.New("mail: unknown authentication type:" + fmt.Sprintln(server.Auth))
-		}
-	}
-
-	//if server.Name != n.Host {
-	//	return "", nil, errors.New("mail: wrong host name")
-	//}
-
-	return "NTLM", nil, nil
-}
-
-func (n *ntlmAuth) Next(fromServer []byte, more bool) ([]byte, error) {
-	if !more {
-		return nil, nil
-	}
-
-	switch {
-	case bytes.Equal(fromServer, []byte("NTLM supported")):
-		return n.InitialBytes()
-	default:
-		maxLen := base64.StdEncoding.DecodedLen(len(fromServer))
-
-		dst := make([]byte, maxLen)
-		resultLen, err := base64.StdEncoding.Decode(dst, fromServer)
-		if err != nil {
-			return nil, errors.New(fmt.Sprintf("Decode base64 error: %s", err.Error()))
-		}
-
-		var challengeMessage []byte
-		if maxLen == resultLen {
-			challengeMessage = dst
-		} else {
-			challengeMessage = make([]byte, resultLen, resultLen)
-			copy(challengeMessage, dst)
-		}
-
-		return n.NextBytes(challengeMessage)
-	}
 }
