@@ -9,11 +9,14 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/fd/go-shellwords/shellwords"
+	"github.com/kardianos/osext"
 )
 
 var default_directory = flag.String("exec.directory", ".", "the work directory for execute")
@@ -151,7 +154,74 @@ func newExecHandler2(ctx, params map[string]interface{}) (Handler, error) {
 		environments: environments}, nil
 }
 
+var ExecutableFolder string
+
+func init() {
+	executableFolder, e := osext.ExecutableFolder()
+	if nil != e {
+		fmt.Println("[warn]", e)
+		return
+	}
+
+	ExecutableFolder = executableFolder
+}
+func lookPath(executableFolder string, alias ...string) (string, bool) {
+	var names []string
+	for _, aliasName := range alias {
+		if runtime.GOOS == "windows" {
+			names = append(names, aliasName, aliasName+".bat", aliasName+".com", aliasName+".exe")
+		} else {
+			names = append(names, aliasName, aliasName+".sh")
+		}
+	}
+
+	for _, nm := range names {
+		files := []string{nm,
+			filepath.Join("bin", nm),
+			filepath.Join("tools", nm),
+			filepath.Join("runtime_env", nm),
+			filepath.Join("..", nm),
+			filepath.Join("..", "bin", nm),
+			filepath.Join("..", "tools", nm),
+			filepath.Join("..", "runtime_env", nm),
+			filepath.Join(executableFolder, nm),
+			filepath.Join(executableFolder, "bin", nm),
+			filepath.Join(executableFolder, "tools", nm),
+			filepath.Join(executableFolder, "runtime_env", nm),
+			filepath.Join(executableFolder, "..", nm),
+			filepath.Join(executableFolder, "..", "bin", nm),
+			filepath.Join(executableFolder, "..", "tools", nm),
+			filepath.Join(executableFolder, "..", "runtime_env", nm)}
+		for _, file := range files {
+			// fmt.Println("====", file)
+			file = abs(file)
+			if st, e := os.Stat(file); nil == e && nil != st && !st.IsDir() {
+				//fmt.Println("1=====", file, e)
+				return file, true
+			}
+		}
+	}
+
+	for _, nm := range names {
+		_, err := exec.LookPath(nm)
+		if nil == err {
+			return nm, true
+		}
+	}
+	return "", false
+}
+
 func (self *execHandler) Perform() error {
+	if "tpt" == self.command || "tpt.exe" == self.command {
+		if a, ok := lookPath(ExecutableFolder, "tpt"); ok {
+			self.command = a
+		}
+	} else {
+		if a, ok := lookPath(ExecutableFolder, self.command); ok {
+			self.command = a
+		}
+	}
+
 	fmt.Println(self.command, self.arguments)
 	cmd := exec.Command(self.command, self.arguments...)
 	cmd.Dir = self.work_directory
