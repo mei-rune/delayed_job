@@ -75,27 +75,39 @@ func utf16le(val string) []byte {
 }
 
 func (auth *NTLMSSP) InitialBytes() ([]byte, error) {
-	domain_len := len(auth.Domain)
-	workstation_len := len(auth.Workstation)
-	msg := make([]byte, 40+domain_len+workstation_len)
-	copy(msg, []byte("NTLMSSP\x00"))
-	binary.LittleEndian.PutUint32(msg[8:], NEGOTIATE_MESSAGE)
-	binary.LittleEndian.PutUint32(msg[12:], NEGOTIATE_FLAGS)
-	// Domain Name Fields
-	binary.LittleEndian.PutUint16(msg[16:], uint16(domain_len))
-	binary.LittleEndian.PutUint16(msg[18:], uint16(domain_len))
-	binary.LittleEndian.PutUint32(msg[20:], 40)
-	// Workstation Fields
-	binary.LittleEndian.PutUint16(msg[24:], uint16(workstation_len))
-	binary.LittleEndian.PutUint16(msg[26:], uint16(workstation_len))
-	binary.LittleEndian.PutUint32(msg[28:], uint32(40+domain_len))
-	// Version
-	binary.LittleEndian.PutUint32(msg[32:], 0)
-	binary.LittleEndian.PutUint32(msg[36:], 0)
-	// Payload
-	copy(msg[40:], auth.Domain)
-	copy(msg[40+domain_len:], auth.Workstation)
-	return msg, nil
+	txt := "TlRMTVNTUAABAAAAB4IIogAAAAAAAAAAAAAAAAAAAAAGAbEdAAAADw=="
+
+	maxLen := base64.StdEncoding.DecodedLen(len(txt))
+	dst := make([]byte, maxLen)
+	resultLen, err := base64.StdEncoding.Decode(dst, []byte(txt))
+	if err != nil {
+		return nil, err
+	}
+	return dst[:resultLen], nil
+
+	/*
+		domain_len := len(auth.Domain)
+		workstation_len := len(auth.Workstation)
+		msg := make([]byte, 40+domain_len+workstation_len)
+		copy(msg, []byte("NTLMSSP\x00"))
+		binary.LittleEndian.PutUint32(msg[8:], NEGOTIATE_MESSAGE)
+		binary.LittleEndian.PutUint32(msg[12:], NEGOTIATE_FLAGS)
+		// Domain Name Fields
+		binary.LittleEndian.PutUint16(msg[16:], uint16(domain_len))
+		binary.LittleEndian.PutUint16(msg[18:], uint16(domain_len))
+		binary.LittleEndian.PutUint32(msg[20:], 40)
+		// Workstation Fields
+		binary.LittleEndian.PutUint16(msg[24:], uint16(workstation_len))
+		binary.LittleEndian.PutUint16(msg[26:], uint16(workstation_len))
+		binary.LittleEndian.PutUint32(msg[28:], uint32(40+domain_len))
+		// Version
+		binary.LittleEndian.PutUint32(msg[32:], 0)
+		binary.LittleEndian.PutUint32(msg[36:], 0)
+		// Payload
+		copy(msg[40:], auth.Domain)
+		copy(msg[40+domain_len:], auth.Workstation)
+		return msg, nil
+	*/
 }
 
 var errorNTLM = errors.New("NTLM protocol error")
@@ -276,16 +288,17 @@ func (auth *NTLMSSP) Free() {
 // on TLS connections to host and act as identity. Usually identity will be
 // left blank to act as username.
 func NTLMAuth(host, user, password, workstation string) *ntlmAuth {
-	domanAndUsername := strings.SplitN(user, `\`, 2)
-	if len(domanAndUsername) != 2 {
-		return &ntlmAuth{initErr: errors.New(`Wrong format of username. The required format is 'domain\username'`)}
-	}
-
 	a := NTLMSSP{
-		Domain:      domanAndUsername[0],
-		UserName:    domanAndUsername[1],
 		Password:    password,
 		Workstation: workstation,
+	}
+
+	domanAndUsername := strings.SplitN(user, `\`, 2)
+	if len(domanAndUsername) != 2 {
+		a.UserName = user
+	} else {
+		a.Domain = domanAndUsername[0]
+		a.UserName = domanAndUsername[1]
 	}
 
 	return &ntlmAuth{
@@ -332,22 +345,22 @@ func (n *ntlmAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 	case bytes.Equal(fromServer, []byte("NTLM supported")):
 		return n.InitialBytes()
 	default:
-		maxLen := base64.StdEncoding.DecodedLen(len(fromServer))
+		// maxLen := base64.StdEncoding.DecodedLen(len(fromServer))
 
-		dst := make([]byte, maxLen)
-		resultLen, err := base64.StdEncoding.Decode(dst, fromServer)
-		if err != nil {
-			return nil, errors.New(fmt.Sprintf("Decode base64 error: %s", err.Error()))
-		}
+		// dst := make([]byte, maxLen)
+		// resultLen, err := base64.StdEncoding.Decode(dst, fromServer)
+		// if err != nil {
+		// 	return nil, errors.New(fmt.Sprintf("Decode base64 error: %s", err.Error()))
+		// }
 
-		var challengeMessage []byte
-		if maxLen == resultLen {
-			challengeMessage = dst
-		} else {
-			challengeMessage = make([]byte, resultLen, resultLen)
-			copy(challengeMessage, dst)
-		}
-
+		// var challengeMessage []byte
+		// if maxLen == resultLen {
+		// 	challengeMessage = dst
+		// } else {
+		// 	challengeMessage = make([]byte, resultLen, resultLen)
+		// 	copy(challengeMessage, dst)
+		// }
+		challengeMessage := fromServer
 		return n.NextBytes(challengeMessage)
 	}
 }

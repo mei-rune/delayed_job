@@ -189,7 +189,11 @@ func (c *Client) Auth(a Auth) error {
 		var msg []byte
 		switch code {
 		case 334:
-			msg, err = encoding.DecodeString(msg64)
+			if msg64 == "NTLM supported" {
+				msg = []byte(msg64)
+			} else {
+				msg, err = encoding.DecodeString(msg64)
+			}
 		case 235:
 			// the last message isn't base64 because it isn't a challenge
 			msg = []byte(msg64)
