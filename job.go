@@ -82,7 +82,7 @@ func createJobFromMap(backend *dbBackend, args map[string]interface{}) (*Job, er
 }
 
 func newJob(backend *dbBackend, priority, repeat_count int, repeat_interval string, max_attempts int, queue string, run_at time.Time, args map[string]interface{}, is_valid_payload_object bool) (*Job, error) {
-	id := stringWithDefault(args, "_uid", "")
+	id := stringWithDefault(args, "_uid", stringWithDefault(args, "handler_id", ""))
 	if 0 == len(id) {
 		id = generate_id()
 	}
