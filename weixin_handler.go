@@ -113,4 +113,5 @@ func (self *weixinHandler) Perform() error {
 func init() {
 	Handlers["weixin"] = newWeixinHandler
 	Handlers["weixin_action"] = newWeixinHandler
+	Handlers["weixin_command"] = newWeixinHandler
 }

@@ -126,4 +126,5 @@ func (self *smsHandler) Perform() error {
 func init() {
 	Handlers["sms"] = newSMSHandler
 	Handlers["sms_action"] = newSMSHandler
+	Handlers["sms_command"] = newSMSHandler
 }

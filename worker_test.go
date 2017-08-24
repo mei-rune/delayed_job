@@ -31,7 +31,7 @@ func TestWork(t *testing.T) {
 
 func TestRunJob(t *testing.T) {
 	workTest(t, func(w *worker, backend *dbBackend) {
-		e := backend.enqueue(1, 0, 1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		e := backend.enqueue(1, 0, "", 1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -48,7 +48,7 @@ func TestRunJob(t *testing.T) {
 
 func TestRunErrorAndRescheduleIt(t *testing.T) {
 	workTest(t, func(w *worker, backend *dbBackend) {
-		e := backend.enqueue(1, 0, 0, "aa", time.Time{}, map[string]interface{}{"type": "test", "try_interval": "0s", "error": "throw a"})
+		e := backend.enqueue(1, 0, "", 0, "aa", time.Time{}, map[string]interface{}{"type": "test", "try_interval": "0s", "error": "throw a"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -122,7 +122,7 @@ func TestRunErrorAndRescheduleIt(t *testing.T) {
 func TestRunFailedAndNotDestoryIt2(t *testing.T) {
 	*default_destroy_failed_jobs = false
 	workTest(t, func(w *worker, backend *dbBackend) {
-		e := backend.enqueue(1, 0, 1, "aa", time.Time{}, map[string]interface{}{"type": "test", "try_interval": "0s", "error": "throw a"})
+		e := backend.enqueue(1, 0, "", 1, "aa", time.Time{}, map[string]interface{}{"type": "test", "try_interval": "0s", "error": "throw a"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -164,7 +164,7 @@ func TestRunFailedAndNotDestoryIt2(t *testing.T) {
 func TestRunFailedAndNotDestoryIt(t *testing.T) {
 	*default_destroy_failed_jobs = false
 	workTest(t, func(w *worker, backend *dbBackend) {
-		e := backend.enqueue(1, 0, 1, "aa", time.Time{}, map[string]interface{}{"type": "test", "try_interval": "0s", "error": "throw a"})
+		e := backend.enqueue(1, 0, "", 1, "aa", time.Time{}, map[string]interface{}{"type": "test", "try_interval": "0s", "error": "throw a"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -244,7 +244,7 @@ func TestRunFailedAndNotDestoryIt(t *testing.T) {
 func TestRunFailedAndDestoryIt(t *testing.T) {
 	*default_destroy_failed_jobs = true
 	workTest(t, func(w *worker, backend *dbBackend) {
-		e := backend.enqueue(1, 0, 1, "aa", time.Time{}, map[string]interface{}{"type": "test", "try_interval": "0s", "error": "throw a"})
+		e := backend.enqueue(1, 0, "", 1, "aa", time.Time{}, map[string]interface{}{"type": "test", "try_interval": "0s", "error": "throw a"})
 		if nil != e {
 			t.Error(e)
 			return
@@ -316,7 +316,7 @@ var max_message_txt = `java.sql.SQLIntegrityConstraintViolationException: ORA-01
 
 func TestRunWithMaxErrorAndRescheduleIt(t *testing.T) {
 	workTest(t, func(w *worker, backend *dbBackend) {
-		e := backend.enqueue(1, 0, 1, "aa", time.Time{}, map[string]interface{}{"type": "test", "try_interval": "0s", "error": max_message_txt})
+		e := backend.enqueue(1, 0, "", 1, "aa", time.Time{}, map[string]interface{}{"type": "test", "try_interval": "0s", "error": max_message_txt})
 		if nil != e {
 			t.Error(e)
 			return

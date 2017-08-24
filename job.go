@@ -38,21 +38,22 @@ func generate_id() string {
 type Job struct {
 	backend *dbBackend
 
-	id           int64
-	priority     int
-	repeat_count int
-	attempts     int
-	max_attempts int
-	queue        string
-	handler      string
-	handler_id   string
-	last_error   string
-	run_at       time.Time
-	failed_at    time.Time
-	locked_at    time.Time
-	locked_by    string
-	created_at   time.Time
-	updated_at   time.Time
+	id              int64
+	priority        int
+	repeat_count    int
+	repeat_interval string
+	attempts        int
+	max_attempts    int
+	queue           string
+	handler         string
+	handler_id      string
+	last_error      string
+	run_at          time.Time
+	failed_at       time.Time
+	locked_at       time.Time
+	locked_by       string
+	created_at      time.Time
+	updated_at      time.Time
 
 	changed_attributes map[string]interface{}
 	handler_attributes map[string]interface{}
@@ -62,6 +63,7 @@ type Job struct {
 func createJobFromMap(backend *dbBackend, args map[string]interface{}) (*Job, error) {
 	priority := intWithDefault(args, "priority", *default_priority)
 	repeat_count := intWithDefault(args, "repeat_count", 0)
+	repeat_interval := stringWithDefault(args, "repeat_interval", "")
 	max_attempts := intWithDefault(args, "max_attempts", 0)
 	queue := stringWithDefault(args, "queue", *default_queue_name)
 	run_at := timeWithDefault(args, "run_at", backend.db_time_now())
@@ -76,10 +78,10 @@ func createJobFromMap(backend *dbBackend, args map[string]interface{}) (*Job, er
 	}
 
 	is_valid_rule := boolWithDefault(args, "is_valid_rule", true)
-	return newJob(backend, priority, repeat_count, max_attempts, queue, run_at, handler, is_valid_rule)
+	return newJob(backend, priority, repeat_count, repeat_interval, max_attempts, queue, run_at, handler, is_valid_rule)
 }
 
-func newJob(backend *dbBackend, priority, repeat_count, max_attempts int, queue string, run_at time.Time, args map[string]interface{}, is_valid_payload_object bool) (*Job, error) {
+func newJob(backend *dbBackend, priority, repeat_count int, repeat_interval string, max_attempts int, queue string, run_at time.Time, args map[string]interface{}, is_valid_payload_object bool) (*Job, error) {
 	id := stringWithDefault(args, "_uid", "")
 	if 0 == len(id) {
 		id = generate_id()
@@ -93,6 +95,7 @@ func newJob(backend *dbBackend, priority, repeat_count, max_attempts int, queue 
 	j := &Job{backend: backend,
 		priority:           priority,
 		repeat_count:       repeat_count,
+		repeat_interval:    repeat_interval,
 		max_attempts:       max_attempts,
 		queue:              queue,
 		handler:            string(s),
@@ -202,23 +205,11 @@ func (self *Job) needReschedule() (time.Time, bool) {
 	if self.repeat_count <= 0 {
 		return time.Time{}, false
 	}
-
-	var duration time.Duration
-
-	options, e := self.attributes()
-	if nil != e {
-		goto default_duration
+	interval, _ := time.ParseDuration(self.repeat_interval)
+	if interval < 5*time.Second {
+		interval = 10 * time.Minute
 	}
-
-	duration = durationWithDefault(options, "repeat_interval", 0)
-	if duration < 5*time.Second {
-		goto default_duration
-	}
-	return self.backend.db_time_now().Add(duration), true
-
-default_duration:
-	duration = time.Duration(self.attempts*10) * time.Minute
-	return self.backend.db_time_now().Add(duration).Add(5 + time.Second), true
+	return self.backend.db_time_now().Add(interval), true
 }
 
 func (self *Job) reschedule_at() time.Time {

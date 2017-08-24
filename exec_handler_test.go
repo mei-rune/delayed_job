@@ -94,7 +94,7 @@ func TestExecHandlerPromptNotFound(t *testing.T) {
 		t.Error("excepted error is not nil, but actual is nil")
 		return
 	}
-	if !strings.Contains(e.Error(), "************************* not found ************************") {
+	if !strings.Contains(e.Error(), "************************* prompt `aasddf` not found ************************") {
 		t.Error("excepted error contains [not found], but actual is", e)
 	}
 }

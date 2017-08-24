@@ -68,6 +68,7 @@ func newMultiplexedHandler(ctx, params map[string]interface{}) (Handler, error) 
 		priority := intWithDefault(options, "priority", gpriority)
 		queue := stringWithDefault(options, "queue", gqueue)
 		repeat_count := intWithDefault(options, "repeat_count", 0)
+		repeat_interval := stringWithDefault(options, "repeat_interval", "")
 		max_attempts := intWithDefault(options, "max_attempts", gmax_attempts)
 		run_at := timeWithDefault(options, "run_at", grun_at)
 
@@ -82,7 +83,7 @@ func newMultiplexedHandler(ctx, params map[string]interface{}) (Handler, error) 
 			}
 		}
 
-		j, e := newJob(backend, priority, repeat_count, max_attempts, queue, run_at, options, is_valid_rule)
+		j, e := newJob(backend, priority, repeat_count, repeat_interval, max_attempts, queue, run_at, options, is_valid_rule)
 		if nil != e {
 			return nil, fmt.Errorf("rules[%d] is invalid, %v", idx, e)
 		}

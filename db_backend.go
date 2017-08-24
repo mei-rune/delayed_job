@@ -41,7 +41,7 @@ var (
 	test_ch_for_lock = make(chan int)
 
 	select_sql_string = ""
-	fields_sql_string = " id, priority, repeat_count, attempts, max_attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at "
+	fields_sql_string = " id, priority, repeat_count, repeat_interval, attempts, max_attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at "
 )
 
 func preprocessArgs(args interface{}) interface{} {
@@ -206,8 +206,8 @@ func (self *dbBackend) Close() error {
 	return nil
 }
 
-func (self *dbBackend) enqueue(priority, repeat_count, max_attempts int, queue string, run_at time.Time, args map[string]interface{}) error {
-	job, e := newJob(self, priority, repeat_count, max_attempts, queue, run_at, args, true)
+func (self *dbBackend) enqueue(priority, repeat_count int, repeat_interval string, max_attempts int, queue string, run_at time.Time, args map[string]interface{}) error {
+	job, e := newJob(self, priority, repeat_count, repeat_interval, max_attempts, queue, run_at, args, true)
 	if nil != e {
 		return e
 	}
@@ -236,6 +236,7 @@ func (self *dbBackend) readJobFromRow(row interface {
 	job := &Job{}
 	var queue sql.NullString
 	var handler_id sql.NullString
+	var repeat_interval sql.NullString
 	var last_error sql.NullString
 	var run_at NullTime
 	var locked_at NullTime
@@ -248,6 +249,7 @@ func (self *dbBackend) readJobFromRow(row interface {
 		&job.id,
 		&job.priority,
 		&job.repeat_count,
+		&repeat_interval,
 		&job.attempts,
 		&job.max_attempts,
 		&queue,
@@ -270,6 +272,10 @@ func (self *dbBackend) readJobFromRow(row interface {
 
 	if handler_id.Valid {
 		job.handler_id = handler_id.String
+	}
+
+	if repeat_interval.Valid {
+		job.repeat_interval = repeat_interval.String
 	}
 
 	if last_error.Valid {
@@ -525,8 +531,8 @@ func (self *dbBackend) create(jobs ...*Job) (e error) {
 			// fmt.Println("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (:1, :2, :3, :4, :5, NULL, :6, NULL, NULL, NULL, :7, :8)",
 			// 	job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
 			now_str := now.Format("2006-01-02 15:04:05")
-			_, e = tx.Exec(fmt.Sprintf("INSERT INTO "+*table_name+"(priority, repeat_count, attempts, max_attempts, queue, handler, handler_id, run_at, created_at, updated_at) VALUES (%d, %d, %d, %d,'%s', :1, '%s', TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'), TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'), TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'))",
-				job.priority, job.repeat_count, job.attempts, job.max_attempts, job.queue, job.handler_id, job.run_at.Format("2006-01-02 15:04:05"), now_str, now_str), job.handler)
+			_, e = tx.Exec(fmt.Sprintf("INSERT INTO "+*table_name+"(priority, repeat_count, repeat_interval, attempts, max_attempts, queue, handler, handler_id, run_at, created_at, updated_at) VALUES (%d, %d, '%d', %d, %d,'%s', :1, '%s', TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'), TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'), TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'))",
+				job.priority, job.repeat_count, job.repeat_interval, job.attempts, job.max_attempts, job.queue, job.handler_id, job.run_at.Format("2006-01-02 15:04:05"), now_str, now_str), job.handler)
 			//fmt.Println(fmt.Sprintf("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, run_at, created_at, updated_at) VALUES (%d, %d, '%s', :1, '%s', TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'), TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'), TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'))",
 			//	job.priority, job.attempts, job.queue, job.handler_id, job.run_at.Format("2006-01-02 15:04:05"), now_str, now_str), job.handler)
 		case POSTGRESQL:
@@ -535,8 +541,8 @@ func (self *dbBackend) create(jobs ...*Job) (e error) {
 				break
 			}
 
-			_, e = tx.Exec("INSERT INTO "+*table_name+"(priority, repeat_count, attempts, max_attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, $8, NULL, NULL, NULL, $9, $10)",
-				job.priority, job.repeat_count, job.attempts, job.max_attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
+			_, e = tx.Exec("INSERT INTO "+*table_name+"(priority, repeat_count, repeat_interval, attempts, max_attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL, $9, NULL, NULL, NULL, $10, $11)",
+				job.priority, job.repeat_count, job.repeat_interval, job.attempts, job.max_attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
 			//fmt.Println("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NULL, $6, NULL, NULL, NULL, $7, $8)",
 			//	job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
 		default:
@@ -545,8 +551,8 @@ func (self *dbBackend) create(jobs ...*Job) (e error) {
 				break
 			}
 
-			_, e = tx.Exec("INSERT INTO "+*table_name+"(priority, repeat_count, attempts, max_attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)",
-				job.priority, job.repeat_count, job.attempts, job.max_attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
+			_, e = tx.Exec("INSERT INTO "+*table_name+"(priority, repeat_count, repeat_interval, attempts, max_attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)",
+				job.priority, job.repeat_count, job.repeat_interval, job.attempts, job.max_attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
 			//fmt.Println("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, NULL, NULL, NULL, ?, ?)",
 			//	job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
 		}

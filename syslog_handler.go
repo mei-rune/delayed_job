@@ -275,4 +275,5 @@ func (self *syslogHandler) send(to *net.UDPAddr) error {
 
 func init() {
 	Handlers["syslog"] = newSyslogHandler
+	Handlers["syslog_command"] = newSyslogHandler
 }

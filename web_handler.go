@@ -246,8 +246,10 @@ func IsContains(r io.Reader, excepted string) (bool, error) {
 func init() {
 	Handlers["web"] = newWebHandler
 	Handlers["web_action"] = newWebHandler
+	Handlers["web_command"] = newWebHandler
 	Handlers["http"] = newWebHandler
 	Handlers["http_action"] = newWebHandler
+	Handlers["http_command"] = newWebHandler
 }
 
 func genText(content string, args interface{}) (string, error) {
