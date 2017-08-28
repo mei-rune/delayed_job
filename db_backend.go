@@ -822,6 +822,7 @@ func (self *dbBackend) where(params map[string]interface{}) ([]map[string]interf
 		var id int64
 		var priority int
 		var repeat_count int
+		var repeat_interval sql.NullString
 		var attempts int
 		var max_attempts int
 		var handler string
@@ -840,6 +841,7 @@ func (self *dbBackend) where(params map[string]interface{}) ([]map[string]interf
 			&id,
 			&priority,
 			&repeat_count,
+			&repeat_interval,
 			&attempts,
 			&max_attempts,
 			&queue,
@@ -875,6 +877,9 @@ func (self *dbBackend) where(params map[string]interface{}) ([]map[string]interf
 
 		if queue.Valid {
 			result["queue"] = queue.String
+		}
+		if repeat_interval.Valid {
+			result["repeat_interval"] = repeat_interval.String
 		}
 
 		if last_error.Valid {
