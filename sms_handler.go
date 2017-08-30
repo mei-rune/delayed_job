@@ -29,9 +29,18 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 	//users := stringsWithDefault(params, "users", ",", nil)
 	phone_numbers := stringsWithDefault(params, "phone_numbers", ",", nil)
-
 	if 0 == len(phone_numbers) {
 		return nil, errors.New("'phone_numbers' is required.")
+	}
+
+	if ofields := params["fields"]; ofields != nil {
+		fields, _ := ofields.(map[string]interface{})
+		if fields != nil {
+			numbers := stringsWithDefault(params, "phone_numbers", ",", nil)
+			if len(numbers) > 0 {
+				phone_numbers = append(phone_numbers, numbers...)
+			}
+		}
 	}
 
 	// if 0 == len(phone_numbers) {
