@@ -253,20 +253,6 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		to = append(to, users...)
 	}
 
-	if ofields := params["fields"]; ofields != nil {
-		fields, _ := ofields.(map[string]interface{})
-		if fields != nil {
-			addresses := addressesWith(params, "to_address")
-			if len(addresses) > 0 {
-				to = append(to, addresses...)
-			}
-			addresses = addressesWith(params, "to_mail_addresses")
-			if len(addresses) > 0 {
-				to = append(to, addresses...)
-			}
-		}
-	}
-
 	cc, e := addressesWith(params, "cc_address")
 	if nil != e {
 		return nil, e
