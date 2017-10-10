@@ -1,6 +1,7 @@
 package delayed_job
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"flag"
@@ -31,20 +32,20 @@ func init() {
 	flag.StringVar(&default_mail_subject_encoding, "mail.subject_encoding", "gb2312_base64", "")
 }
 
-var default_smtp_server = flag.String("mail.smtp_server", "", "the address of smtp server")
+var defaultSmtpServer = flag.String("mail.smtp_server", "", "the address of smtp server")
 var default_mail_address = flag.String("mail.from", "", "the from address of mail")
 
 type mailHandler struct {
-	smtp_server string
-	message     *MailMessage
+	smtpServer string
+	message    *MailMessage
 
-	auth_type    string
-	identity     string
-	user         string
-	password     string
-	host         string
-	remove_files []string
-	closers      []io.Closer
+	authType    string
+	identity    string
+	user        string
+	password    string
+	host        string
+	removeFiles []string
+	closers     []io.Closer
 }
 
 func toAddressListString(addresses []*mail.Address) string {
@@ -70,11 +71,27 @@ func addressesWith(params map[string]interface{}, nm string) ([]*mail.Address, e
 		if 0 == len(s) {
 			return nil, nil
 		}
-		addr, e := mail.ParseAddressList(s)
-		if nil != e {
-			return nil, errors.New("'" + nm + "' is invalid - " + e.Error())
+		scan := bufio.NewScanner(strings.NewReader(s))
+
+		results := make([]*mail.Address, 0, 4)
+		for scan.Scan() {
+			bs := scan.Bytes()
+			if len(bs) == 0 {
+				continue
+			}
+
+			bs = bytes.TrimSpace(bs)
+			if len(bs) == 0 {
+				continue
+			}
+
+			addr, e := mail.ParseAddressList(string(bs))
+			if nil != e {
+				return nil, errors.New("'" + nm + "' is invalid - " + e.Error())
+			}
+			results = append(results, addr...)
 		}
-		return addr, nil
+		return results, nil
 	}
 
 	if m, ok := o.(map[string]interface{}); ok {
@@ -140,36 +157,36 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("params is nil")
 	}
 
-	var auth_type string
+	var authType string
 	var identity string
 	var password string
 	var host string
 	var user string = stringWithDefault(params, "user", "")
 	if 0 == len(user) {
-		auth_type = *default_mail_auth_type
+		authType = *default_mail_auth_type
 		user = *default_mail_auth_user
 		identity = *default_mail_auth_identity
 		password = *default_mail_auth_password
 		host = *default_mail_auth_host
 	} else {
-		auth_type = stringWithDefault(params, "auth_type", "plain")
-		if 0 == len(auth_type) {
-			return nil, errors.New("'auth_type' is required.")
+		authType = stringWithDefault(params, "auth_type", "plain")
+		if 0 == len(authType) {
+			return nil, errors.New("'auth_type' is required")
 		}
 		identity = stringWithDefault(params, "identity", "")
 		password = stringWithDefault(params, "password", "")
 		host = stringWithDefault(params, "host", "")
 	}
 
-	smtp_server := stringWithDefault(params, "smtp_server", "")
-	if 0 == len(smtp_server) {
-		smtp_server = *default_smtp_server
+	smtpServer := stringWithDefault(params, "smtp_server", "")
+	if 0 == len(smtpServer) {
+		smtpServer = *defaultSmtpServer
 	}
 
 	if 0 == len(host) {
-		idx := strings.IndexRune(smtp_server, ':')
+		idx := strings.IndexRune(smtpServer, ':')
 		if -1 != idx {
-			host = smtp_server[0:idx]
+			host = smtpServer[0:idx]
 		}
 	}
 
@@ -274,7 +291,7 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 			return nil, errors.New("'" + contentType + "' is unsupported.")
 		}
 	}
-	var remove_files []string
+	var removeFiles []string
 	var closers []io.Closer
 	var attachments []Attachment
 	if args, ok := params["attachments"]; ok {
@@ -301,7 +318,7 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 				}
 
 				if is_removed {
-					remove_files = append(remove_files, file)
+					removeFiles = append(removeFiles, file)
 				}
 
 				f, e := os.Open(file)
@@ -316,14 +333,14 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
-	return &mailHandler{smtp_server: smtp_server,
-		auth_type:    auth_type,
-		identity:     identity,
-		user:         user,
-		password:     password,
-		host:         host,
-		remove_files: remove_files,
-		closers:      closers,
+	return &mailHandler{smtpServer: smtpServer,
+		authType:    authType,
+		identity:    identity,
+		user:        user,
+		password:    password,
+		host:        host,
+		removeFiles: removeFiles,
+		closers:     closers,
 		message: &MailMessage{From: *from,
 			To:          to,
 			Cc:          cc,
@@ -347,7 +364,7 @@ func (self *mailHandler) Perform() error {
 			self.closers = nil
 		}
 
-		for _, nm := range self.remove_files {
+		for _, nm := range self.removeFiles {
 			if e := os.Remove(nm); nil != e {
 				log.Println("[warn] [mail] remove file - '"+nm+"',", e)
 			}
@@ -358,7 +375,7 @@ func (self *mailHandler) Perform() error {
 	if BlatExecute != "" {
 		cmd := exec.Command(BlatExecute,
 			"-from", self.message.From.Address,
-			"-server", self.smtp_server,
+			"-server", self.smtpServer,
 			"-f", self.message.From.Address,
 			"-u", self.user,
 			"-pw", self.password)
@@ -409,16 +426,16 @@ func (self *mailHandler) Perform() error {
 		return nil
 	}
 
-	var auth smtp.Auth = nil
+	var auth smtp.Auth
 	if "" != self.password {
-		switch self.auth_type {
+		switch self.authType {
 		case "":
 			if 0 != len(self.password) {
 				if 0 == len(self.user) {
 					self.user = toMailString(&self.message.From)
 
 					if 0 == len(self.user) {
-						return errors.New("user is missing.")
+						return errors.New("user is missing")
 					}
 				}
 				auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host, true)
@@ -427,11 +444,11 @@ func (self *mailHandler) Perform() error {
 			if 0 == len(self.user) {
 				self.user = toMailString(&self.message.From)
 				if 0 == len(self.user) {
-					return errors.New("user is missing.")
+					return errors.New("user is missing")
 				}
 			}
 			if 0 == len(self.host) {
-				self.host = self.smtp_server
+				self.host = self.smtpServer
 			}
 			auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host, tryNTLM)
 		case "cram-md5", "CRAM-MD5":
@@ -439,10 +456,10 @@ func (self *mailHandler) Perform() error {
 		case "ntlm", "NTLM":
 			auth = smtp.NTLMAuth("", self.user, self.password, "")
 		default:
-			return errors.New("unsupported auth type - " + self.auth_type)
+			return errors.New("unsupported auth type - " + self.authType)
 		}
 	}
-	if e := self.message.Send(self.smtp_server, auth); nil != e {
+	if e := self.message.Send(self.smtpServer, auth); nil != e {
 		return e
 	}
 	return nil

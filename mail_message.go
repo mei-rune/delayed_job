@@ -120,20 +120,20 @@ func (self *MailMessage) Bytes() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (self *MailMessage) Send(smtp_server string, auth smtp.Auth) error {
+func (self *MailMessage) Send(smtpServer string, auth smtp.Auth) error {
 	if nil == self.To || 0 == len(self.To) {
 		return errors.New("'to_address' is missing.")
 	}
 
-	if 0 == len(smtp_server) {
-		smtp_server = *default_smtp_server
-		if 0 == len(smtp_server) {
-			return errors.New("'smtp_server' is missing or default 'smtp_server' is not set.")
+	if 0 == len(smtpServer) {
+		smtpServer = *defaultSmtpServer
+		if 0 == len(smtpServer) {
+			return errors.New("'smtp_server' is missing or default 'smtp_server' is not set")
 		}
 	}
 
-	if !strings.Contains(smtp_server, ":") {
-		smtp_server += ":25"
+	if !strings.Contains(smtpServer, ":") {
+		smtpServer += ":25"
 	}
 
 	to := make([]string, len(self.To))
@@ -153,9 +153,9 @@ func (self *MailMessage) Send(smtp_server string, auth smtp.Auth) error {
 
 	//fmt.Println(string(self.Bytes()))
 
-	e = smtp.SendMail(smtp_server, auth, from, to, body)
+	e = smtp.SendMail(smtpServer, auth, from, to, body)
 	if nil != e {
-		err := smtp.SendMail(smtp_server, nil, from, to, body)
+		err := smtp.SendMail(smtpServer, nil, from, to, body)
 		if nil == err {
 			return nil
 		}
