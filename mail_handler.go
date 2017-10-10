@@ -1,6 +1,7 @@
 package delayed_job
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"flag"
@@ -70,11 +71,27 @@ func addressesWith(params map[string]interface{}, nm string) ([]*mail.Address, e
 		if 0 == len(s) {
 			return nil, nil
 		}
-		addr, e := mail.ParseAddressList(s)
-		if nil != e {
-			return nil, errors.New("'" + nm + "' is invalid - " + e.Error())
+
+		scan := bufio.NewScanner(strings.NewReader(s))
+		results := make([]*mail.Address, 0, 4)
+		for scan.Scan() {
+			bs := scan.Bytes()
+			if len(bs) == 0 {
+				continue
+			}
+
+			bs = bytes.TrimSpace(bs)
+			if len(bs) == 0 {
+				continue
+			}
+
+			addr, e := mail.ParseAddressList(string(bs))
+			if nil != e {
+				return nil, errors.New("'" + nm + "' is invalid - " + e.Error())
+			}
+			results = append(results, addr...)
 		}
-		return addr, nil
+		return results, nil
 	}
 
 	if m, ok := o.(map[string]interface{}); ok {
