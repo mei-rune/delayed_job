@@ -39,17 +39,29 @@ func intWithDefault(args map[string]interface{}, key string, defaultValue int) i
 		return int(value)
 	case int32:
 		return int(value)
+	case float64:
+		return int(value)
+	case float32:
+		return int(value)
 	case string:
 		i, e := strconv.ParseInt(value, 10, 0)
 		if nil != e {
-			return defaultValue
+			f64, e := strconv.ParseFloat(value, 64)
+			if nil != e {
+				return defaultValue
+			}
+			return int(f64)
 		}
 		return int(i)
 	default:
 		s := fmt.Sprint(value)
 		i, e := strconv.ParseInt(s, 10, 0)
 		if nil != e {
-			return defaultValue
+			f64, e := strconv.ParseFloat(s, 64)
+			if nil != e {
+				return defaultValue
+			}
+			return int(f64)
 		}
 		return int(i)
 	}
