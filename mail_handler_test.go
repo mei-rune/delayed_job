@@ -31,7 +31,7 @@ func TestMailHandlerParameterIsError(t *testing.T) {
 }
 
 func TestMailHandler(t *testing.T) {
-	if "" == *default_smtp_server {
+	if "" == *defaultSmtpServer {
 		t.Skip("please set 'test.mail_to', 'mail.from' and 'mail.smtp_server'")
 		return
 	}
@@ -52,7 +52,7 @@ func TestMailHandler(t *testing.T) {
 }
 
 func TestMailHandlerWithArguments(t *testing.T) {
-	if "" == *default_smtp_server {
+	if "" == *defaultSmtpServer {
 		t.Skip("please set 'test.mail_to', 'mail.from' and 'mail.smtp_server'")
 		return
 	}
@@ -73,7 +73,7 @@ func TestMailHandlerWithArguments(t *testing.T) {
 }
 
 func TestMailHandlerAttachments(t *testing.T) {
-	if "" == *default_smtp_server {
+	if "" == *defaultSmtpServer {
 		t.Skip("please set 'test.mail_to', 'mail.from' and 'mail.smtp_server'")
 		return
 	}

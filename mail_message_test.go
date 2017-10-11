@@ -9,7 +9,7 @@ import (
 )
 
 func TestMailMessageTextAndHtml(t *testing.T) {
-	if "" == *default_smtp_server {
+	if "" == *defaultSmtpServer {
 		t.Skip("please set 'test.mail_to', 'mail.from' and 'mail.smtp_server'")
 		return
 	}
@@ -45,7 +45,7 @@ func TestMailMessageTextAndHtml(t *testing.T) {
 	// }
 	// t.Log(string(bs))
 
-	if e := msg.Send(*default_smtp_server, smtp.PlainAuth(*default_mail_auth_identity,
+	if e := msg.Send(*defaultSmtpServer, smtp.PlainAuth(*default_mail_auth_identity,
 		*default_mail_address,
 		*default_mail_auth_password,
 		*default_mail_auth_host,
