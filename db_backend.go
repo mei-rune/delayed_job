@@ -237,6 +237,7 @@ func (self *dbBackend) readJobFromRow(row interface {
 	var queue sql.NullString
 	var handler_id sql.NullString
 	var last_error sql.NullString
+	var attempts sql.NullInt64
 	var run_at NullTime
 	var locked_at NullTime
 	var failed_at NullTime
@@ -248,7 +249,7 @@ func (self *dbBackend) readJobFromRow(row interface {
 		&job.id,
 		&job.priority,
 		&job.repeat_count,
-		&job.attempts,
+		&attempts,
 		&job.max_attempts,
 		&queue,
 		&job.handler,
@@ -266,6 +267,10 @@ func (self *dbBackend) readJobFromRow(row interface {
 
 	if queue.Valid {
 		job.queue = queue.String
+	}
+
+	if attempts.Valid {
+		job.attempts = int(attempts.Int64)
 	}
 
 	if handler_id.Valid {
@@ -311,12 +316,12 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 	//buffer.WriteString(select_sql_string)
 	if self.isNumericParams {
 		if self.dbType == POSTGRESQL {
-			buffer.WriteString(" WHERE (run_at <= $3 AND (locked_at IS NULL OR locked_at < $4) OR locked_by = $5) AND failed_at IS NULL")
+			buffer.WriteString(" WHERE ((run_at IS NULL OR run_at <= $3) AND (locked_at IS NULL OR locked_at < $4) OR locked_by = $5) AND failed_at IS NULL")
 		} else {
-			buffer.WriteString(" WHERE (run_at <= $1 AND (locked_at IS NULL OR locked_at < $2) OR locked_by = $3) AND failed_at IS NULL")
+			buffer.WriteString(" WHERE ((run_at IS NULL OR run_at <= $1) AND (locked_at IS NULL OR locked_at < $2) OR locked_by = $3) AND failed_at IS NULL")
 		}
 	} else {
-		buffer.WriteString(" WHERE (run_at <= ? AND (locked_at IS NULL OR locked_at < ?) OR locked_by = ?) AND failed_at IS NULL")
+		buffer.WriteString(" WHERE ((run_at IS NULL OR run_at <= ?) AND (locked_at IS NULL OR locked_at < ?) OR locked_by = ?) AND failed_at IS NULL")
 	}
 
 	// scope to filter to the single next eligible job
@@ -360,7 +365,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 	case POSTGRESQL:
 		sql_str := "UPDATE " + *table_name + " SET locked_at = $1, locked_by = $2 WHERE id in (SELECT id FROM " + *table_name +
 			buffer.String() + " LIMIT 1) RETURNING " + fields_sql_string
-		//fmt.Println(sql_str, now, w.name, now, now.Truncate(w.max_run_time), w.name)
+		// fmt.Println(sql_str, now, w.name, now, now.Truncate(w.max_run_time), w.name)
 		rows, e := self.db.Query(sql_str, now, w.name, now, now.Truncate(w.max_run_time), w.name)
 		if nil != e {
 			if sql.ErrNoRows == e {

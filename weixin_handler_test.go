@@ -2,6 +2,7 @@ package delayed_job
 
 import (
 	"flag"
+	"time"
 
 	"testing"
 )
@@ -42,4 +43,38 @@ func TestWeixinHandler(t *testing.T) {
 		// }
 		return
 	}
+}
+
+func TestRunWeixin(t *testing.T) {
+	t.Skip("===")
+
+	e := Main(":0", "backend")
+	if nil != e {
+		t.Error(e)
+		return
+	}
+	w, e := newWorker(map[string]interface{}{})
+	if nil != e {
+		t.Error(e)
+		return
+	}
+	defer w.innerClose()
+
+	w.start()
+	defer w.Close()
+
+	func(w *worker, backend *dbBackend) {
+		e := backend.enqueue(1, 0, 1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
+		if nil != e {
+			t.Error(e)
+			return
+		}
+
+		select {
+		case <-test_chan:
+			return
+		case <-time.After(2 * time.Second):
+			t.Error("not recv")
+		}
+	}(w, w.backend)
 }
