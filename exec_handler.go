@@ -236,7 +236,37 @@ func (self *execHandler) Perform() error {
 	}
 
 	if 0 == len(self.prompt) {
-		return cmd.Start()
+		var buffer bytes.Buffer
+		cmd.Stderr = &buffer
+		cmd.Stdout = cmd.Stderr
+
+		err := cmd.Start()
+		if err != nil {
+			return err
+		}
+
+		c := make(chan error, 1)
+		go func() {
+			c <- cmd.Wait()
+		}()
+
+		timer := time.NewTimer(10 * time.Minute)
+
+		select {
+		case <-timer.C:
+			cmd.Process.Kill()
+			return ErrTimeout
+		case err := <-c:
+			timer.Stop()
+			if err != nil {
+				buffer.WriteString("\r\n ************************* exit *************************\r\n")
+				buffer.WriteString(err.Error())
+				return errors.New(buffer.String())
+			}
+			return nil
+		}
+
+		return nil
 	}
 
 	pr, pw := io.Pipe()
