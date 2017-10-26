@@ -12,9 +12,19 @@ import (
 	"errors"
 )
 
-var gammu_config = flag.String("gammu_config", "data/conf/gammu.conf", "the path of gaummu")
-var gammu = flag.String("gammu", "runtime_env/gammu/gammu.exe", "the path of gaummu")
+var gammu_config string
+var gammu string
 var gammu_with_smsd = flag.Bool("with_smsd", false, "send sms by smsd")
+
+func init() {
+	if runtime.GOOS == "windows" {
+		flag.StringVar(&gammu_config, "gammu_config", "data/conf/gammu.conf", "the path of gaummu")
+		flag.StringVar(&gammu, "gammu", "runtime_env/gammu/gammu.exe", "the path of gaummu")
+	} else {
+		flag.StringVar(&gammu_config, "gammu_config", "/etc/tpt/gammu.conf", "the path of gaummu")
+		flag.StringVar(&gammu, "gammu", "runtime_env/gammu/gammu", "the path of gaummu")
+	}
+}
 
 type smsHandler struct {
 	content              string
@@ -31,7 +41,10 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 	phone_numbers := stringsWithDefault(params, "phone_numbers", ",", nil)
 
 	if 0 == len(phone_numbers) {
-		return nil, errors.New("'phone_numbers' is required.")
+		phone_numbers = stringsWithDefault(params, "phoneNumbers", ",", nil)
+		if 0 == len(phone_numbers) {
+			return nil, errors.New("'phone_numbers' is required.")
+		}
 	}
 
 	// if 0 == len(phone_numbers) {
@@ -82,15 +95,15 @@ func (self *smsHandler) Perform() error {
 		var excepted string
 		var cmd *exec.Cmd
 		if *gammu_with_smsd {
-			var gammu_path = filepath.Join(filepath.Dir(*gammu), "gammu-smsd-inject")
+			var gammu_path = filepath.Join(filepath.Dir(gammu), "gammu-smsd-inject")
 			if "windows" == runtime.GOOS {
 				gammu_path = gammu_path + ".exe"
 			}
 
-			cmd = exec.Command(gammu_path, "-c", *gammu_config, "TEXT", phone, "-unicode", "-text", self.content)
+			cmd = exec.Command(gammu_path, "-c", gammu_config, "TEXT", phone, "-unicode", "-text", self.content)
 			excepted = "Written message with ID"
 		} else {
-			cmd = exec.Command(*gammu, "-c", *gammu_config, "sendsms", "TEXT", phone, "-unicode", "-text", self.content)
+			cmd = exec.Command(gammu, "-c", gammu_config, "sendsms", "TEXT", phone, "-unicode", "-text", self.content)
 			excepted = "waiting for network answer..OK"
 		}
 
