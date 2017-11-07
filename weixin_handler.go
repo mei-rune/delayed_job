@@ -80,9 +80,9 @@ func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
 	}
 
 	switch strings.ToLower(target_type) {
-	case "department", "departments", "party":
+	case "department", "departments", "departmentList", "party":
 		msg.ToParty = targets
-	case "tag", "tags":
+	case "tag", "tags", "tagList":
 		msg.ToTag = targets
 	default:
 		msg.ToUser = targets
