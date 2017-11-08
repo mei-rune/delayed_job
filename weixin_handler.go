@@ -47,10 +47,6 @@ func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
 	corp_id := stringWithDefault(params, "corp_id", "")
 	corp_secret := stringWithDefault(params, "corp_secret", "")
 	target_type := stringWithDefault(params, "target_type", "")
-	targets := stringWithDefault(params, "targets", "")
-	if "" == targets {
-		return nil, errors.New("targets is empty.")
-	}
 
 	var msg send.Text
 	msg.MsgType = send.MsgTypeText
@@ -81,10 +77,23 @@ func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 	switch strings.ToLower(target_type) {
 	case "department", "departments", "departmentList", "party":
+		targets := stringOrArrayWithDefault(params, []string{"targets", "departmentList"}, "")
+		if "" == targets {
+			return nil, errors.New("targets is empty")
+		}
+
 		msg.ToParty = targets
 	case "tag", "tags", "tagList":
+		targets := stringOrArrayWithDefault(params, []string{"targets", "tagList"}, "")
+		if "" == targets {
+			return nil, errors.New("targets is empty")
+		}
 		msg.ToTag = targets
 	default:
+		targets := stringOrArrayWithDefault(params, []string{"targets", "userList"}, "")
+		if "" == targets {
+			return nil, errors.New("targets is empty")
+		}
 		msg.ToUser = targets
 	}
 

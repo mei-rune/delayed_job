@@ -134,6 +134,39 @@ func stringWithDefault(args map[string]interface{}, key string, defaultValue str
 	return fmt.Sprint(v)
 }
 
+func stringOrArrayWithDefault(args map[string]interface{}, keys []string, defaultValue string) string {
+	var v interface{}
+	var ok bool
+	for _, key := range keys {
+		v, ok = args[key]
+		if ok {
+			break
+		}
+	}
+	if !ok {
+		return defaultValue
+	}
+
+	if nil == v {
+		return defaultValue
+	}
+	if s, ok := v.(string); ok && 0 != len(s) {
+		return s
+	}
+
+	if ii, ok := v.([]interface{}); ok {
+		ss := make([]string, len(ii))
+		for i, s := range ii {
+			ss[i] = fmt.Sprint(s)
+		}
+		return strings.Join(ss, ",")
+	}
+	if ss, ok := v.([]string); ok {
+		return strings.Join(ss, ",")
+	}
+	return fmt.Sprint(v)
+}
+
 func stringsWithDefault(args map[string]interface{}, key, sep string, defaultValue []string) []string {
 	v, ok := args[key]
 	if !ok {
