@@ -428,7 +428,7 @@ func (self *mailHandler) Perform() error {
 
 	var auth smtp.Auth = nil
 	if "" != self.password {
-		switch self.auth_type {
+		switch strings.ToLower(self.auth_type) {
 		case "":
 			if 0 != len(self.password) {
 				if 0 == len(self.user) {
