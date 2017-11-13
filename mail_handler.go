@@ -428,7 +428,7 @@ func (self *mailHandler) Perform() error {
 
 	var auth smtp.Auth
 	if "" != self.password {
-		switch self.authType {
+		switch strings.ToLower(self.authType) {
 		case "":
 			if 0 != len(self.password) {
 				if 0 == len(self.user) {
@@ -440,7 +440,9 @@ func (self *mailHandler) Perform() error {
 				}
 				auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host, true)
 			}
-		case "plain", "PLAIN":
+		case "login":
+			auth = smtp.LoginAuth(self.user, self.password)
+		case "plain":
 			if 0 == len(self.user) {
 				self.user = toMailString(&self.message.From)
 				if 0 == len(self.user) {
@@ -451,9 +453,9 @@ func (self *mailHandler) Perform() error {
 				self.host = self.smtpServer
 			}
 			auth = smtp.PlainAuth(self.identity, self.user, self.password, self.host, tryNTLM)
-		case "cram-md5", "CRAM-MD5":
+		case "cram-md5":
 			auth = smtp.CRAMMD5Auth(self.user, self.password)
-		case "ntlm", "NTLM":
+		case "ntlm":
 			auth = smtp.NTLMAuth("", self.user, self.password, "")
 		default:
 			return errors.New("unsupported auth type - " + self.authType)
