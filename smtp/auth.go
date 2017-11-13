@@ -5,6 +5,7 @@
 package smtp
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/md5"
 	"errors"
@@ -36,6 +37,33 @@ type ServerInfo struct {
 	Name string   // SMTP server name
 	TLS  bool     // using TLS, with valid certificate for Name
 	Auth []string // advertised authentication mechanisms
+}
+
+type loginAuth struct {
+	username, password string
+	//host               string
+}
+
+func (a loginAuth) Start(server *ServerInfo) (string, []byte, error) {
+	// if server.Name != a.host {
+	// 	return "", nil, errors.New("wrong host name")
+	// }
+	return "LOGIN", nil, nil
+}
+
+func (a loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if more {
+		if bytes.EqualFold([]byte("username:"), fromServer) {
+			return []byte(a.username), nil
+		} else if bytes.EqualFold([]byte("password:"), fromServer) {
+			return []byte(a.password), nil
+		}
+	}
+	return nil, nil
+}
+
+func LoginAuth(username, password string) Auth {
+	return &loginAuth{username: username, password: password}
 }
 
 type plainAuth struct {
@@ -92,8 +120,11 @@ func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
 			}
 		}
 	}
-	if server.Name != a.host {
-		return "", nil, errors.New("wrong host name")
+
+	if a.host != "" {
+		if server.Name != a.host {
+			return "", nil, errors.New("wrong host name")
+		}
 	}
 	resp := []byte(a.identity + "\x00" + a.username + "\x00" + a.password)
 	return "PLAIN", resp, nil
