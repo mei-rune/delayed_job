@@ -23,6 +23,7 @@ type webHandler struct {
 	url             string
 	user            string
 	password        string
+	contentType     string
 	body            interface{}
 	headers         map[string]interface{}
 	responseCode    int
@@ -107,6 +108,7 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 	return &webHandler{method: method,
 		url:             url,
+		contentType:     stringWithDefault(params, "contentType", ""),
 		responseCode:    responseCode,
 		responseContent: responseContent,
 		user:            user,
@@ -137,9 +139,11 @@ func (self *webHandler) Perform() error {
 	if e != nil {
 		return e
 	}
-
 	if "" != self.user {
 		req.URL.User = url.UserPassword(self.user, self.password)
+	}
+	if self.contentType != "" {
+		req.Header.Set("Content-Type", self.contentType)
 	}
 	if 0 != len(self.headers) {
 		for k, v := range self.headers {
