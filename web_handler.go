@@ -254,6 +254,7 @@ func init() {
 	Handlers["http"] = newWebHandler
 	Handlers["http_action"] = newWebHandler
 	Handlers["http_command"] = newWebHandler
+	Handlers["itsm_command"] = newWebHandler
 }
 
 func genText(content string, args interface{}) (string, error) {
