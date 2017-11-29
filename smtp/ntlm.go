@@ -12,7 +12,13 @@ import (
 	"strings"
 	"unicode/utf16"
 
+	"github.com/ThomsonReutersEikon/go-ntlm/ntlm"
 	"golang.org/x/crypto/md4"
+)
+
+const (
+	NTLMVersion1 = ntlm.Version1
+	NTLMVersion2 = ntlm.Version2
 )
 
 const (
@@ -198,6 +204,22 @@ func ntlmSessionResponse(clientNonce [8]byte, serverChallenge [8]byte, password 
 	return response(hash, passwordHash)
 }
 
+// 334 NTLM supported
+// TlRMTVNTUAABAAAAB4IIogAAAAAAAAAAAAAAAAAAAAAGAbEdAAAADw==
+// 334 TlRMTVNTUAACAAAAEAAQADgAAAAFgomieDpqPCf0jgkAAAAAAAAAAJoAmgBIAAAABgGxHQAAAA9TAE8ATABBAFIATwBOAEUAAgAQAFMATwBMAEEAUgBPAE4ARQABAA4AUQBEAEMAQQBTADAAMgAEABgAcwBvAGwAYQByAG8AbgBlAC4AYwBvAG0AAwAoAFEARABDAEEAUwAwADIALgBzAG8AbABhAHIAbwBuAGUALgBjAG8AbQAFABgAcwBvAGwAYQByAG8AbgBlAC4AYwBvAG0ABwAIADfOD5UbXdMBAAAAAA==
+// TlRMTVNTUAADAAAAGAAYAFgAAAAYABgAcAAAABAAEACIAAAAGgAaAJgAAAAAAAAAsgAAAAAAAACyAAAABYKJogAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADsWq0AKXlBuAAAAAAAAAAAAAAAAAAAAAKgX8JCO8iNbEWS4hs53c3ikmFg3Rw47U3MAbwBsAGEAcgBvAG4AZQBhAGQAbQBpAG4AaQBzAHQAcgBhAHQAbwByAA==
+// 535 5.7.3 Authentication unsuccessful
+// *
+// 500 5.3.3 Unrecognized command
+// QUIT
+// 221 2.0.0 Service closing transmission channel
+
+// AUTH NTLM
+// 334 NTLM supported
+// TlRMTVNTUAABAAAAB4IIogAAAAAAAAAAAAAAAAAAAAAGAbEdAAAADw==
+// 334 TlRMTVNTUAACAAAAEAAQADgAAAAFgomi3VJPak1VIVYAAAAAAAAAAJoAmgBIAAAABgGxHQAAAA9TAE8ATABBAFIATwBOAEUAAgAQAFMATwBMAEEAUgBPAE4ARQABAA4AUQBEAEMAQQBTADAAMgAEABgAcwBvAGwAYQByAG8AbgBlAC4AYwBvAG0AAwAoAFEARABDAEEAUwAwADIALgBzAG8AbABhAHIAbwBuAGUALgBjAG8AbQAFABgAcwBvAGwAYQByAG8AbgBlAC4AYwBvAG0ABwAIACJe/GUdXdMBAAAAAA==
+// TlRMTVNTUAADAAAAGAAYAFgAAAAYABgAcAAAABAAEACIAAAAGgAaAJgAAAAAAAAAsgAAAAAAAACyAAAABYKJogAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUX4LIsMZnzAAAAAAAAAAAAAAAAAAAAANFLhkGkGOl3/iHXprxgz/cqMhBq2zQB5XMAbwBsAGEAcgBvAG4AZQBhAGQAbQBpAG4AaQBzAHQAcgBhAHQAbwByAA==
+
 func (auth *NTLMSSP) NextBytes(bytes []byte) ([]byte, error) {
 	if string(bytes[0:8]) != "NTLMSSP\x00" {
 		return nil, errorNTLM
@@ -287,7 +309,7 @@ func (auth *NTLMSSP) Free() {
 // The returned Auth uses the given username and password to authenticate
 // on TLS connections to host and act as identity. Usually identity will be
 // left blank to act as username.
-func NTLMAuth(host, user, password, workstation string) *ntlmAuth {
+func NTLMV1Auth(host, user, password, workstation string) *ntlmv1Auth {
 	a := NTLMSSP{
 		Password:    password,
 		Workstation: workstation,
@@ -301,20 +323,20 @@ func NTLMAuth(host, user, password, workstation string) *ntlmAuth {
 		a.UserName = domanAndUsername[1]
 	}
 
-	return &ntlmAuth{
+	return &ntlmv1Auth{
 		NTLMSSP: a,
 		Host:    host,
 	}
 }
 
 // NTLMAuth implements smtp.Auth. The authentication mechanism.
-type ntlmAuth struct {
+type ntlmv1Auth struct {
 	NTLMSSP
 	Host    string
 	initErr error
 }
 
-func (n *ntlmAuth) Start(server *ServerInfo) (string, []byte, error) {
+func (n *ntlmv1Auth) Start(server *ServerInfo) (string, []byte, error) {
 	if n.initErr != nil {
 		return "", nil, n.initErr
 	}
@@ -336,7 +358,7 @@ func (n *ntlmAuth) Start(server *ServerInfo) (string, []byte, error) {
 	return "NTLM", nil, nil
 }
 
-func (n *ntlmAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+func (n *ntlmv1Auth) Next(fromServer []byte, more bool) ([]byte, error) {
 	if !more {
 		return nil, nil
 	}
@@ -362,5 +384,89 @@ func (n *ntlmAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 		// }
 		challengeMessage := fromServer
 		return n.NextBytes(challengeMessage)
+	}
+}
+
+// NTLMAuth implements smtp.Auth. The authentication mechanism.
+type ntlmAuth struct {
+	session ntlm.ClientSession
+	host    string
+	initErr error
+}
+
+func (n *ntlmAuth) Start(server *ServerInfo) (string, []byte, error) {
+	if n.initErr != nil {
+		return "", nil, n.initErr
+	}
+	if !server.TLS {
+		var isNTLM bool
+		for _, mechanism := range server.Auth {
+			isNTLM = isNTLM || mechanism == "NTLM"
+		}
+
+		if !isNTLM {
+			return "", nil, errors.New("mail: unknown authentication type:" + fmt.Sprintln(server.Auth))
+		}
+	}
+	return "NTLM", nil, nil
+}
+
+func (auth *ntlmAuth) InitialBytes() ([]byte, error) {
+	txt := "TlRMTVNTUAABAAAAB4IIogAAAAAAAAAAAAAAAAAAAAAGAbEdAAAADw=="
+	maxLen := base64.StdEncoding.DecodedLen(len(txt))
+	dst := make([]byte, maxLen)
+	resultLen, err := base64.StdEncoding.Decode(dst, []byte(txt))
+	if err != nil {
+		return nil, err
+	}
+	return dst[:resultLen], nil
+}
+
+func (auth *ntlmAuth) NextBytes(bs []byte) ([]byte, error) {
+	challenge, err := ntlm.ParseChallengeMessage(bs)
+	if err != nil {
+		return nil, err
+	}
+	err = auth.session.ProcessChallengeMessage(challenge)
+	if err != nil {
+		return nil, err
+	}
+	authMsg, err := auth.session.GenerateAuthenticateMessage()
+	if err != nil {
+		return nil, err
+	}
+	return authMsg.Bytes(), nil
+}
+
+func (n *ntlmAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if !more {
+		return nil, nil
+	}
+
+	switch {
+	case bytes.Equal(fromServer, []byte("NTLM supported")):
+		return n.InitialBytes()
+	default:
+		challengeMessage := fromServer
+		return n.NextBytes(challengeMessage)
+	}
+}
+
+func NTLMAuth(host, user, password string, version ntlm.Version) *ntlmAuth {
+	session, err := ntlm.CreateClientSession(version, ntlm.ConnectionlessMode)
+	if err != nil {
+		panic(err)
+	}
+
+	idx := strings.IndexAny(user, "\\/")
+	if idx < 0 {
+		session.SetUserInfo(user, password, "")
+	} else {
+		session.SetUserInfo(user[idx+1:], password, user[:idx])
+	}
+
+	return &ntlmAuth{
+		session: session,
+		host:    host,
 	}
 }

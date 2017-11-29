@@ -283,16 +283,16 @@ func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
 	if err = c.hello(); err != nil {
 		return err
 	}
-	if ok, _ := c.Extension("STARTTLS"); ok {
-		config := &tls.Config{ServerName: c.serverName,
-			InsecureSkipVerify: true}
-		if testHookStartTLS != nil {
-			testHookStartTLS(config)
-		}
-		if err = c.StartTLS(config); err != nil {
-			return err
-		}
-	}
+	// if ok, _ := c.Extension("STARTTLS"); ok {
+	// 	config := &tls.Config{ServerName: c.serverName,
+	// 		InsecureSkipVerify: true}
+	// 	if testHookStartTLS != nil {
+	// 		testHookStartTLS(config)
+	// 	}
+	// 	if err = c.StartTLS(config); err != nil {
+	// 		return err
+	// 	}
+	// }
 	if a != nil && c.ext != nil {
 		if _, ok := c.ext["AUTH"]; ok {
 			if err = c.Auth(a); err != nil {

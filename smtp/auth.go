@@ -94,7 +94,7 @@ func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
 		}
 		if !advertised {
 			if a.tryNTLM {
-				a.auth = NTLMAuth(server.Name, a.username, a.password, "")
+				a.auth = NTLMAuth(server.Name, a.username, a.password, NTLMVersion1)
 				return a.auth.Start(server)
 			}
 
@@ -114,7 +114,7 @@ func (a *plainAuth) Start(server *ServerInfo) (string, []byte, error) {
 		if !advertised {
 			for _, mechanism := range server.Auth {
 				if mechanism == "NTLM" {
-					a.auth = NTLMAuth("", a.username, a.password, "")
+					a.auth = NTLMAuth("", a.username, a.password, NTLMVersion1)
 					return a.auth.Start(server)
 				}
 			}

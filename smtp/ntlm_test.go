@@ -4,8 +4,9 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
-	"log"
 	"testing"
+
+	"github.com/ThomsonReutersEikon/go-ntlm/ntlm"
 )
 
 func TestCh(t *testing.T) {
@@ -62,14 +63,97 @@ func TestCh(t *testing.T) {
 }
 
 func TestNTLMSend(t *testing.T) {
-	auth := NTLMAuth("", "testpang", "111@chery", "")
+	auth := NTLMAuth("", "hengwei/admin1", "tpt_8498b2c7", NTLMVersion2)
 
 	// Connect to the server, authenticate, set the sender and recipient,
 	// and send the email all in one step.
 	to := []string{"testpang@mychery.com"}
 	msg := []byte("This is the email body.")
-	err := SendMail("ex.mychery.com:25", auth, "testpang@mychery.com", to, msg)
+	err := SendMail("192.168.1.144:25", auth, "admin1@hengwei.com.cn", to, msg)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
+}
+
+func TestNTLMv1(t *testing.T) {
+	// 334 NTLM supported
+	// TlRMTVNTUAABAAAAB4IIogAAAAAAAAAAAAAAAAAAAAAGAbEdAAAADw==
+	// 334 TlRMTVNTUAACAAAAEAAQADgAAAAFgomieDpqPCf0jgkAAAAAAAAAAJoAmgBIAAAABgGxHQAAAA9TAE8ATABBAFIATwBOAEUAAgAQAFMATwBMAEEAUgBPAE4ARQABAA4AUQBEAEMAQQBTADAAMgAEABgAcwBvAGwAYQByAG8AbgBlAC4AYwBvAG0AAwAoAFEARABDAEEAUwAwADIALgBzAG8AbABhAHIAbwBuAGUALgBjAG8AbQAFABgAcwBvAGwAYQByAG8AbgBlAC4AYwBvAG0ABwAIADfOD5UbXdMBAAAAAA==
+	// TlRMTVNTUAADAAAAGAAYAFgAAAAYABgAcAAAABAAEACIAAAAGgAaAJgAAAAAAAAAsgAAAAAAAACyAAAABYKJogAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADsWq0AKXlBuAAAAAAAAAAAAAAAAAAAAAKgX8JCO8iNbEWS4hs53c3ikmFg3Rw47U3MAbwBsAGEAcgBvAG4AZQBhAGQAbQBpAG4AaQBzAHQAcgBhAHQAbwByAA==
+	// 535 5.7.3 Authentication unsuccessful
+	// *
+	// 500 5.3.3 Unrecognized command
+	// QUIT
+	// 221 2.0.0 Service closing transmission channel
+
+	// AUTH NTLM
+	// 334 NTLM supported
+	// TlRMTVNTUAABAAAAB4IIogAAAAAAAAAAAAAAAAAAAAAGAbEdAAAADw==
+	// 334 TlRMTVNTUAACAAAAEAAQADgAAAAFgomi3VJPak1VIVYAAAAAAAAAAJoAmgBIAAAABgGxHQAAAA9TAE8ATABBAFIATwBOAEUAAgAQAFMATwBMAEEAUgBPAE4ARQABAA4AUQBEAEMAQQBTADAAMgAEABgAcwBvAGwAYQByAG8AbgBlAC4AYwBvAG0AAwAoAFEARABDAEEAUwAwADIALgBzAG8AbABhAHIAbwBuAGUALgBjAG8AbQAFABgAcwBvAGwAYQByAG8AbgBlAC4AYwBvAG0ABwAIACJe/GUdXdMBAAAAAA==
+	// TlRMTVNTUAADAAAAGAAYAFgAAAAYABgAcAAAABAAEACIAAAAGgAaAJgAAAAAAAAAsgAAAAAAAACyAAAABYKJogAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUX4LIsMZnzAAAAAAAAAAAAAAAAAAAAANFLhkGkGOl3/iHXprxgz/cqMhBq2zQB5XMAbwBsAGEAcgBvAG4AZQBhAGQAbQBpAG4AaQBzAHQAcgBhAHQAbwByAA==
+
+	encoding := base64.StdEncoding
+
+	// bs, err := encoding.DecodeString("TlRMTVNTUAABAAAAB4IIogAAAAAAAAAAAAAAAAAAAAAGAbEdAAAADw")
+	// if err != nil {
+	// 	t.Error(err)
+	// 	return
+	// }
+
+	// auth, err := ntlm.p(bs)
+	// if err != nil {
+	// 	t.Error(err)
+	// 	return
+	// }
+	// fmt.Printf("%#v\r\n", auth)
+
+	bs, err := encoding.DecodeString("TlRMTVNTUAADAAAAGAAYAFgAAAAYABgAcAAAABAAEACIAAAAGgAaAJgAAAAAAAAAsgAAAAAAAACyAAAABYKJogAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUX4LIsMZnzAAAAAAAAAAAAAAAAAAAAANFLhkGkGOl3/iHXprxgz/cqMhBq2zQB5XMAbwBsAGEAcgBvAG4AZQBhAGQAbQBpAG4AaQBzAHQAcgBhAHQAbwByAA==")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	auth, err := ntlm.ParseAuthenticateMessage(bs, int(ntlm.Version1))
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	fmt.Printf("%#v\r\n", auth)
+	fmt.Println(string(auth.DomainName.Payload))
+	fmt.Println(string(auth.UserName.Payload))
+	fmt.Println(string(auth.Workstation.Payload))
+
+	client, _ := ntlm.CreateClientSession(ntlm.Version1, ntlm.ConnectionlessMode)
+
+	bs, err = encoding.DecodeString("TlRMTVNTUAACAAAAEAAQADgAAAAFgomi3VJPak1VIVYAAAAAAAAAAJoAmgBIAAAABgGxHQAAAA9TAE8ATABBAFIATwBOAEUAAgAQAFMATwBMAEEAUgBPAE4ARQABAA4AUQBEAEMAQQBTADAAMgAEABgAcwBvAGwAYQByAG8AbgBlAC4AYwBvAG0AAwAoAFEARABDAEEAUwAwADIALgBzAG8AbABhAHIAbwBuAGUALgBjAG8AbQAFABgAcwBvAGwAYQByAG8AbgBlAC4AYwBvAG0ABwAIACJe/GUdXdMBAAAAAA==")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	challenge, err := ntlm.ParseChallengeMessage(bs)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	fmt.Printf("%#v\r\n", challenge)
+
+	// "solarone"
+
+	client.SetUserInfo("administrator", "s0lar1!011", "solarone")
+	err = client.ProcessChallengeMessage(challenge)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	auth, err = client.GenerateAuthenticateMessage()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	t.Log(encoding.EncodeToString(auth.Bytes()))
+	t.Log("TlRMTVNTUAADAAAAGAAYAFgAAAAYABgAcAAAABAAEACIAAAAGgAaAJgAAAAAAAAAsgAAAAAAAACyAAAABYKJogAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUX4LIsMZnzAAAAAAAAAAAAAAAAAAAAANFLhkGkGOl3/iHXprxgz/cqMhBq2zQB5XMAbwBsAGEAcgBvAG4AZQBhAGQAbQBpAG4AaQBzAHQAcgBhAHQAbwByAA==")
+
 }
