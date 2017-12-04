@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/chanxuehong/wechat/corp"
-	"github.com/chanxuehong/wechat/corp/message/send"
+	"gopkg.in/chanxuehong/wechat.v1/corp"
+	"gopkg.in/chanxuehong/wechat.v1/corp/message/send"
 )
 
 var weixin_lock sync.Mutex
