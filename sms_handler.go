@@ -26,6 +26,9 @@ func init() {
 	}
 }
 
+// SendSMS 发送 sms 的钩子
+var SendSMS func(phone, content string) error
+
 type smsHandler struct {
 	content              string
 	phone_numbers        []string
@@ -89,45 +92,49 @@ func (self *smsHandler) Perform() error {
 			continue
 		}
 
-		//gammu-smsd-inject TEXT 123456 -text "All your base are belong to us"
+		var e error
+		if SendSMS != nil {
+			e = SendSMS(phone, self.content)
+		} else {
+			var excepted string
+			var output []byte
+			var cmd *exec.Cmd
+			if *gammu_with_smsd {
+				var gammuPath = filepath.Join(filepath.Dir(gammu), "gammu-smsd-inject")
+				if "windows" == runtime.GOOS {
+					gammuPath = gammuPath + ".exe"
+				}
 
-		var excepted string
-		var cmd *exec.Cmd
-		if *gammu_with_smsd {
-			var gammu_path = filepath.Join(filepath.Dir(gammu), "gammu-smsd-inject")
-			if "windows" == runtime.GOOS {
-				gammu_path = gammu_path + ".exe"
+				//gammu-smsd-inject TEXT 123456 -text "All your base are belong to us"
+				cmd = exec.Command(gammuPath, "-c", gammu_config, "TEXT", phone, "-unicode", "-text", self.content)
+				excepted = "Written message with ID"
+			} else {
+				cmd = exec.Command(gammu, "-c", gammu_config, "sendsms", "TEXT", phone, "-unicode", "-text", self.content)
+				excepted = "waiting for network answer..OK"
 			}
 
-			cmd = exec.Command(gammu_path, "-c", gammu_config, "TEXT", phone, "-unicode", "-text", self.content)
-			excepted = "Written message with ID"
-		} else {
-			cmd = exec.Command(gammu, "-c", gammu_config, "sendsms", "TEXT", phone, "-unicode", "-text", self.content)
-			excepted = "waiting for network answer..OK"
-		}
+			timer := time.AfterFunc(10*time.Minute, func() {
+				defer recover()
+				cmd.Process.Kill()
+			})
+			output, e = cmd.CombinedOutput()
+			timer.Stop()
 
-		timer := time.AfterFunc(10*time.Minute, func() {
-			defer recover()
-			cmd.Process.Kill()
-		})
-		output, e := cmd.CombinedOutput()
-		timer.Stop()
+			if e == nil {
+				if !bytes.Contains(output, []byte(excepted)) {
+					e = errors.New(string(output))
+				}
+			} else {
+				txt := string(bytes.TrimSpace(output))
+				if "" != txt {
+					e = errors.New(txt)
+				}
+			}
+		}
 
 		if nil != e {
 			phone_numbers = append(phone_numbers, phone)
-			txt := strings.TrimSpace(string(output))
-			if "" == txt {
-				last = e
-				continue
-			}
-
-			last = errors.New(txt)
-			continue
-		}
-
-		if !bytes.Contains(output, []byte(excepted)) {
-			phone_numbers = append(phone_numbers, phone)
-			last = errors.New(string(output))
+			last = e
 			continue
 		}
 	}
