@@ -32,6 +32,7 @@ func init() {
 	flag.StringVar(&default_mail_subject_encoding, "mail.subject_encoding", "gb2312_base64", "")
 }
 
+var CanSendMail func() error
 var defaultSmtpServer = flag.String("mail.smtp_server", "", "the address of smtp server")
 var default_mail_address = flag.String("mail.from", "", "the from address of mail")
 
@@ -150,6 +151,11 @@ func toAddress(o interface{}, nm string) (*mail.Address, error) {
 }
 
 func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
+	if CanSendMail != nil {
+		if err := CanSendMail(); err != nil {
+			return nil, err
+		}
+	}
 	if nil == ctx {
 		return nil, errors.New("ctx is nil")
 	}
