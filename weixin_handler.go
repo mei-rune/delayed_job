@@ -82,19 +82,19 @@ func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
 			return nil, errors.New("targets is empty")
 		}
 
-		msg.ToParty = targets
+		msg.ToParty = strings.Replace(targets, ",", "|", -1)
 	case "tag", "tags", "tagList":
 		targets := stringOrArrayWithDefault(params, []string{"targets", "tagList"}, "")
 		if "" == targets {
 			return nil, errors.New("targets is empty")
 		}
-		msg.ToTag = targets
+		msg.ToTag = strings.Replace(targets, ",", "|", -1)
 	default:
 		targets := stringOrArrayWithDefault(params, []string{"targets", "userList"}, "")
 		if "" == targets {
 			return nil, errors.New("targets is empty")
 		}
-		msg.ToUser = targets
+		msg.ToUser = strings.Replace(targets, ",", "|", -1)
 	}
 
 	return &weixinHandler{corp_id: corp_id,
