@@ -42,7 +42,7 @@ func newExecHandler(ctx, params map[string]interface{}) (Handler, error) {
 	command := stringWithDefault(params, "command", "")
 	environments := stringsWithDefault(params, "environments", ";", nil)
 	if 0 == len(command) {
-		return nil, errors.New("'command' is required.")
+		return nil, errors.New("'command' is required")
 	}
 
 	if args, ok := params["arguments"]; ok {
@@ -98,7 +98,7 @@ func newExecHandler2(ctx, params map[string]interface{}) (Handler, error) {
 	environments := stringsWithDefault(params, "environments", ";", nil)
 	command := stringWithDefault(params, "command", "")
 	if 0 == len(command) {
-		return nil, errors.New("'command' is required.")
+		return nil, errors.New("'command' is required")
 	}
 
 	var arguments []string
