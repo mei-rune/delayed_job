@@ -122,7 +122,7 @@ func (self *MailMessage) Bytes() ([]byte, error) {
 
 func (self *MailMessage) Send(smtpServer string, auth smtp.Auth) error {
 	if nil == self.To || 0 == len(self.To) {
-		return errors.New("'to_address' is missing.")
+		return errors.New("'to_address' is missing")
 	}
 
 	if 0 == len(smtpServer) {
@@ -136,14 +136,17 @@ func (self *MailMessage) Send(smtpServer string, auth smtp.Auth) error {
 		smtpServer += ":25"
 	}
 
-	to := make([]string, len(self.To))
-	for i := range self.To {
-		to[i] = self.To[i].Address
+	to := make([]string, 0, len(self.To))
+	for _, addr := range self.To {
+		if addr == nil {
+			continue
+		}
+		to = append(to, addr.Address)
 	}
 
 	from := self.From.Address
 	if 0 == len(from) {
-		return errors.New("'from_address' is missing or default 'from_address' is not set.")
+		return errors.New("'from_address' is missing or default 'from_address' is not set")
 	}
 
 	body, e := self.Bytes()
@@ -221,7 +224,7 @@ var random_id_gen int32 = 0
 
 func randomString() string {
 	h := md5.New()
-	io.WriteString(h, fmt.Sprintf("%s%d", time.Now().Nanosecond(), atomic.AddInt32(&random_id_gen, 1)))
+	io.WriteString(h, fmt.Sprintf("%d%d", time.Now().Nanosecond(), atomic.AddInt32(&random_id_gen, 1)))
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 

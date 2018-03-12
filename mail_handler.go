@@ -73,7 +73,6 @@ func addressesWith(params map[string]interface{}, nm string) ([]*mail.Address, e
 			return nil, nil
 		}
 		scan := bufio.NewScanner(strings.NewReader(s))
-
 		results := make([]*mail.Address, 0, 4)
 		for scan.Scan() {
 			bs := scan.Bytes()
@@ -86,11 +85,13 @@ func addressesWith(params map[string]interface{}, nm string) ([]*mail.Address, e
 				continue
 			}
 
-			addr, e := mail.ParseAddressList(string(bs))
+			addrList, e := mail.ParseAddressList(string(bs))
 			if nil != e {
 				return nil, errors.New("'" + nm + "' is invalid - " + e.Error())
 			}
-			results = append(results, addr...)
+			for _, addr := range addrList {
+				results = append(results, addr)
+			}
 		}
 		return results, nil
 	}
@@ -104,13 +105,13 @@ func addressesWith(params map[string]interface{}, nm string) ([]*mail.Address, e
 	}
 
 	if m, ok := o.([]interface{}); ok {
-		addresses := make([]*mail.Address, len(m))
-		var e error
+		addresses := make([]*mail.Address, 0, len(m))
 		for i := range m {
-			addresses[i], e = toAddress(m[i], nm)
+			addr, e := toAddress(m[i], nm)
 			if nil != e {
 				return nil, e
 			}
+			addresses = append(addresses, addr)
 		}
 		return addresses, nil
 	}
