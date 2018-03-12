@@ -90,7 +90,9 @@ func addressesWith(params map[string]interface{}, nm string) ([]*mail.Address, e
 				return nil, errors.New("'" + nm + "' is invalid - " + e.Error())
 			}
 			for _, addr := range addrList {
-				results = append(results, addr)
+				if addr != nil {
+					results = append(results, addr)
+				}
 			}
 		}
 		return results, nil
@@ -111,7 +113,9 @@ func addressesWith(params map[string]interface{}, nm string) ([]*mail.Address, e
 			if nil != e {
 				return nil, e
 			}
-			addresses = append(addresses, addr)
+			if addr != nil {
+				addresses = append(addresses, addr)
+			}
 		}
 		return addresses, nil
 	}
