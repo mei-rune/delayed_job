@@ -52,11 +52,11 @@ func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
 	msg.MsgType = send.MsgTypeText
 	msg.AgentId = int64(intWithDefault(params, "agent_id", -1))
 	if -1 == msg.AgentId {
-		return nil, errors.New("agent_id is missing.")
+		return nil, errors.New("agent_id is missing")
 	}
 	msg.Text.Content = stringWithDefault(params, "content", "")
 	if "" == msg.Text.Content {
-		return nil, errors.New("content is missing.")
+		return nil, errors.New("content is missing")
 	}
 	var e error
 
@@ -76,23 +76,23 @@ func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
 	}
 
 	switch strings.ToLower(target_type) {
-	case "department", "departments", "departmentList", "party":
+	case "department", "departments", "departmentList", "departmentlist", "party":
 		targets := stringOrArrayWithDefault(params, []string{"targets", "departmentList"}, "")
 		if "" == targets {
-			return nil, errors.New("targets is empty")
+			return nil, errors.New("department targets is empty")
 		}
 
 		msg.ToParty = strings.Replace(targets, ",", "|", -1)
-	case "tag", "tags", "tagList":
+	case "tag", "tags", "tagList", "taglist":
 		targets := stringOrArrayWithDefault(params, []string{"targets", "tagList"}, "")
 		if "" == targets {
-			return nil, errors.New("targets is empty")
+			return nil, errors.New("tag targets is empty")
 		}
 		msg.ToTag = strings.Replace(targets, ",", "|", -1)
 	default:
 		targets := stringOrArrayWithDefault(params, []string{"targets", "userList"}, "")
 		if "" == targets {
-			return nil, errors.New("targets is empty")
+			return nil, errors.New(target_type + " targets is empty")
 		}
 		msg.ToUser = strings.Replace(targets, ",", "|", -1)
 	}
