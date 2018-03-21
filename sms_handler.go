@@ -45,8 +45,23 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if 0 == len(phone_numbers) {
 		phone_numbers = stringsWithDefault(params, "phoneNumbers", ",", nil)
 		if 0 == len(phone_numbers) {
-			return nil, errors.New("'phone_numbers' is required.")
+			return nil, errors.New("'phone_numbers' is required")
 		}
+	}
+
+	numbers := make([]string, 0, len(phone_numbers))
+	for _, number := range phone_numbers {
+		lines := SplitLines(number)
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line != "" {
+				numbers = append(numbers, line)
+			}
+		}
+	}
+	phone_numbers = numbers
+	if 0 == len(phone_numbers) {
+		return nil, errors.New("'phone_numbers' is required")
 	}
 
 	// if 0 == len(phone_numbers) {
@@ -57,7 +72,7 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 	content := stringWithDefault(params, "content", "")
 	if 0 == len(content) {
-		return nil, errors.New("'content' is required.")
+		return nil, errors.New("'content' is required")
 	}
 
 	if args, ok := params["arguments"]; ok {

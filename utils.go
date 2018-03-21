@@ -190,3 +190,7 @@ func stringsWithDefault(args map[string]interface{}, key, sep string, defaultVal
 	}
 	return defaultValue
 }
+
+func SplitLines(s string) []string {
+	return strings.Split(s, "\n")
+}
