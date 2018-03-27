@@ -2,6 +2,9 @@ package delayed_job
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +15,7 @@ import (
 	"net/url"
 	"strings"
 	"text/template"
+	"time"
 
 	"golang.org/x/text/transform"
 )
@@ -80,9 +84,17 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 				props["self"] = params
 				defer delete(props, "self")
 			}
+
+			if _, ok := props["triggered_at"]; !ok {
+				props["triggered_at"] = time.Now()
+			}
 		}
 	} else {
 		args = params
+
+		if _, ok := params["triggered_at"]; !ok {
+			params["triggered_at"] = time.Now()
+		}
 	}
 
 	var e error
@@ -94,6 +106,32 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		body, e = genText(s, args)
 		if nil != e {
 			return nil, errors.New("failed to merge 'body' with params, " + e.Error())
+		}
+	}
+
+	if header := stringWithDefault(params, "header", ""); header != "" {
+		header, e = genText(header, args)
+		if nil != e {
+			return nil, errors.New("failed to merge 'header' with params, " + e.Error())
+		}
+		lines := SplitLines(header)
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+
+			kvs := strings.SplitN(line, ":", 2)
+			if len(kvs) != 2 {
+				continue
+			}
+			k := strings.TrimSpace(kvs[0])
+			v := strings.TrimSpace(kvs[1])
+			if k == "" || v == "" {
+				continue
+			}
+
+			headers[k] = v
 		}
 	}
 
@@ -113,7 +151,14 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		responseContent: responseContent,
 		user:            user,
 		password:        password,
-		body:            body, headers: headers}, nil
+		body:            body,
+		headers:         headers}, nil
+}
+
+func (self *webHandler) logRequest() {
+	log.Println("url=", self.url)
+	log.Println("headers=", self.headers)
+	log.Println("body=", self.body)
 }
 
 func (self *webHandler) Perform() error {
@@ -182,6 +227,8 @@ func (self *webHandler) Perform() error {
 	}
 
 	if !ok {
+		self.logRequest()
+
 		resp_body, _ := ioutil.ReadAll(resp.Body)
 		if nil == resp_body || 0 == len(resp_body) {
 			return fmt.Errorf("%v: error", resp.StatusCode)
@@ -201,6 +248,7 @@ func (self *webHandler) Perform() error {
 		if bytes.Contains(resp_body, []byte(self.responseContent)) {
 			return nil
 		}
+		self.logRequest()
 		return errors.New("'" + self.responseContent + "' isn't exists in the response body:\r\n" + string(resp_body))
 	}
 
@@ -209,6 +257,7 @@ func (self *webHandler) Perform() error {
 		return errors.New("failed to read body - " + e.Error())
 	}
 	if !matched {
+		self.logRequest()
 		return errors.New("'" + self.responseContent + "' isn't exists in the response body.")
 	}
 	return nil
@@ -257,6 +306,42 @@ func init() {
 	Handlers["itsm_command"] = newWebHandler
 }
 
+var Funcs = template.FuncMap{
+	"timeFormat": func(format string, t interface{}) string {
+		now := asTimeWithDefault(t, time.Time{})
+		return now.Format(format)
+	},
+	"now": func(format ...string) interface{} {
+		if len(format) == 0 {
+			return time.Now()
+		}
+		return time.Now().Format(format[0])
+	},
+	"md5": func(s string) string {
+		bs := md5.Sum([]byte(s))
+		return hex.EncodeToString(bs[:])
+	},
+	"base64": func(s string) string {
+		return base64.StdEncoding.EncodeToString([]byte(s))
+	},
+	"concat": func(args ...interface{}) string {
+		var buf bytes.Buffer
+		for _, v := range args {
+			fmt.Fprint(&buf, v)
+		}
+		return buf.String()
+	},
+	"toString": func(v interface{}) string {
+		return fmt.Sprint(v)
+	},
+	"toLower": strings.ToLower,
+	"toUpper": strings.ToUpper,
+	"toTitle": strings.ToTitle,
+	"replace": func(old_s, new_s, content string) string {
+		return strings.Replace(content, old_s, new_s, -1)
+	},
+	"queryEscape": QueryEscape}
+
 func genText(content string, args interface{}) (string, error) {
 	if nil == args {
 		return content, nil
@@ -266,17 +351,7 @@ func genText(content string, args interface{}) (string, error) {
 			return content, nil
 		}
 	}
-	t, e := template.New("default").Funcs(template.FuncMap{
-		"toString": func(v interface{}) string {
-			return fmt.Sprint(v)
-		},
-		"toLower": strings.ToLower,
-		"toUpper": strings.ToUpper,
-		"toTitle": strings.ToTitle,
-		"replace": func(old_s, new_s, content string) string {
-			return strings.Replace(content, old_s, new_s, -1)
-		},
-		"queryEscape": QueryEscape}).Parse(content)
+	t, e := template.New("default").Funcs(Funcs).Parse(content)
 	if nil != e {
 		return content, errors.New("create template failed, " + e.Error())
 	}

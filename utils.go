@@ -95,6 +95,10 @@ func timeWithDefault(args map[string]interface{}, key string, defaultValue time.
 	if !ok {
 		return defaultValue
 	}
+	return asTimeWithDefault(v, defaultValue)
+}
+
+func asTimeWithDefault(v interface{}, defaultValue time.Time) time.Time {
 	switch value := v.(type) {
 	case time.Time:
 		return value
