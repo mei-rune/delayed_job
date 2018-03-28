@@ -98,8 +98,6 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
-	fmt.Println(params)
-
 	headers := map[string]interface{}{}
 	var all = []map[string]interface{}{params}
 	if o, ok := params["attributes"]; ok && o != nil {
