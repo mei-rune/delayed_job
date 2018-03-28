@@ -98,24 +98,39 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
-	headers := map[string]interface{}{}
-	for k, v := range params {
-		if head_prefix == k {
-			continue
-		}
-		if v == nil {
-			continue
-		}
+	fmt.Println(params)
 
-		if strings.HasPrefix(k, head_prefix) {
-			if s, ok := v.(string); ok {
-				v, e = genText(s, args)
-				if nil != e {
-					return nil, errors.New("failed to merge '" + k + "' with params, " + e.Error())
+	headers := map[string]interface{}{}
+	var all = []map[string]interface{}{params}
+	if o, ok := params["attributes"]; ok && o != nil {
+		if attributes, ok := o.(map[string]interface{}); ok {
+			all = append(all, attributes)
+		} else if s, ok := o.(string); ok {
+			json.Unmarshal([]byte(s), &attributes)
+			if attributes != nil {
+				all = append(all, attributes)
+			}
+		}
+	}
+	for idx := range all {
+		for k, v := range all[idx] {
+			if head_prefix == k {
+				continue
+			}
+			if v == nil {
+				continue
+			}
+
+			if strings.HasPrefix(k, head_prefix) {
+				if s, ok := v.(string); ok {
+					v, e = genText(s, args)
+					if nil != e {
+						return nil, errors.New("failed to merge '" + k + "' with params, " + e.Error())
+					}
+					headers[k[len(head_prefix):]] = v
+				} else {
+					headers[k[len(head_prefix):]] = v
 				}
-				headers[k[len(head_prefix):]] = v
-			} else {
-				headers[k[len(head_prefix):]] = v
 			}
 		}
 	}
