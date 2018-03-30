@@ -16,11 +16,14 @@ import (
 	"time"
 
 	"github.com/runner-mei/delayed_job/smtp"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
 var tryNTLM = os.Getenv("try_ntlm") == "true"
 var BlatExecute = os.Getenv("blat_path")
 
+var mailServerCharset = flag.String("mail.auth.server_charset", "", "")
 var default_mail_subject_encoding string
 var default_mail_auth_type = flag.String("mail.auth.type", "", "the auth type of smtp")
 var default_mail_auth_user = flag.String("mail.auth.user", "", "the auth user of smtp")
@@ -209,13 +212,13 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		contentHtml = stringWithDefault(params, "content_html", "")
 
 		if "" == contentHtml && "" == contentText {
-			return nil, errors.New("'content' is required.")
+			return nil, errors.New("'content' is required")
 		}
 	}
 
 	subject := stringWithDefault(params, "subject", "")
 	if 0 == len(subject) {
-		return nil, errors.New("'subject' is required.")
+		return nil, errors.New("'subject' is required")
 	}
 
 	if args, ok := params["arguments"]; ok {
@@ -475,6 +478,28 @@ func (self *mailHandler) Perform() error {
 		}
 	}
 	if e := self.message.Send(self.smtpServer, auth); nil != e {
+		if *mailServerCharset != "" {
+			switch strings.ToLower(*mailServerCharset) {
+			case "hz2312":
+				coding := simplifiedchinese.HZGB2312
+				a, _, err := transform.Bytes(coding.NewDecoder(), []byte(e.Error()))
+				if err == nil {
+					return errors.New(string(a))
+				}
+			case "gbk":
+				coding := simplifiedchinese.GBK
+				a, _, err := transform.Bytes(coding.NewDecoder(), []byte(e.Error()))
+				if err == nil {
+					return errors.New(string(a))
+				}
+			case "gb18030":
+				coding := simplifiedchinese.GB18030
+				a, _, err := transform.Bytes(coding.NewDecoder(), []byte(e.Error()))
+				if err == nil {
+					return errors.New(string(a))
+				}
+			}
+		}
 		return e
 	}
 	return nil
