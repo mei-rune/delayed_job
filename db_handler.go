@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 )
 
@@ -36,13 +35,45 @@ func parseUrl(urlStr string) (map[string]string, error) {
 	}
 
 	urlStr = strings.TrimSpace(urlStr)
-	ps := strings.Split(urlStr, ";")
-	for _, p := range ps {
+
+	var ss []string
+	var sb strings.Builder
+	isEscape := false
+	for _, c := range urlStr {
+		switch c {
+		case '\\':
+			if isEscape {
+				isEscape = false
+				sb.WriteRune('\\')
+			} else {
+				isEscape = true
+			}
+		case ';':
+			if isEscape {
+				isEscape = false
+				sb.WriteRune(';')
+			} else {
+				ss = append(ss, sb.String())
+				sb.Reset()
+			}
+		default:
+			if isEscape {
+				isEscape = false
+				sb.WriteRune('\\')
+			}
+			sb.WriteRune(c)
+		}
+	}
+	if sb.Len() > 0 {
+		ss = append(ss, sb.String())
+	}
+
+	for _, p := range ss {
 		if "" == p {
 			continue
 		}
 
-		kv := strings.Split(p, "=")
+		kv := strings.SplitN(p, "=", 2)
 		if len(kv) < 2 {
 			return nil, fmt.Errorf("invalid option: %q", p)
 		}
@@ -96,6 +127,7 @@ func transformUrl(drv, urlStr string) (string, error) {
 	if nil != e {
 		return "", e
 	}
+	fmt.Println(options)
 	switch drv {
 	case "postgres":
 		host, port, dbname, user, password, _, e := fetchArguments(options)
@@ -103,7 +135,7 @@ func transformUrl(drv, urlStr string) (string, error) {
 			return "", e
 		}
 		return fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
-			url.QueryEscape(host), port, url.QueryEscape(dbname), url.QueryEscape(user), url.QueryEscape(password)), nil
+			host, port, dbname, user, password), nil
 	case "mysql":
 		host, port, dbname, user, password, args, e := fetchArguments(options)
 		if nil != e {
@@ -111,13 +143,13 @@ func transformUrl(drv, urlStr string) (string, error) {
 		}
 		var buffer bytes.Buffer
 		fmt.Fprintf(&buffer, "%s:%s@tcp(%s:%s)/%s?autocommit=true&parseTime=true",
-			url.QueryEscape(user), url.QueryEscape(password), url.QueryEscape(host), port, url.QueryEscape(dbname))
+			user, password, host, port, dbname)
 		if nil != args && 0 != len(args) {
 			for k, v := range args {
 				buffer.WriteString("&")
 				buffer.WriteString(k)
 				buffer.WriteString("=")
-				buffer.WriteString(url.QueryEscape(v))
+				buffer.WriteString(v)
 			}
 		}
 		return buffer.String(), nil
@@ -133,75 +165,74 @@ func transformUrl(drv, urlStr string) (string, error) {
 				buffer.WriteString(",")
 				buffer.WriteString(k)
 				buffer.WriteString("=")
-				buffer.WriteString(url.QueryEscape(v))
+				buffer.WriteString(v)
 			}
 		}
 
 		fmt.Fprintf(&buffer, "tcp:%s:%s%s*%s/%s/%s",
-			url.QueryEscape(host), port, buffer.String(),
-			url.QueryEscape(dbname),
-			url.QueryEscape(user),
-			url.QueryEscape(password))
+			host, port, buffer.String(),
+			dbname,
+			user,
+			password)
 		return buffer.String(), nil
 	case "oci8":
 		tns_name, ok := options["tns"]
 		if !ok || 0 == len(tns_name) {
-			return "", errors.New("'tns' is required in the url.")
+			return "", errors.New("'tns' is required in the url")
 		}
 		delete(options, "tns")
 		uid, ok := options["user"]
 		if !ok || 0 == len(uid) {
-			return "", errors.New("'user' is required in the url.")
+			return "", errors.New("'user' is required in the url")
 		}
 		delete(options, "user")
 		password, ok := options["password"]
 		if !ok || 0 == len(password) {
-			return "", errors.New("'password' is required in the url.")
+			return "", errors.New("'password' is required in the url")
 		}
 		delete(options, "password")
 		var buffer bytes.Buffer
 		//system/123456@TPT
 		fmt.Fprintf(&buffer, "%s/%s@%s",
-			url.QueryEscape(uid), url.QueryEscape(password), url.QueryEscape(tns_name))
+			uid, password, tns_name)
 		for k, v := range options {
 			buffer.WriteString(";")
 			buffer.WriteString(k)
 			buffer.WriteString("=")
-			buffer.WriteString(url.QueryEscape(v))
+			buffer.WriteString(v)
 		}
 		return buffer.String(), nil
 	default:
 		if strings.HasPrefix(drv, "odbc_with_") {
 			dsn_name, ok := options["dsn"]
 			if !ok || 0 == len(dsn_name) {
-				return "", errors.New("'dsn' is required in the url.")
+				return "", errors.New("'dsn' is required in the url")
 			}
 			delete(options, "dsn")
 			uid, ok := options["user"]
 			if !ok || 0 == len(uid) {
-				return "", errors.New("'user' is required in the url.")
+				return "", errors.New("'user' is required in the url")
 			}
 			delete(options, "user")
 			password, ok := options["password"]
 			if !ok || 0 == len(password) {
-				return "", errors.New("'password' is required in the url.")
+				return "", errors.New("'password' is required in the url")
 			}
 			delete(options, "password")
 			var buffer bytes.Buffer
 			fmt.Fprintf(&buffer, "DSN=%s;UID=%s;PWD=%s",
-				url.QueryEscape(dsn_name), url.QueryEscape(uid), url.QueryEscape(password))
+				dsn_name, uid, password)
 			for k, v := range options {
 				buffer.WriteString(";")
 				buffer.WriteString(k)
 				buffer.WriteString("=")
-				buffer.WriteString(url.QueryEscape(v))
+				buffer.WriteString(v)
 			}
 			return buffer.String(), nil
-		} else {
-			for _, plugin := range db_plugins {
-				if plugin.Name() == drv {
-					return plugin.TransformUrl(options)
-				}
+		}
+		for _, plugin := range db_plugins {
+			if plugin.Name() == drv {
+				return plugin.TransformUrl(options)
 			}
 		}
 		return "", errors.New("unsupported driver - " + drv)
@@ -221,7 +252,7 @@ func newDbHandler(ctx, params map[string]interface{}) (Handler, error) {
 		drv = *db_drv
 
 		if 0 == len(drv) {
-			return nil, errors.New("'drv' is required.")
+			return nil, errors.New("'drv' is required")
 		}
 	}
 
@@ -229,20 +260,16 @@ func newDbHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if 0 == len(urlStr) {
 		urlStr = *db_url
 		if 0 == len(urlStr) {
-			return nil, errors.New("'url' is required.")
+			return nil, errors.New("'url' is required")
 		}
-	}
-	var e error
-	urlStr, e = transformUrl(drv, urlStr)
-	if nil != e {
-		return nil, errors.New("'url' is invalid, " + e.Error())
 	}
 
 	script := stringWithDefault(params, "script", "")
 	if 0 == len(script) {
-		return nil, errors.New("'script' is required.")
+		return nil, errors.New("'script' is required")
 	}
 
+	var e error
 	if args, ok := params["arguments"]; ok {
 		args = preprocessArgs(args)
 
@@ -255,7 +282,22 @@ func newDbHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 		script, e = genText(script, args)
 		if nil != e {
-			return nil, e
+			return nil, errors.New("'script' is invalid, " + e.Error())
+		}
+
+		urlStr, e = genText(urlStr, args)
+		if nil != e {
+			return nil, errors.New("'url' is invalid, " + e.Error())
+		}
+
+		urlStr, e = transformUrl(drv, urlStr)
+		if nil != e {
+			return nil, errors.New("'url' is invalid, " + e.Error())
+		}
+	} else {
+		urlStr, e = transformUrl(drv, urlStr)
+		if nil != e {
+			return nil, errors.New("'url' is invalid, " + e.Error())
 		}
 	}
 
