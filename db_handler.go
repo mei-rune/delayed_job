@@ -6,13 +6,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
 type DBPlugin interface {
 	Name() string
 	TransformUrl(options map[string]string) (string, error)
-	Exec(url, scripts string) error
+	Exec(urlStr, scripts string) error
 }
 
 var db_plugins []DBPlugin
@@ -22,20 +23,20 @@ func RegisterDBPlugin(plugin DBPlugin) {
 }
 
 type dbHandler struct {
-	drv string
-	url string
+	drv    string
+	urlStr string
 
 	script string
 }
 
-func parseUrl(url string) (map[string]string, error) {
+func parseUrl(urlStr string) (map[string]string, error) {
 	options := map[string]string{}
-	if 0 == len(url) {
+	if 0 == len(urlStr) {
 		return options, nil
 	}
 
-	url = strings.TrimSpace(url)
-	ps := strings.Split(url, ";")
+	urlStr = strings.TrimSpace(urlStr)
+	ps := strings.Split(urlStr, ";")
 	for _, p := range ps {
 		if "" == p {
 			continue
@@ -86,12 +87,12 @@ func fetchArguments(options map[string]string) (host, port, dbname, user, passwo
 	return
 }
 
-func transformUrl(drv, url string) (string, error) {
-	if !strings.HasPrefix(url, "gdbc:") {
-		return url, nil
+func transformUrl(drv, urlStr string) (string, error) {
+	if !strings.HasPrefix(urlStr, "gdbc:") {
+		return urlStr, nil
 	}
-	url = strings.TrimPrefix(url, "gdbc:")
-	options, e := parseUrl(url)
+	urlStr = strings.TrimPrefix(urlStr, "gdbc:")
+	options, e := parseUrl(urlStr)
 	if nil != e {
 		return "", e
 	}
@@ -101,20 +102,22 @@ func transformUrl(drv, url string) (string, error) {
 		if nil != e {
 			return "", e
 		}
-		return fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=disable", host, port, dbname, user, password), nil
+		return fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
+			url.QueryEscape(host), port, url.QueryEscape(dbname), url.QueryEscape(user), url.QueryEscape(password)), nil
 	case "mysql":
 		host, port, dbname, user, password, args, e := fetchArguments(options)
 		if nil != e {
 			return "", e
 		}
 		var buffer bytes.Buffer
-		fmt.Fprintf(&buffer, "%s:%s@tcp(%s:%s)/%s?autocommit=true&parseTime=true", user, password, host, port, dbname)
+		fmt.Fprintf(&buffer, "%s:%s@tcp(%s:%s)/%s?autocommit=true&parseTime=true",
+			url.QueryEscape(user), url.QueryEscape(password), url.QueryEscape(host), port, url.QueryEscape(dbname))
 		if nil != args && 0 != len(args) {
 			for k, v := range args {
 				buffer.WriteString("&")
 				buffer.WriteString(k)
 				buffer.WriteString("=")
-				buffer.WriteString(v)
+				buffer.WriteString(url.QueryEscape(v))
 			}
 		}
 		return buffer.String(), nil
@@ -130,11 +133,15 @@ func transformUrl(drv, url string) (string, error) {
 				buffer.WriteString(",")
 				buffer.WriteString(k)
 				buffer.WriteString("=")
-				buffer.WriteString(v)
+				buffer.WriteString(url.QueryEscape(v))
 			}
 		}
 
-		fmt.Fprintf(&buffer, "tcp:%s:%s%s*%s/%s/%s", host, port, buffer.String(), dbname, user, password)
+		fmt.Fprintf(&buffer, "tcp:%s:%s%s*%s/%s/%s",
+			url.QueryEscape(host), port, buffer.String(),
+			url.QueryEscape(dbname),
+			url.QueryEscape(user),
+			url.QueryEscape(password))
 		return buffer.String(), nil
 	case "oci8":
 		tns_name, ok := options["tns"]
@@ -154,12 +161,13 @@ func transformUrl(drv, url string) (string, error) {
 		delete(options, "password")
 		var buffer bytes.Buffer
 		//system/123456@TPT
-		fmt.Fprintf(&buffer, "%s/%s@%s", uid, password, tns_name)
+		fmt.Fprintf(&buffer, "%s/%s@%s",
+			url.QueryEscape(uid), url.QueryEscape(password), url.QueryEscape(tns_name))
 		for k, v := range options {
 			buffer.WriteString(";")
 			buffer.WriteString(k)
 			buffer.WriteString("=")
-			buffer.WriteString(v)
+			buffer.WriteString(url.QueryEscape(v))
 		}
 		return buffer.String(), nil
 	default:
@@ -180,12 +188,13 @@ func transformUrl(drv, url string) (string, error) {
 			}
 			delete(options, "password")
 			var buffer bytes.Buffer
-			fmt.Fprintf(&buffer, "DSN=%s;UID=%s;PWD=%s", dsn_name, uid, password)
+			fmt.Fprintf(&buffer, "DSN=%s;UID=%s;PWD=%s",
+				url.QueryEscape(dsn_name), url.QueryEscape(uid), url.QueryEscape(password))
 			for k, v := range options {
 				buffer.WriteString(";")
 				buffer.WriteString(k)
 				buffer.WriteString("=")
-				buffer.WriteString(v)
+				buffer.WriteString(url.QueryEscape(v))
 			}
 			return buffer.String(), nil
 		} else {
@@ -216,15 +225,15 @@ func newDbHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
-	url := stringWithDefault(params, "url", *db_url)
-	if 0 == len(url) {
-		url = *db_url
-		if 0 == len(url) {
+	urlStr := stringWithDefault(params, "url", *db_url)
+	if 0 == len(urlStr) {
+		urlStr = *db_url
+		if 0 == len(urlStr) {
 			return nil, errors.New("'url' is required.")
 		}
 	}
 	var e error
-	url, e = transformUrl(drv, url)
+	urlStr, e = transformUrl(drv, urlStr)
 	if nil != e {
 		return nil, errors.New("'url' is invalid, " + e.Error())
 	}
@@ -250,7 +259,7 @@ func newDbHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
-	return &dbHandler{drv: drv, url: url, script: script}, nil
+	return &dbHandler{drv: drv, urlStr: urlStr, script: script}, nil
 }
 
 func (self *dbHandler) Perform() (err error) {
@@ -262,11 +271,11 @@ func (self *dbHandler) Perform() (err error) {
 
 	for _, plugin := range db_plugins {
 		if plugin.Name() == drv {
-			return plugin.Exec(self.url, self.script)
+			return plugin.Exec(self.urlStr, self.script)
 		}
 	}
 
-	db, e := sql.Open(drv, self.url)
+	db, e := sql.Open(drv, self.urlStr)
 	if nil != e {
 		return i18n(dbType, self.drv, e)
 	}
