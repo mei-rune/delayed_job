@@ -37,7 +37,7 @@ func parseUrl(urlStr string) (map[string]string, error) {
 	urlStr = strings.TrimSpace(urlStr)
 
 	var ss []string
-	var sb strings.Builder
+	var sb bytes.Buffer
 	isEscape := false
 	for _, c := range urlStr {
 		switch c {
