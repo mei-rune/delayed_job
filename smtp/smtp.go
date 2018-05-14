@@ -22,6 +22,7 @@ import (
 	"strings"
 )
 
+var skipAuthError = os.Getenv("smtp_skip_auth_error") == ""
 var isLog = os.Getenv("smtp_log_enabled") == "true"
 var noTLS = os.Getenv("smtp_no_tls") == "true"
 
@@ -239,7 +240,12 @@ func (c *Client) Auth(a Auth) error {
 		default:
 			err = &textproto.Error{Code: code, Msg: msg64}
 		}
-		if err == nil {
+		if err == nil || skipAuthError {
+			if err != nil {
+				msg = []byte("username:")
+				code = 334
+			}
+
 			resp, err = a.Next(msg, code == 334)
 		}
 		if err != nil {
