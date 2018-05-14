@@ -14,11 +14,16 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/textproto"
+	"os"
 	"strings"
 )
+
+var isLog = os.Getenv("smtp_log_enabled") == "true"
+var noTLS = os.Getenv("smtp_no_tls") == "true"
 
 // A Client represents a client connection to an SMTP server.
 type Client struct {
@@ -27,9 +32,10 @@ type Client struct {
 	Text *textproto.Conn
 	// keep a reference to the connection so it can be used to create a TLS
 	// connection later
-	conn net.Conn
+	conn io.ReadWriteCloser
 	// whether the Client is using TLS
 	tls        bool
+	noTLS      bool
 	serverName string
 	// map of supported extensions
 	ext map[string]string
@@ -43,29 +49,51 @@ type Client struct {
 // Dial returns a new Client connected to an SMTP server at addr.
 // The addr must include a port number.
 func Dial(addr string) (*Client, error) {
+	if isLog {
+		fmt.Println("===========", addr, "===========")
+	}
+	host, port, _ := net.SplitHostPort(addr)
+	if port == "587" {
+		config := &tls.Config{ServerName: "",
+			InsecureSkipVerify: true}
+		conn, err := tls.Dial("tcp", addr, config)
+		if err == nil {
+			client, err := NewClient(conn, host)
+			if err == nil {
+				client.noTLS = true
+				if isLog {
+					fmt.Println("connect with tls")
+				}
+				return client, nil
+			}
+		}
+	}
+
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
-	host, _, _ := net.SplitHostPort(addr)
 	return NewClient(conn, host)
 }
 
 // NewClient returns a new Client using an existing connection and host as a
 // server name to be used when authenticating.
-func NewClient(conn net.Conn, host string) (*Client, error) {
+func NewClient(conn io.ReadWriteCloser, host string) (*Client, error) {
 	text := textproto.NewConn(conn)
 	_, _, err := text.ReadResponse(220)
 	if err != nil {
 		text.Close()
 		return nil, err
 	}
-	c := &Client{Text: text, conn: conn, serverName: host, localName: "localhost"}
+	c := &Client{noTLS: noTLS, Text: text, conn: conn, serverName: host, localName: "localhost"}
 	return c, nil
 }
 
 // Close closes the connection.
 func (c *Client) Close() error {
+	if isLog {
+		fmt.Println("C: CLOSED")
+	}
 	return c.Text.Close()
 }
 
@@ -96,6 +124,9 @@ func (c *Client) Hello(localName string) error {
 
 // cmd is a convenience function that sends a command and returns the response
 func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, error) {
+	if isLog {
+		fmt.Printf("C: "+format+"\r\n", args...)
+	}
 	id, err := c.Text.Cmd(format, args...)
 	if err != nil {
 		return 0, "", err
@@ -103,6 +134,9 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 	c.Text.StartResponse(id)
 	defer c.Text.EndResponse(id)
 	code, msg, err := c.Text.ReadResponse(expectCode)
+	if isLog {
+		fmt.Println("S:", code, msg, err)
+	}
 	return code, msg, err
 }
 
@@ -144,6 +178,11 @@ func (c *Client) ehlo() error {
 // StartTLS sends the STARTTLS command and encrypts all further communication.
 // Only servers that advertise the STARTTLS extension support this function.
 func (c *Client) StartTLS(config *tls.Config) error {
+	conn, ok := c.conn.(net.Conn)
+	if !ok {
+		return nil
+	}
+
 	if err := c.hello(); err != nil {
 		return err
 	}
@@ -151,8 +190,8 @@ func (c *Client) StartTLS(config *tls.Config) error {
 	if err != nil {
 		return err
 	}
-	c.conn = tls.Client(c.conn, config)
-	c.Text = textproto.NewConn(c.conn)
+	c.conn = tls.Client(conn, config)
+	c.Text = textproto.NewConn(conn)
 	c.tls = true
 	return c.ehlo()
 }
@@ -283,16 +322,19 @@ func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
 	if err = c.hello(); err != nil {
 		return err
 	}
-	// if ok, _ := c.Extension("STARTTLS"); ok {
-	// 	config := &tls.Config{ServerName: c.serverName,
-	// 		InsecureSkipVerify: true}
-	// 	if testHookStartTLS != nil {
-	// 		testHookStartTLS(config)
-	// 	}
-	// 	if err = c.StartTLS(config); err != nil {
-	// 		return err
-	// 	}
-	// }
+
+	if !c.noTLS {
+		if ok, _ := c.Extension("STARTTLS"); ok {
+			config := &tls.Config{ServerName: c.serverName,
+				InsecureSkipVerify: true}
+			if testHookStartTLS != nil {
+				testHookStartTLS(config)
+			}
+			if err = c.StartTLS(config); err != nil {
+				return err
+			}
+		}
+	}
 	if a != nil && c.ext != nil {
 		if _, ok := c.ext["AUTH"]; ok {
 			if err = c.Auth(a); err != nil {
