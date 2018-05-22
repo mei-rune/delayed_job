@@ -192,7 +192,7 @@ func (c *Client) StartTLS(config *tls.Config) error {
 		return err
 	}
 	c.conn = tls.Client(conn, config)
-	c.Text = textproto.NewConn(conn)
+	c.Text = textproto.NewConn(c.conn)
 	c.tls = true
 	return c.ehlo()
 }
