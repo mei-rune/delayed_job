@@ -27,7 +27,7 @@ func TestSyslogHandlerParameterError(t *testing.T) {
 		map[string]interface{}{"to_address": "127.0.0.1:514"})
 	if nil == e {
 		t.Error("excepted error is not nil, but actual is nil")
-	} else if "'content' is required." != e.Error() {
+	} else if "'content' is required" != e.Error() {
 		t.Error("excepted error is ''content' is required', but actual is", e)
 	}
 
@@ -35,7 +35,7 @@ func TestSyslogHandlerParameterError(t *testing.T) {
 		map[string]interface{}{"to_address": "127.0.0.1"})
 	if nil == e {
 		t.Error("excepted error is not nil, but actual is nil")
-	} else if "'content' is required." != e.Error() {
+	} else if "'content' is required" != e.Error() {
 		t.Error("excepted error is ''content' is required', but actual is", e)
 	}
 
@@ -51,8 +51,8 @@ func TestSyslogHandlerParameterError(t *testing.T) {
 		map[string]interface{}{"facility": "", "to_address": "127.0.0.1:514"})
 	if nil == e {
 		t.Error("excepted error is not nil, but actual is nil")
-	} else if "'facility' is required." != e.Error() {
-		t.Error("excepted error is ['facility' is required.], but actual is", e)
+	} else if "'facility' is required" != e.Error() {
+		t.Error("excepted error is ['facility' is required], but actual is", e)
 	}
 	_, e = newSyslogHandler(map[string]interface{}{},
 		map[string]interface{}{"facility": "a", "to_address": "127.0.0.1:514"})
@@ -66,8 +66,8 @@ func TestSyslogHandlerParameterError(t *testing.T) {
 		map[string]interface{}{"severity": "", "to_address": "127.0.0.1:514"})
 	if nil == e {
 		t.Error("excepted error is not nil, but actual is nil")
-	} else if "'severity' is required." != e.Error() {
-		t.Error("excepted error is ['severity' is required.], but actual is", e)
+	} else if "'severity' is required" != e.Error() {
+		t.Error("excepted error is ['severity' is required], but actual is", e)
 	}
 	_, e = newSyslogHandler(map[string]interface{}{},
 		map[string]interface{}{"severity": "a", "to_address": "127.0.0.1:514"})
@@ -81,7 +81,7 @@ func TestSyslogHandlerParameterError(t *testing.T) {
 		map[string]interface{}{"hostname": "", "to_address": "127.0.0.1:514"})
 	if nil == e {
 		t.Error("excepted error is not nil, but actual is nil")
-	} else if "'hostname' is required." != e.Error() {
+	} else if "'hostname' is required" != e.Error() {
 		t.Error("excepted error is ['hostname' is required.], but actual is", e)
 	}
 	_, e = newSyslogHandler(map[string]interface{}{},
@@ -96,7 +96,7 @@ func TestSyslogHandlerParameterError(t *testing.T) {
 		map[string]interface{}{"tag": "", "to_address": "127.0.0.1:514"})
 	if nil == e {
 		t.Error("excepted error is not nil, but actual is nil")
-	} else if "'tag' is required." != e.Error() {
+	} else if "'tag' is required" != e.Error() {
 		t.Error("excepted error is ['tag' is required.], but actual is", e)
 	}
 }

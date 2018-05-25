@@ -400,7 +400,7 @@ func TestRunWithMaxErrorAndRescheduleIt(t *testing.T) {
 			t.Error("excepted handler contains 'UpdatePayloadObject', actual is ", handler.String)
 		}
 
-		excepted := `java.sql.SQLIntegrityConstraintViolationException: ORA-01400: 无法将 NULL 插入 ("GLASMS"."SM_SEND_SM_LIST"."SMCONTENT")`
+		excepted := `java.sql.SQLIntegrityConstraintViolationException: ORA-01400`
 		if !strings.Contains(last_error.String, excepted) {
 			t.Error("excepted run_at is '"+excepted+"', actual is", last_error.String)
 		}
