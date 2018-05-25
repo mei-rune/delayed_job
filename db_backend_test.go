@@ -551,7 +551,7 @@ func TestRescheduleIt(t *testing.T) {
 			t.Error("excepted attempts is '1', and actual is ", attempts)
 		}
 
-		if run_at.Time.Unix() != now.Unix() {
+		if math.Abs(float64(run_at.Time.Unix()-now.Unix())) > 2 {
 			t.Error("excepted run_at is ", run_at.Time, ", actual is", now)
 		}
 

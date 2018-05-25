@@ -28,7 +28,7 @@ func TestExecHandlerParameterIsError(t *testing.T) {
 	_, e = newExecHandler(map[string]interface{}{}, map[string]interface{}{})
 	if nil == e {
 		t.Error("excepted error is not nil, but actual is nil")
-	} else if "'command' is required." != e.Error() {
+	} else if "'command' is required" != e.Error() {
 		t.Error("excepted error is ['command' is required.], but actual is", e)
 	}
 }
