@@ -62,7 +62,7 @@ func TestDbHandlerParameterIsError(t *testing.T) {
 	_, e = newDbHandler(map[string]interface{}{}, map[string]interface{}{})
 	if nil == e {
 		t.Error("excepted error is not nil, but actual is nil")
-	} else if "'script' is required." != e.Error() {
+	} else if "'script' is required" != e.Error() {
 		t.Error("excepted error is ['script' is required.], but actual is", e)
 	}
 }
