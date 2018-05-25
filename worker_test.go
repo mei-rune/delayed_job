@@ -255,13 +255,19 @@ func TestRunFailedAndDestoryIt(t *testing.T) {
 		case <-time.After(2 * time.Second):
 			t.Error("not recv")
 		}
-		time.Sleep(1500 * time.Millisecond)
 
 		var count int64
-		e = backend.db.QueryRow("SELECT count(*) FROM " + *table_name).Scan(&count)
-		if nil != e {
-			t.Error(e)
-			return
+		for i := 0; i < 10; i++ {
+			time.Sleep(500 * time.Millisecond)
+
+			e = backend.db.QueryRow("SELECT count(*) FROM " + *table_name).Scan(&count)
+			if nil != e {
+				t.Error(e)
+				return
+			}
+			if count == 0 {
+				break
+			}
 		}
 
 		if 0 != count {
@@ -328,6 +334,20 @@ func TestRunWithMaxErrorAndRescheduleIt(t *testing.T) {
 			t.Error("not recv")
 		}
 		time.Sleep(500 * time.Millisecond)
+
+		var count int64
+		for i := 0; i < 10; i++ {
+			time.Sleep(500 * time.Millisecond)
+
+			e = backend.db.QueryRow("SELECT count(*) FROM " + *table_name + " WHERE attempts <> 1").Scan(&count)
+			if nil != e {
+				t.Error(e)
+				return
+			}
+			if count == 0 {
+				break
+			}
+		}
 
 		row := backend.db.QueryRow("SELECT attempts, run_at, locked_at, locked_by, handler, last_error FROM " + *table_name)
 
