@@ -180,7 +180,7 @@ func newSyslogHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 	facility_s := stringWithDefault(params, "facility", *default_facility)
 	if 0 == len(facility_s) {
-		return nil, errors.New("'facility' is required.")
+		return nil, errors.New("'facility' is required")
 	}
 	facility, ok := string_2_facility[facility_s]
 	if !ok {
@@ -188,7 +188,7 @@ func newSyslogHandler(ctx, params map[string]interface{}) (Handler, error) {
 	}
 	severity_s := stringWithDefault(params, "severity", *default_severity)
 	if 0 == len(severity_s) {
-		return nil, errors.New("'severity' is required.")
+		return nil, errors.New("'severity' is required")
 	}
 	severity, ok := string_2_severity[severity_s]
 	if !ok {
@@ -199,7 +199,7 @@ func newSyslogHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 	hostname := stringWithDefault(params, "hostname", Hostname)
 	if 0 == len(hostname) {
-		return nil, errors.New("'hostname' is required.")
+		return nil, errors.New("'hostname' is required")
 	}
 
 	if strings.ContainsAny(hostname, " \t\r\n") {
@@ -213,7 +213,7 @@ func newSyslogHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 	content := stringWithDefault(params, "content", "")
 	if 0 == len(content) {
-		return nil, errors.New("'content' is required.")
+		return nil, errors.New("'content' is required")
 	}
 
 	if args, ok := params["arguments"]; ok {
