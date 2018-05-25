@@ -1,5 +1,5 @@
 language: go
-go: 1.6
+go: 1.9
 install:
   - export PATH=$PATH:$HOME/gopath/bin
   - go get github.com/fd/go-shellwords/shellwords
@@ -12,9 +12,12 @@ install:
   - go get github.com/mattn/go-sqlite3
   - go get github.com/mitchellh/go-ps
   - go get golang.org/x/text
-  - go get github.com/chanxuehong/wechat/corp
+  - go get golang.org/x/crypto/md4
+  - go get gopkg.in/chanxuehong/wechat.v1
   - go get github.com/rakyll/statik
   - go get github.com/chanxuehong/util/security
+  - go get github.com/ThomsonReutersEikon/go-ntlm/ntlm
+  - go get github.com/kardianos/osext
   
 services:
   - redis-server
