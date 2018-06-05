@@ -36,3 +36,4 @@ test_mail.bat
 data
 test_sms.bat
 delayed_job.pid
+*.pid
