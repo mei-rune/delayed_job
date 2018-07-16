@@ -38,6 +38,9 @@ func init() {
 var CanSendMail func() error
 var defaultSmtpServer = flag.String("mail.smtp_server", "", "the address of smtp server")
 var default_mail_address = flag.String("mail.from", "", "the from address of mail")
+var Decrypt = func(s string) string {
+	return s
+}
 
 type mailHandler struct {
 	smtpServer string
@@ -180,7 +183,7 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		authType = *default_mail_auth_type
 		user = *default_mail_auth_user
 		identity = *default_mail_auth_identity
-		password = *default_mail_auth_password
+		password = Decrypt(*default_mail_auth_password)
 		host = *default_mail_auth_host
 	} else {
 		authType = stringWithDefault(params, "auth_type", "plain")
@@ -188,7 +191,7 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 			return nil, errors.New("'auth_type' is required")
 		}
 		identity = stringWithDefault(params, "identity", "")
-		password = stringWithDefault(params, "password", "")
+		password = Decrypt(stringWithDefault(params, "password", ""))
 		host = stringWithDefault(params, "host", "")
 	}
 
