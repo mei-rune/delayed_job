@@ -42,6 +42,8 @@ var Decrypt = func(s string) string {
 	return s
 }
 
+var GetUserMail func(id string) (string, error)
+
 type mailHandler struct {
 	smtpServer string
 	message    *MailMessage
@@ -269,7 +271,7 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 			return nil, e
 		}
 		if nil == from {
-			return nil, errors.New("'from_address' is required.")
+			return nil, errors.New("'from_address' is required")
 		}
 	}
 
@@ -285,6 +287,31 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		to = users
 	} else if 0 != len(users) {
 		to = append(to, users...)
+	}
+
+	if userIDs := stringsWithDefault(params, "users", ",", nil); len(userIDs) > 0 {
+		for _, id := range userIDs {
+			if id == "" || id == "0" {
+				continue
+			}
+
+			if GetUserMail == nil {
+				log.Println("GetUserMail hook is empty")
+				continue
+			}
+			mailAddr, err := GetUserMail(id)
+			if err != nil {
+				return nil, err
+			}
+			if mailAddr == "" {
+				log.Println("mail is missing for user", id)
+			} else if addr, err := mail.ParseAddress(mailAddr); err != nil {
+				log.Println("mail '", mailAddr, "' is invalid for user", id)
+			} else {
+				users = append(users, addr)
+				// log.Println("mail is '", mailAddr, "' for user", id)
+			}
+		}
 	}
 
 	cc, e := addressesWith(params, "cc_address")
