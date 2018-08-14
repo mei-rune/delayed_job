@@ -3,6 +3,7 @@ package delayed_job
 import (
 	"bytes"
 	"flag"
+	"log"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -25,6 +26,8 @@ func init() {
 		flag.StringVar(&gammu, "gammu", "runtime_env/gammu/gammu", "the path of gaummu")
 	}
 }
+
+var GetUserPhone func(id string) (string, error)
 
 // SendSMS 发送 sms 的钩子
 var SendSMS func(phone, content string) error
@@ -60,6 +63,30 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 	phone_numbers = numbers
+
+	if userIDs := stringsWithDefault(params, "users", ",", nil); len(userIDs) > 0 {
+		for _, id := range userIDs {
+			if id == "" || id == "0" {
+				continue
+			}
+
+			if GetUserPhone == nil {
+				log.Println("GetUserPhone hook is empty")
+				continue
+			}
+			phone, err := GetUserPhone(id)
+			if err != nil {
+				return nil, err
+			}
+			if phone == "" {
+				log.Println("phone is missing for user", id)
+			} else {
+				phone_numbers = append(phone_numbers, phone)
+				// log.Println("phone is '", phone, "' for user", id)
+			}
+		}
+	}
+
 	if 0 == len(phone_numbers) {
 		return nil, errors.New("'phone_numbers' is required")
 	}
