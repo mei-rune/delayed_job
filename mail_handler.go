@@ -279,15 +279,6 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if nil != e {
 		return nil, e
 	}
-	to, e := addressesWith(params, "to_address")
-	if nil != e {
-		return nil, e
-	}
-	if 0 == len(to) {
-		to = users
-	} else if 0 != len(users) {
-		to = append(to, users...)
-	}
 
 	if userIDs := stringsWithDefault(params, "users", ",", nil); len(userIDs) > 0 {
 		for _, id := range userIDs {
@@ -312,6 +303,16 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 				// log.Println("mail is '", mailAddr, "' for user", id)
 			}
 		}
+	}
+
+	to, e := addressesWith(params, "to_address")
+	if nil != e {
+		return nil, e
+	}
+	if 0 == len(to) {
+		to = users
+	} else if 0 != len(users) {
+		to = append(to, users...)
 	}
 
 	cc, e := addressesWith(params, "cc_address")
