@@ -103,7 +103,7 @@ func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
 }
 
 func (self *weixinHandler) Perform() error {
-	ul := GetWeixinClient(self.corp_id, self.corp_secret)
+	ul := GetWeixinClient(self.corp_id, Decrypt(self.corp_secret))
 	ul.mu.Lock()
 	defer ul.mu.Unlock()
 
