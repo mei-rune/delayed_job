@@ -76,7 +76,7 @@ func newWorker(options map[string]interface{}) (*worker, error) {
 		return nil, e
 	}
 
-	redis_client, e := newRedis(*redisAddress)
+	redis_client, e := newRedis(*redisAddress, *redisPassword)
 	if nil != e {
 		return nil, e
 	}

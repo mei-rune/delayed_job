@@ -16,7 +16,8 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-var redisAddress = flag.String("redis", "127.0.0.1:36379", "the address of redis")
+var redisAddress = flag.String("redis.address", "127.0.0.1:36379", "the address of redis")
+var redisPassword = flag.String("redis.password", "", "the address of redis")
 var redis_error = expvar.NewString("redis")
 
 type redis_request struct {
@@ -26,6 +27,7 @@ type redis_request struct {
 
 type redis_gateway struct {
 	Address   string
+	Password  string
 	c         chan *redis_request
 	is_closed int32
 	wait      sync.WaitGroup
@@ -75,7 +77,7 @@ func (self *redis_gateway) runOnce(error_count *uint) {
 		if e := recover(); nil != e {
 			var buffer bytes.Buffer
 			buffer.WriteString(fmt.Sprintf("[panic]%v", e))
-			for i := 1; ; i += 1 {
+			for i := 1; ; i++ {
 				_, file, line, ok := runtime.Caller(i)
 				if !ok {
 					break
@@ -88,7 +90,15 @@ func (self *redis_gateway) runOnce(error_count *uint) {
 		}
 	}()
 
-	c, err := redis.DialTimeout("tcp", self.Address, 1*time.Second, 1*time.Second, 1*time.Second)
+	dialOpts := []redis.DialOption{
+		redis.DialWriteTimeout(1 * time.Second),
+		redis.DialReadTimeout(1 * time.Second),
+	}
+	if self.Password != "" {
+		dialOpts = append(dialOpts, redis.DialPassword(self.Password))
+	}
+	c, err := redis.Dial("tcp", self.Address, dialOpts...)
+	// c, err := redis.DialTimeout("tcp", self.Address, 1*time.Second, 1*time.Second, 1*time.Second)
 	if err != nil {
 		msg := fmt.Sprintf("[redis] connect to '%s' failed, %v", self.Address, err)
 		redis_error.Set(msg)
@@ -196,7 +206,7 @@ func (self *redis_gateway) redis_send(c redis.Conn, cmd []string) (err error) {
 	case 6:
 		err = c.Send(cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5])
 	default:
-		err = errors.New("argument length is error.")
+		err = errors.New("argument length is error")
 	}
 	return err
 }
@@ -216,13 +226,13 @@ func (self *redis_gateway) redis_do(c redis.Conn, cmd []string) (err error) {
 	case 6:
 		_, err = c.Do(cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5])
 	default:
-		err = errors.New("argument length is error.")
+		err = errors.New("argument length is error")
 	}
 	return err
 }
 
-func newRedis(address string) (*redis_gateway, error) {
-	client := &redis_gateway{Address: address, c: make(chan *redis_request, 3000)}
+func newRedis(address, password string) (*redis_gateway, error) {
+	client := &redis_gateway{Address: address, Password: password, c: make(chan *redis_request, 3000)}
 	go client.serve()
 	client.wait.Add(1)
 	return client, nil

@@ -4,10 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/fd/go-shellwords/shellwords"
+	"github.com/garyburd/redigo/redis"
 )
 
 type redisHandler struct {
+	address  string
+	password string
 	client   *redis_gateway
 	commands [][]string
 }
@@ -118,16 +123,24 @@ func newRedisHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("params is nil")
 	}
 
+	var address, password string
+	var client *redis_gateway
 	o, ok := ctx["redis"]
-	if !ok {
-		return nil, errors.New("'redis' in the ctx is required")
-	}
-	client, ok := o.(*redis_gateway)
-	if !ok {
-		return nil, fmt.Errorf("'redis' in the ctx is not a *Redis - %T", o)
-	}
-	if nil == client {
-		return nil, errors.New("'redis' in the ctx is nil")
+	if ok {
+		client, ok = o.(*redis_gateway)
+		if !ok {
+			return nil, fmt.Errorf("'redis' in the ctx is not a *Redis - %T", o)
+		}
+		if nil == client {
+			return nil, errors.New("'redis' in the ctx is nil")
+		}
+	} else {
+		address = stringWithDefault(params, "address", "")
+		password = stringWithDefault(params, "password", "")
+
+		if address == "" {
+			return nil, errors.New("'redis' in the ctx is required")
+		}
 	}
 
 	args := params["arguments"]
@@ -149,7 +162,7 @@ func newRedisHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, e
 	}
 
-	return &redisHandler{client: client, commands: [][]string{array}}, nil
+	return &redisHandler{client: client, address: address, password: password, commands: [][]string{array}}, nil
 
 commands_label:
 	v, ok := params["commands"]
@@ -176,7 +189,7 @@ commands_label:
 
 			commands = append(commands, cmd)
 		}
-		return &redisHandler{client: client, commands: commands}, nil
+		return &redisHandler{client: client, address: address, password: password, commands: commands}, nil
 	case []interface{}:
 		if 0 == len(ss) {
 			return nil, errors.New("commands is empty array")
@@ -195,13 +208,37 @@ commands_label:
 
 			commands = append(commands, cmd)
 		}
-		return &redisHandler{client: client, commands: commands}, nil
+		return &redisHandler{client: client, address: address, password: password, commands: commands}, nil
 	default:
 		return nil, fmt.Errorf("command is unsupported type - %T", v)
 	}
 }
 
 func (self *redisHandler) Perform() error {
+	if self.client == nil {
+		dialOpts := []redis.DialOption{
+			redis.DialWriteTimeout(1 * time.Second),
+			redis.DialReadTimeout(1 * time.Second),
+		}
+		if self.password != "" {
+			dialOpts = append(dialOpts, redis.DialPassword(self.password))
+		}
+		c, err := redis.Dial("tcp", self.address, dialOpts...)
+		if err != nil {
+			return fmt.Errorf("[redis] connect to '%s' failed, %v", self.address, err)
+		}
+		defer c.Close()
+
+		for _, command := range self.commands {
+			var args = make([]interface{}, len(command)-1)
+			for idx := range command[1:] {
+				args[idx] = command[idx+1]
+			}
+
+			c.Send(command[0], args...)
+		}
+		return nil
+	}
 	return self.client.Call(self.commands)
 }
 
