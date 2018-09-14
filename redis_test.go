@@ -23,14 +23,22 @@ func redisTest(t *testing.T, cb func(client *redis_gateway, c redis.Conn)) {
 	go func() {
 		http.ListenAndServe(":7890", nil)
 	}()
-	redis_client, err := newRedis(*redisAddress)
+	redis_client, err := newRedis(*redisAddress, *redisPassword)
 	if nil != err {
 		t.Error(err)
 		return
 	}
 	defer redis_client.Close()
 
-	c, err := redis.DialTimeout("tcp", *redisAddress, 0, 1*time.Second, 1*time.Second)
+	dialOpts := []redis.DialOption{
+		redis.DialWriteTimeout(1 * time.Second),
+		redis.DialReadTimeout(1 * time.Second),
+	}
+	if *redisPassword != "" {
+		dialOpts = append(dialOpts, redis.DialPassword(*redisPassword))
+	}
+	c, err := redis.Dial("tcp", *redisAddress, dialOpts...)
+	//c, err := redis.DialTimeout("tcp", *redisAddress, 0, 1*time.Second, 1*time.Second)
 	if err != nil {
 		t.Errorf("[redis] connect to '%s' failed, %v", *redisAddress, err)
 		return
@@ -94,7 +102,7 @@ func TestRedisEmpty(t *testing.T) {
 }
 
 func TestRedisConnectFailed(t *testing.T) {
-	redis_client, err := newRedis("127.0.0.1:3")
+	redis_client, err := newRedis("127.0.0.1:3", "")
 	if nil != err {
 		t.Error(err)
 		return
