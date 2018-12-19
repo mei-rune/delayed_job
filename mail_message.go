@@ -20,11 +20,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/text/transform"
-
-	"golang.org/x/text/encoding/simplifiedchinese"
-
 	"github.com/runner-mei/delayed_job/smtp"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
 const maxLineLen = 76 // RFC 2045
@@ -121,7 +119,7 @@ func (self *MailMessage) Bytes() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (self *MailMessage) Send(smtpServer string, auth smtp.Auth, useFQDN, noTLS bool) error {
+func (self *MailMessage) Send(smtpServer string, auth smtp.Auth, useFQDN, useTLS bool) error {
 	if nil == self.To || 0 == len(self.To) {
 		return errors.New("'to_address' is missing")
 	}
@@ -157,9 +155,9 @@ func (self *MailMessage) Send(smtpServer string, auth smtp.Auth, useFQDN, noTLS 
 
 	//fmt.Println(string(self.Bytes()))
 
-	e = smtp.SendMail(smtpServer, auth, from, to, body, useFQDN, noTLS)
+	e = smtp.SendMail(smtpServer, auth, from, to, body, useFQDN, useTLS)
 	if nil != e {
-		err := smtp.SendMail(smtpServer, nil, from, to, body, useFQDN, noTLS)
+		err := smtp.SendMail(smtpServer, nil, from, to, body, useFQDN, useTLS)
 		if nil == err {
 			return nil
 		}

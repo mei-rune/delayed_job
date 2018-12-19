@@ -24,7 +24,7 @@ import (
 
 var skipAuthError = os.Getenv("smtp_skip_auth_error") == ""
 var isLog = os.Getenv("smtp_log_enabled") == "true"
-var noTLS = os.Getenv("smtp_no_tls") == "true"
+var useTLS = os.Getenv("smtp_use_tls") == "true" || os.Getenv("smtp_use_tls") == ""
 var noLocalHost = os.Getenv("smtp_use_fqdn") == "true"
 
 // A Client represents a client connection to an SMTP server.
@@ -37,7 +37,7 @@ type Client struct {
 	conn io.ReadWriteCloser
 	// whether the Client is using TLS
 	tls        bool
-	noTLS      bool
+	useTLS     bool
 	serverName string
 	// map of supported extensions
 	ext map[string]string
@@ -62,7 +62,6 @@ func Dial(addr string) (*Client, error) {
 		if err == nil {
 			client, err := NewClient(conn, host)
 			if err == nil {
-				client.noTLS = true
 				if isLog {
 					fmt.Println("connect with tls")
 				}
@@ -88,11 +87,15 @@ func NewClient(conn io.ReadWriteCloser, host string) (*Client, error) {
 		return nil, err
 	}
 	net.LookupHost(host)
-	c := &Client{noTLS: noTLS, Text: text, conn: conn, serverName: host, localName: "localhost"}
+	c := &Client{useTLS: useTLS, Text: text, conn: conn, serverName: host, localName: "localhost"}
 	if noLocalHost {
 		c.localName = GetFQDN()
 	}
 
+	_, c.tls = conn.(*tls.Conn)
+	if c.tls {
+		c.useTLS = true
+	}
 	return c, nil
 }
 
@@ -328,7 +331,7 @@ var testHookStartTLS func(*tls.Config) // nil, except for tests
 // possible, authenticates with the optional mechanism a if possible,
 // and then sends an email from address from, to addresses to, with
 // message msg.
-func SendMail(addr string, a Auth, from string, to []string, msg []byte, useFQDN, noTLS bool) error {
+func SendMail(addr string, a Auth, from string, to []string, msg []byte, useFQDN, useTLS bool) error {
 	c, err := Dial(addr)
 	if err != nil {
 		return err
@@ -338,15 +341,15 @@ func SendMail(addr string, a Auth, from string, to []string, msg []byte, useFQDN
 	if useFQDN {
 		c.localName = GetFQDN()
 	}
-	if noTLS {
-		c.noTLS = noTLS
+	if useTLS {
+		c.useTLS = useTLS
 	}
 
 	if err = c.hello(); err != nil {
 		return err
 	}
 
-	if !c.noTLS {
+	if c.useTLS && !c.tls {
 		if ok, _ := c.Extension("STARTTLS"); ok {
 			config := &tls.Config{ServerName: c.serverName,
 				InsecureSkipVerify: true}

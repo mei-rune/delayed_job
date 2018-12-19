@@ -31,7 +31,7 @@ var (
 	default_mail_auth_password    = flag.String("mail.auth.password", "", "the auth password of smtp")
 	default_mail_auth_host        = flag.String("mail.auth.host", "", "the auth host of smtp")
 	default_mail_useFQDN          = flag.Bool("mail.useFQDN", false, "")
-	default_mail_noTLS            = flag.Bool("mail.noTLS", false, "")
+	default_mail_useTLS           = flag.Bool("mail.useTLS", true, "")
 	defaultSmtpServer             = flag.String("mail.smtp_server", "", "the address of smtp server")
 	default_mail_address          = flag.String("mail.from", "", "the from address of mail")
 
@@ -506,7 +506,7 @@ func (self *mailHandler) Perform() error {
 			return errors.New("unsupported auth type - " + self.authType)
 		}
 	}
-	if e := self.message.Send(self.smtpServer, auth, *default_mail_useFQDN, *default_mail_noTLS); nil != e {
+	if e := self.message.Send(self.smtpServer, auth, *default_mail_useFQDN, *default_mail_useTLS); nil != e {
 		if *mailServerCharset != "" {
 			switch strings.ToLower(*mailServerCharset) {
 			case "hz2312":
