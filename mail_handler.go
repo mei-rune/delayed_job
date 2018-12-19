@@ -20,29 +20,27 @@ import (
 	"golang.org/x/text/transform"
 )
 
-var tryNTLM = os.Getenv("try_ntlm") == "true"
-var BlatExecute = os.Getenv("blat_path")
+var (
+	tryNTLM                       = os.Getenv("try_ntlm") == "true"
+	BlatExecute                   = os.Getenv("blat_path")
+	mailServerCharset             = flag.String("mail.auth.server_charset", "", "")
+	default_mail_subject_encoding = flag.String("mail.subject_encoding", "gb2312_base64", "")
+	default_mail_auth_type        = flag.String("mail.auth.type", "", "the auth type of smtp")
+	default_mail_auth_user        = flag.String("mail.auth.user", "", "the auth user of smtp")
+	default_mail_auth_identity    = flag.String("mail.auth.identity", "", "the auth identity of smtp")
+	default_mail_auth_password    = flag.String("mail.auth.password", "", "the auth password of smtp")
+	default_mail_auth_host        = flag.String("mail.auth.host", "", "the auth host of smtp")
+	default_mail_useFQDN          = flag.Bool("mail.useFQDN", false, "")
+	default_mail_noTLS            = flag.Bool("mail.noTLS", false, "")
+	defaultSmtpServer             = flag.String("mail.smtp_server", "", "the address of smtp server")
+	default_mail_address          = flag.String("mail.from", "", "the from address of mail")
 
-var mailServerCharset = flag.String("mail.auth.server_charset", "", "")
-var default_mail_subject_encoding string
-var default_mail_auth_type = flag.String("mail.auth.type", "", "the auth type of smtp")
-var default_mail_auth_user = flag.String("mail.auth.user", "", "the auth user of smtp")
-var default_mail_auth_identity = flag.String("mail.auth.identity", "", "the auth identity of smtp")
-var default_mail_auth_password = flag.String("mail.auth.password", "", "the auth password of smtp")
-var default_mail_auth_host = flag.String("mail.auth.host", "", "the auth host of smtp")
-
-func init() {
-	flag.StringVar(&default_mail_subject_encoding, "mail.subject_encoding", "gb2312_base64", "")
-}
-
-var CanSendMail func() error
-var defaultSmtpServer = flag.String("mail.smtp_server", "", "the address of smtp server")
-var default_mail_address = flag.String("mail.from", "", "the from address of mail")
-var Decrypt = func(s string) string {
-	return s
-}
-
-var GetUserMail func(id string) (string, error)
+	CanSendMail func() error
+	Decrypt     = func(s string) string {
+		return s
+	}
+	GetUserMail func(id string) (string, error)
+)
 
 type mailHandler struct {
 	smtpServer string
@@ -508,7 +506,7 @@ func (self *mailHandler) Perform() error {
 			return errors.New("unsupported auth type - " + self.authType)
 		}
 	}
-	if e := self.message.Send(self.smtpServer, auth); nil != e {
+	if e := self.message.Send(self.smtpServer, auth, *default_mail_useFQDN, *default_mail_noTLS); nil != e {
 		if *mailServerCharset != "" {
 			switch strings.ToLower(*mailServerCharset) {
 			case "hz2312":

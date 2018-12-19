@@ -692,3 +692,7 @@ MCUXgckTpKCuGwbJk7424Nb8bLzf3kllAiA5mUBgjfr/WtFSJdWcPQ4Zt9KTMNKD
 EUO0ukpTwEIl6wIhAMbGqZK3zAAFdq8DD2jPx+UJXnh0rnOkZBzDtJ6/iN69AiEA
 1Aq8MJgTaYsDQWyU/hDq5YkDJc9e9DSCvUIzqxQWMQE=
 -----END RSA PRIVATE KEY-----`)
+
+func TestGetFQDN(t *testing.T) {
+	t.Error(GetFQDN())
+}

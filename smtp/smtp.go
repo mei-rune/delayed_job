@@ -25,6 +25,7 @@ import (
 var skipAuthError = os.Getenv("smtp_skip_auth_error") == ""
 var isLog = os.Getenv("smtp_log_enabled") == "true"
 var noTLS = os.Getenv("smtp_no_tls") == "true"
+var noLocalHost = os.Getenv("smtp_use_fqdn") == "true"
 
 // A Client represents a client connection to an SMTP server.
 type Client struct {
@@ -86,7 +87,12 @@ func NewClient(conn io.ReadWriteCloser, host string) (*Client, error) {
 		text.Close()
 		return nil, err
 	}
+	net.LookupHost(host)
 	c := &Client{noTLS: noTLS, Text: text, conn: conn, serverName: host, localName: "localhost"}
+	if noLocalHost {
+		c.localName = GetFQDN()
+	}
+
 	return c, nil
 }
 
@@ -137,6 +143,9 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 	code, msg, err := c.Text.ReadResponse(expectCode)
 	if isLog {
 		fmt.Println("S:", code, msg, err)
+	}
+	if err == io.EOF {
+		return code, msg, errors.New("ERROR: " + fmt.Sprintf(format, args...))
 	}
 	return code, msg, err
 }
@@ -319,12 +328,20 @@ var testHookStartTLS func(*tls.Config) // nil, except for tests
 // possible, authenticates with the optional mechanism a if possible,
 // and then sends an email from address from, to addresses to, with
 // message msg.
-func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
+func SendMail(addr string, a Auth, from string, to []string, msg []byte, useFQDN, noTLS bool) error {
 	c, err := Dial(addr)
 	if err != nil {
 		return err
 	}
 	defer c.Close()
+
+	if useFQDN {
+		c.localName = GetFQDN()
+	}
+	if noTLS {
+		c.noTLS = noTLS
+	}
+
 	if err = c.hello(); err != nil {
 		return err
 	}

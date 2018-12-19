@@ -12,6 +12,7 @@ import (
 	"mime"
 	"mime/multipart"
 	qp "mime/quotedprintable"
+	"net"
 	"net/mail"
 	"net/textproto"
 	"path/filepath"
@@ -120,7 +121,7 @@ func (self *MailMessage) Bytes() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (self *MailMessage) Send(smtpServer string, auth smtp.Auth) error {
+func (self *MailMessage) Send(smtpServer string, auth smtp.Auth, useFQDN, noTLS bool) error {
 	if nil == self.To || 0 == len(self.To) {
 		return errors.New("'to_address' is missing")
 	}
@@ -132,8 +133,8 @@ func (self *MailMessage) Send(smtpServer string, auth smtp.Auth) error {
 		}
 	}
 
-	if !strings.Contains(smtpServer, ":") {
-		smtpServer += ":25"
+	if _, _, err := net.SplitHostPort(smtpServer); err != nil {
+		smtpServer = net.JoinHostPort(smtpServer, "25")
 	}
 
 	to := make([]string, 0, len(self.To))
@@ -156,9 +157,9 @@ func (self *MailMessage) Send(smtpServer string, auth smtp.Auth) error {
 
 	//fmt.Println(string(self.Bytes()))
 
-	e = smtp.SendMail(smtpServer, auth, from, to, body)
+	e = smtp.SendMail(smtpServer, auth, from, to, body, useFQDN, noTLS)
 	if nil != e {
-		err := smtp.SendMail(smtpServer, nil, from, to, body)
+		err := smtp.SendMail(smtpServer, nil, from, to, body, useFQDN, noTLS)
 		if nil == err {
 			return nil
 		}
@@ -167,7 +168,7 @@ func (self *MailMessage) Send(smtpServer string, auth smtp.Auth) error {
 }
 
 func encodeSubject(txt string) string {
-	switch default_mail_subject_encoding {
+	switch *default_mail_subject_encoding {
 	case "gb2312_base64":
 		return base64StringWithGB2312(txt)
 	case "gb2312_qp":
