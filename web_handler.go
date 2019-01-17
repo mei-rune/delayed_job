@@ -180,13 +180,16 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 }
 
 func (self *webHandler) logRequest() {
+	log.Println("method=", self.method)
 	log.Println("url=", self.url)
 	log.Println("headers=", self.headers)
+	log.Println("password=", self.password)
 	log.Println("body=", self.body)
+	log.Println("user=", self.user)
 }
 
 func (self *webHandler) Perform() error {
-	var reader io.Reader = nil
+	var reader io.Reader
 	switch self.method {
 	case "GET", "HEAD":
 	default:
@@ -253,27 +256,27 @@ func (self *webHandler) Perform() error {
 	if !ok {
 		self.logRequest()
 
-		resp_body, _ := ioutil.ReadAll(resp.Body)
-		if nil == resp_body || 0 == len(resp_body) {
-			return fmt.Errorf("%v: error", resp.StatusCode)
+		respBody, err := ioutil.ReadAll(resp.Body)
+		if 0 == len(respBody) {
+			return fmt.Errorf("failed to read body - %s", err)
 		}
-		return fmt.Errorf("%v: %v", resp.StatusCode, string(resp_body))
+		return fmt.Errorf("%v: %v", resp.StatusCode, string(respBody))
 	}
 	if "" == self.responseContent {
 		return nil
 	}
 
 	if resp.ContentLength < 1024*1024 {
-		resp_body, err := ioutil.ReadAll(resp.Body)
-		if nil == resp_body || 0 == len(resp_body) {
-			return errors.New("failed to read body - " + err.Error())
+		respBody, err := ioutil.ReadAll(resp.Body)
+		if 0 == len(respBody) {
+			return fmt.Errorf("failed to read body - %s", err)
 		}
 
-		if bytes.Contains(resp_body, []byte(self.responseContent)) {
+		if bytes.Contains(respBody, []byte(self.responseContent)) {
 			return nil
 		}
 		self.logRequest()
-		return errors.New("'" + self.responseContent + "' isn't exists in the response body:\r\n" + string(resp_body))
+		return errors.New("'" + self.responseContent + "' isn't exists in the response body:\r\n" + string(respBody))
 	}
 
 	matched, e := IsContains(resp.Body, self.responseContent)
@@ -287,16 +290,16 @@ func (self *webHandler) Perform() error {
 	return nil
 }
 
-func max_int(a, b int) int {
+func maxInt(a, b int) int {
 	if a < b {
 		return b
 	}
 	return a
 }
 func IsContains(r io.Reader, excepted string) (bool, error) {
-	excepted_bytes := []byte(excepted)
-	buffer := make([]byte, 0, max_int(1024, len(excepted_bytes)+256))
-	remain_length := len(excepted_bytes) - 1
+	exceptedBytes := []byte(excepted)
+	buffer := make([]byte, 0, maxInt(1024, len(exceptedBytes)+256))
+	remainLength := len(exceptedBytes) - 1
 	offset := 0
 	for {
 		n, e := r.Read(buffer[offset:])
@@ -307,13 +310,13 @@ func IsContains(r io.Reader, excepted string) (bool, error) {
 			return false, e
 		}
 
-		if bytes.Contains(buffer[0:n], excepted_bytes) {
+		if bytes.Contains(buffer[0:n], exceptedBytes) {
 			return true, nil
 		}
 
-		if n-remain_length >= 0 {
-			copy(buffer, buffer[n-remain_length:n])
-			offset = remain_length
+		if n-remainLength >= 0 {
+			copy(buffer, buffer[n-remainLength:n])
+			offset = remainLength
 		}
 	}
 
@@ -379,6 +382,18 @@ func genText(content string, args interface{}) (string, error) {
 	if nil != e {
 		return content, errors.New("create template failed, " + e.Error())
 	}
+
+	switch m := args.(type) {
+	case map[string]interface{}:
+		if _, ok := m["content"]; !ok {
+			m["content"] = "this_is_test_message"
+		}
+	case map[string]string:
+		if _, ok := m["content"]; !ok {
+			m["content"] = "this_is_test_message"
+		}
+	}
+
 	args = preprocessArgs(args)
 	var buffer bytes.Buffer
 	e = t.Execute(&buffer, args)
@@ -390,9 +405,9 @@ func genText(content string, args interface{}) (string, error) {
 
 func QueryEscape(charset, content string) string {
 	encoding := GetCharset(charset)
-	new_content, _, err := transform.String(encoding.NewEncoder(), content)
+	newContent, _, err := transform.String(encoding.NewEncoder(), content)
 	if err != nil {
 		return content
 	}
-	return url.QueryEscape(new_content)
+	return url.QueryEscape(newContent)
 }
