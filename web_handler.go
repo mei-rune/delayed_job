@@ -24,7 +24,7 @@ const head_prefix = "head."
 
 type webHandler struct {
 	method          string
-	url             string
+	urlStr          string
 	user            string
 	password        string
 	contentType     string
@@ -59,9 +59,8 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("unsupported http method - " + method)
 	}
 
-	body := params["body"]
-	url := stringWithDefault(params, "url", "")
-	if 0 == len(url) {
+	urlStr := stringWithDefault(params, "url", "")
+	if 0 == len(urlStr) {
 		return nil, errors.New("'url' is required.")
 	}
 
@@ -87,14 +86,69 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 	}
 
 	var e error
-	url, e = genText(url, args)
+	urlStr, e = genText(urlStr, args)
 	if nil != e {
 		return nil, errors.New("failed to merge 'url' with params, " + e.Error())
 	}
-	if s, ok := body.(string); ok {
-		body, e = genText(s, args)
+
+	contentType := stringWithDefault(params, "contentType", "")
+	body, ok := params["body"]
+	if !ok {
+		values := map[string]interface{}{}
+		for key, value := range params {
+			if strings.HasPrefix(key, "body[") && strings.HasSuffix(key, "]") {
+				key = strings.TrimPrefix(strings.TrimSuffix(key, "]"), "body[")
+				values[key] = value
+			} else if strings.HasPrefix(key, "body.") {
+				key = strings.TrimPrefix(key, "body.")
+				values[key] = value
+			}
+		}
+		body = values
+	}
+	switch m := body.(type) {
+	case string:
+		body, e = genText(m, args)
 		if nil != e {
 			return nil, errors.New("failed to merge 'body' with params, " + e.Error())
+		}
+	case map[string]string:
+		for key, value := range m {
+			body, e := genText(value, args)
+			if nil != e {
+				return nil, errors.New("failed to merge 'body." + key + "' with params, " + e.Error())
+			}
+			m[key] = body
+		}
+
+		if contentType == "application/x-www-form-urlencoded" {
+			queryParams := url.Values{}
+			for key, value := range m {
+				queryParams.Set(key, value)
+			}
+
+			body = queryParams.Encode()
+		}
+	case map[string]interface{}:
+		for key, value := range m {
+			s, ok := value.(string)
+			if !ok {
+				continue
+			}
+
+			body, e := genText(s, args)
+			if nil != e {
+				return nil, errors.New("failed to merge 'body." + key + "' with params, " + e.Error())
+			}
+			m[key] = body
+		}
+
+		if contentType == "application/x-www-form-urlencoded" {
+			queryParams := url.Values{}
+			for key, value := range m {
+				queryParams.Set(key, fmt.Sprint(value))
+			}
+			body = queryParams.Encode()
 		}
 	}
 
@@ -133,12 +187,16 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
-	if header := stringWithDefault(params, "header", ""); header != "" {
-		header, e = genText(header, args)
+	headerText := stringWithDefault(params, "header", "")
+	if headerText == "" {
+		headerText = stringWithDefault(params, "headers", "")
+	}
+	if headerText != "" {
+		headerText, e = genText(headerText, args)
 		if nil != e {
-			return nil, errors.New("failed to merge 'header' with params, " + e.Error())
+			return nil, errors.New("failed to merge 'headers' with params, " + e.Error())
 		}
-		lines := SplitLines(header)
+		lines := SplitLines(headerText)
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
 			if line == "" {
@@ -169,8 +227,8 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 	}
 
 	return &webHandler{method: method,
-		url:             url,
-		contentType:     stringWithDefault(params, "contentType", ""),
+		urlStr:          urlStr,
+		contentType:     contentType, //stringWithDefault(params, "contentType", ""),
 		responseCode:    responseCode,
 		responseContent: responseContent,
 		user:            user,
@@ -181,9 +239,10 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 func (self *webHandler) logRequest() {
 	log.Println("method=", self.method)
-	log.Println("url=", self.url)
+	log.Println("url=", self.urlStr)
 	log.Println("headers=", self.headers)
 	log.Println("password=", self.password)
+	log.Println("contentType=", self.contentType)
 	log.Println("body=", self.body)
 	log.Println("user=", self.user)
 }
@@ -207,7 +266,7 @@ func (self *webHandler) Perform() error {
 		}
 	}
 
-	req, e := http.NewRequest(self.method, self.url, reader)
+	req, e := http.NewRequest(self.method, self.urlStr, reader)
 	if e != nil {
 		return e
 	}
@@ -223,7 +282,7 @@ func (self *webHandler) Perform() error {
 		}
 	}
 
-	log.Println("execute web:", self.method, self.url)
+	log.Println("execute web:", self.method, self.urlStr)
 	resp, e := http.DefaultClient.Do(req)
 	if nil != e {
 		return e
@@ -263,6 +322,9 @@ func (self *webHandler) Perform() error {
 		return fmt.Errorf("%v: %v", resp.StatusCode, string(respBody))
 	}
 	if "" == self.responseContent {
+		respBody, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("response is %s", respBody)
+		self.logRequest()
 		return nil
 	}
 
