@@ -17,6 +17,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/three-plus-three/modules/as"
 	"golang.org/x/text/transform"
 )
 
@@ -390,13 +391,26 @@ var Funcs = template.FuncMap{
 	"toString": func(v interface{}) string {
 		return fmt.Sprint(v)
 	},
+	"toInt": func(v interface{}, defaultValue ...int) int {
+		if len(defaultValue) > 0 {
+			return as.IntWithDefault(v, defaultValue[0])
+		}
+		return as.IntWithDefault(v, 0)
+	},
+	"toInt64": func(v interface{}, defaultValue ...int64) int64 {
+		if len(defaultValue) > 0 {
+			return as.Int64WithDefault(v, defaultValue[0])
+		}
+		return as.Int64WithDefault(v, 0)
+	},
 	"toLower": strings.ToLower,
 	"toUpper": strings.ToUpper,
 	"toTitle": strings.ToTitle,
 	"replace": func(old_s, new_s, content string) string {
 		return strings.Replace(content, old_s, new_s, -1)
 	},
-	"queryEscape": QueryEscape}
+	"queryEscape": QueryEscape,
+}
 
 func genText(content string, args interface{}) (string, error) {
 	if nil == args {
