@@ -106,48 +106,15 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 		body = values
 	}
-	switch m := body.(type) {
-	case string:
-		body, e = genText(m, args)
-		if nil != e {
-			return nil, errors.New("failed to merge 'body' with params, " + e.Error())
-		}
-	case map[string]string:
-		for key, value := range m {
-			body, e := genText(value, args)
-			if nil != e {
-				return nil, errors.New("failed to merge 'body." + key + "' with params, " + e.Error())
-			}
-			m[key] = body
-		}
 
-		if contentType == "application/x-www-form-urlencoded" {
-			queryParams := url.Values{}
-			for key, value := range m {
-				queryParams.Set(key, value)
-			}
+	body, err := genBody("body", body, args)
+	if err != nil {
+		return nil, err
+	}
 
-			body = queryParams.Encode()
-		}
-	case map[string]interface{}:
-		for key, value := range m {
-			s, ok := value.(string)
-			if !ok {
-				continue
-			}
-
-			body, e := genText(s, args)
-			if nil != e {
-				return nil, errors.New("failed to merge 'body." + key + "' with params, " + e.Error())
-			}
-			m[key] = body
-		}
-
-		if contentType == "application/x-www-form-urlencoded" {
-			queryParams := url.Values{}
-			for key, value := range m {
-				queryParams.Set(key, fmt.Sprint(value))
-			}
+	if contentType == "application/x-www-form-urlencoded" {
+		queryParams := url.Values{}
+		if ok := toUrlEncoded(body, "", queryParams); ok {
 			body = queryParams.Encode()
 		}
 	}
@@ -472,4 +439,59 @@ func QueryEscape(charset, content string) string {
 		return content
 	}
 	return url.QueryEscape(newContent)
+}
+
+func genBody(prefix string, body, args interface{}) (interface{}, error) {
+	switch m := body.(type) {
+	case string:
+		a, e := genText(m, args)
+		if nil != e {
+			return nil, errors.New("failed to merge '" + prefix + "' with params, " + e.Error())
+		}
+		return a, nil
+	case map[string]string:
+		for key, value := range m {
+			a, e := genText(value, args)
+			if nil != e {
+				return nil, errors.New("failed to merge '" + prefix + "." + key + "' with params, " + e.Error())
+			}
+			m[key] = a
+		}
+		return body, nil
+	case map[string]interface{}:
+		for key, value := range m {
+			a, e := genBody(prefix+"."+key, value, args)
+			if nil != e {
+				return nil, e
+			}
+			m[key] = a
+		}
+	}
+	return body, nil
+}
+
+func toUrlEncoded(body interface{}, prefix string, queryParams url.Values) bool {
+	switch m := body.(type) {
+	case map[string]string:
+		for key, value := range m {
+			if prefix != "" {
+				key = prefix + "[" + key + "]"
+			}
+			queryParams.Set(key, value)
+		}
+		return true
+	case map[string]interface{}:
+		for key, value := range m {
+			if prefix != "" {
+				key = prefix + "[" + key + "]"
+			}
+			if ok := toUrlEncoded(value, key, queryParams); ok {
+				continue
+			}
+			queryParams.Set(key, fmt.Sprint(value))
+		}
+		return true
+	default:
+		return false
+	}
 }
