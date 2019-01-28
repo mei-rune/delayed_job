@@ -68,7 +68,7 @@ func TestDbHandlerParameterIsError(t *testing.T) {
 }
 
 func TestDbHandlerConnectError(t *testing.T) {
-	for _, test := range []struct{ drv, url string }{{drv: "postgres", url: "host=127.0.0.1 port=45 dbname=tpt_data user=tpt password=extreme sslmode=disable"},
+	for _, test := range []struct{ drv, url string }{{drv: "postgres", url: "host=127.0.0.1 port=45 dbname=tpt_data user=delayedtest password=123456 sslmode=disable"},
 		//{drv: "oci8", url: "gdbc:tns=tt;user=aa;password=abc"},
 		{drv: "mymysql", url: "gdbc:host=127.0.0.1;port=33;dbname=cc;user=aa;password=abc"},
 		{drv: "mysql", url: "gdbc:host=127.0.0.1;port=33;dbname=cc;user=aa;password=abc;a1=e1"}} {
@@ -111,7 +111,7 @@ func TestDbHandlerConnectError(t *testing.T) {
 }
 
 func TestDbHandlerConnectOkAndDbError(t *testing.T) {
-	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "a", "drv": "postgres", "url": "host=127.0.0.1 dbname=sssghssssetdata user=tpt password=extreme sslmode=disable"})
+	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "a", "drv": "postgres", "url": "host=127.0.0.1 dbname=sssghssssetdata user=delayedtest password=123456 sslmode=disable"})
 	if nil != e {
 		t.Error(e)
 		return
@@ -129,7 +129,7 @@ func TestDbHandlerConnectOkAndDbError(t *testing.T) {
 }
 
 func TestDbHandlerAuthError(t *testing.T) {
-	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "select 2", "drv": "postgres", "url": "host=127.0.0.1 dbname=tpt_data user=tpsst password=wwextreme sslmode=disable"})
+	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"script": "select 2", "drv": "postgres", "url": "host=127.0.0.1 dbname=tpt_data user=ssdelayedtest password=ww123456 sslmode=disable"})
 	if nil != e {
 		t.Error(e)
 		return

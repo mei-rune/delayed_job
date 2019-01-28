@@ -25,9 +25,9 @@ services:
   - mysql
 
 before_script:
-  - psql -c "CREATE USER tpt WITH PASSWORD 'extreme';" -U postgres
-  - psql -c "create database tpt_data with OWNER = tpt;" -U postgres
-  - mysql -e "CREATE USER 'tpt' IDENTIFIED BY 'extreme';"
+  - psql -c "CREATE USER tpt WITH PASSWORD '123456';" -U postgres
+  - psql -c "create database tpt_data with OWNER = delayedtest;" -U postgres
+  - mysql -e "CREATE USER 'delayedtest' IDENTIFIED BY '123456';"
   - mysql -e "create database tpt_data;"
 script:
   - go test -v -redis.address=127.0.0.1:6379
@@ -35,7 +35,7 @@ script:
   - go test -v -redis.address=127.0.0.1:6379 -test_db_drv=mymysql -test_db_url=tcp:127.0.0.1:3306*tpt_data/travis/  -test.run=DbHandler
   - go test -v -redis.address=127.0.0.1:6379 -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*tpt_data/travis/
   - go test -v -redis.address=127.0.0.1:6379 -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*tpt_data/travis/  -test_db_drv=mysql -test_db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true" -test.run=DbHandler
-  - go test -v -redis.address=127.0.0.1:6379 -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*tpt_data/travis/ -test_db_drv=postgres -test_db_url="host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable"  -test.run=DbHandler
+  - go test -v -redis.address=127.0.0.1:6379 -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*tpt_data/travis/ -test_db_drv=postgres -test_db_url="host=127.0.0.1 dbname=tpt_data user=tpt password=delayedtest sslmode=disable"  -test.run=DbHandler
   - go test -v -redis.address=127.0.0.1:6379 -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true"
   - go test -v -redis.address=127.0.0.1:6379 -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true" -test_db_drv=mymysql -test_db_url=tcp:127.0.0.1:3306*tpt_data/travis/  -test.run=DbHandler
-  - go test -v -redis.address=127.0.0.1:6379 -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true" -test_db_drv=postgres -test_db_url="host=127.0.0.1 dbname=tpt_data user=tpt password=extreme sslmode=disable"  -test.run=DbHandler
+  - go test -v -redis.address=127.0.0.1:6379 -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/tpt_data?autocommit=true&parseTime=true" -test_db_drv=postgres -test_db_url="host=127.0.0.1 dbname=tpt_data user=tpt password=delayedtest sslmode=disable"  -test.run=DbHandler
