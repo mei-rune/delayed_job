@@ -35,7 +35,7 @@ script:
   - go test -v -redis.address=127.0.0.1:6379 -test_db_drv=mymysql -test_db_url=tcp:127.0.0.1:3306*delayed_test/travis/  -test.run=DbHandler
   - go test -v -redis.address=127.0.0.1:6379 -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*delayed_test/travis/
   - go test -v -redis.address=127.0.0.1:6379 -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*delayed_test/travis/  -test_db_drv=mysql -test_db_url="travis:@tcp(localhost:3306)/delayed_test?autocommit=true&parseTime=true" -test.run=DbHandler
-  - go test -v -redis.address=127.0.0.1:6379 -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*delayed_test/travis/ -test_db_drv=postgres -test_db_url="host=127.0.0.1 dbname=delayed_test user=tpt password=delayedtest sslmode=disable"  -test.run=DbHandler
+  - go test -v -redis.address=127.0.0.1:6379 -db_drv=mymysql -db_url=tcp:127.0.0.1:3306*delayed_test/travis/ -test_db_drv=postgres -test_db_url="host=127.0.0.1 dbname=delayed_test user=delayedtest password=delayedtest sslmode=disable"  -test.run=DbHandler
   - go test -v -redis.address=127.0.0.1:6379 -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/delayed_test?autocommit=true&parseTime=true"
   - go test -v -redis.address=127.0.0.1:6379 -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/delayed_test?autocommit=true&parseTime=true" -test_db_drv=mymysql -test_db_url=tcp:127.0.0.1:3306*delayed_test/travis/  -test.run=DbHandler
-  - go test -v -redis.address=127.0.0.1:6379 -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/delayed_test?autocommit=true&parseTime=true" -test_db_drv=postgres -test_db_url="host=127.0.0.1 dbname=delayed_test user=tpt password=delayedtest sslmode=disable"  -test.run=DbHandler
+  - go test -v -redis.address=127.0.0.1:6379 -db_drv=mysql -db_url="travis:@tcp(localhost:3306)/delayed_test?autocommit=true&parseTime=true" -test_db_drv=postgres -test_db_url="host=127.0.0.1 dbname=delayed_test user=delayedtest password=delayedtest sslmode=disable"  -test.run=DbHandler
