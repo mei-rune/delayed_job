@@ -17,7 +17,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/three-plus-three/modules/as"
 	"golang.org/x/text/transform"
 )
 
@@ -393,15 +392,15 @@ var Funcs = template.FuncMap{
 	},
 	"toInt": func(v interface{}, defaultValue ...int) int {
 		if len(defaultValue) > 0 {
-			return as.IntWithDefault(v, defaultValue[0])
+			return asIntWithDefault(v, defaultValue[0])
 		}
-		return as.IntWithDefault(v, 0)
+		return asIntWithDefault(v, 0)
 	},
 	"toInt64": func(v interface{}, defaultValue ...int64) int64 {
 		if len(defaultValue) > 0 {
-			return as.Int64WithDefault(v, defaultValue[0])
+			return asInt64WithDefault(v, defaultValue[0])
 		}
-		return as.Int64WithDefault(v, 0)
+		return asInt64WithDefault(v, 0)
 	},
 	"toLower": strings.ToLower,
 	"toUpper": strings.ToUpper,

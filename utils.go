@@ -32,6 +32,10 @@ func intWithDefault(args map[string]interface{}, key string, defaultValue int) i
 	if !ok {
 		return defaultValue
 	}
+	return asIntWithDefault(v, defaultValue)
+}
+
+func asIntWithDefault(v interface{}, defaultValue int) int {
 	switch value := v.(type) {
 	case int:
 		return value
@@ -66,6 +70,43 @@ func intWithDefault(args map[string]interface{}, key string, defaultValue int) i
 		return int(i)
 	}
 }
+
+func asInt64WithDefault(v interface{}, defaultValue int64) int64 {
+	switch value := v.(type) {
+	case int:
+		return int64(value)
+	case int64:
+		return value
+	case int32:
+		return int64(value)
+	case float64:
+		return int64(value)
+	case float32:
+		return int64(value)
+	case string:
+		i, e := strconv.ParseInt(value, 10, 0)
+		if nil != e {
+			f64, e := strconv.ParseFloat(value, 64)
+			if nil != e {
+				return defaultValue
+			}
+			return int64(f64)
+		}
+		return int64(i)
+	default:
+		s := fmt.Sprint(value)
+		i, e := strconv.ParseInt(s, 10, 0)
+		if nil != e {
+			f64, e := strconv.ParseFloat(s, 64)
+			if nil != e {
+				return defaultValue
+			}
+			return int64(f64)
+		}
+		return i
+	}
+}
+
 func durationWithDefault(args map[string]interface{}, key string, defaultValue time.Duration) time.Duration {
 	v, ok := args[key]
 	if !ok {
