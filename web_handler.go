@@ -264,16 +264,16 @@ func (self *webHandler) Perform() error {
 
 	var ok bool
 	if self.responseCode <= 0 {
-		ok = resp.StatusCode == 200
+		ok = resp.StatusCode == http.StatusOK
 		if !ok && ("POST" == self.method ||
 			"PUT" == self.method ||
 			"PATCH" == self.method ||
 			"DELETE" == self.method) {
-			ok = resp.StatusCode == 201 ||
-				resp.StatusCode == 202 ||
-				resp.StatusCode == 204 ||
-				resp.StatusCode == 205 ||
-				resp.StatusCode == 206
+			ok = resp.StatusCode == http.StatusCreated ||
+				resp.StatusCode == http.StatusAccepted ||
+				resp.StatusCode == http.StatusNoContent ||
+				resp.StatusCode == http.StatusResetContent ||
+				resp.StatusCode == http.StatusPartialContent
 		}
 	} else {
 		ok = resp.StatusCode == self.responseCode
