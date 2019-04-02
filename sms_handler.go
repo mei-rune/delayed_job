@@ -147,11 +147,11 @@ func (self *smsHandler) Perform() error {
 					gammuPath = gammuPath + ".exe"
 				}
 
-				//gammu-smsd-inject TEXT 123456 -text "All your base are belong to us"
-				cmd = exec.Command(gammuPath, "-c", gammu_config, "TEXT", phone, "-unicode", "-text", self.content)
+				//gammu-smsd-inject TEXT 123456 -autolen 130 -unicode -text "All your base are belong to us"
+				cmd = exec.Command(gammuPath, "-c", gammu_config, "TEXT", phone, "-autolen", "130", "-unicode", "-text", self.content)
 				excepted = "Written message with ID"
 			} else {
-				cmd = exec.Command(gammu, "-c", gammu_config, "sendsms", "TEXT", phone, "-unicode", "-text", self.content)
+				cmd = exec.Command(gammu, "-c", gammu_config, "sendsms", "TEXT", phone, "-autolen", "130", "-unicode", "-text", self.content)
 				excepted = "waiting for network answer..OK"
 			}
 
