@@ -357,7 +357,7 @@ func (self *TestWorker) WorkOff(num int) (int, int, error) {
 }
 
 func WorkTest(t *testing.T, cb func(w *TestWorker)) {
-	e := Main(":0", "init_db")
+	e := Main("init_db", nil)
 	if nil != e {
 		t.Error(e)
 		return

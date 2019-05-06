@@ -3,6 +3,7 @@ package delayed_job
 import (
 	"database/sql"
 	"math"
+	"net/http"
 	"strconv"
 	"strings"
 	"testing"
@@ -15,7 +16,7 @@ func backendTest(t *testing.T, cb func(backend *dbBackend)) {
 	// defer func() {
 	// 	*run_mode = old_mode
 	// }()
-	e := Main(":0", "init_db")
+	e := Main("init_db", func(http.Handler) {})
 	if nil != e {
 		t.Error(e)
 		return

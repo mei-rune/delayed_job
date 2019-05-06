@@ -78,7 +78,7 @@ func searchFile() (string, bool) {
 	}
 }
 
-func Main(listenAddress, run_mode string) error {
+func Main(run_mode string, runHttp func(http.Handler)) error {
 	default_actuals = loadActualFlags(nil)
 	initDB()
 
@@ -258,7 +258,7 @@ END`
 			os.Exit(1)
 		}
 		defer removePidFile(*pidFile)
-		httpServe(backend, findFs(), listenAddress)
+		httpServe(backend, findFs(), runHttp)
 	case "backend":
 		w, e := newWorker(map[string]interface{}{})
 		if nil != e {
@@ -299,7 +299,7 @@ END`
 			os.Exit(1)
 		}
 		defer removePidFile(*pidFile)
-		go httpServe(w.backend, findFs(), listenAddress)
+		go httpServe(w.backend, findFs(), runHttp)
 		w.RunForever()
 	}
 	return nil
@@ -599,7 +599,6 @@ type webFront struct {
 func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	backend := self.dbBackend
 
-	fmt.Println(r.Method, r.URL.Path)
 	switch r.Method {
 	case "GET":
 		switch r.URL.Path {
@@ -622,7 +621,7 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			readSettingsFileHandler(w, r, backend)
 			return
 		default:
-			if nil == self.fs {
+			if nil == self.fs && !strings.HasPrefix(r.URL.Path, "/debug/") {
 				statikFS, err := fs.New()
 				if err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
@@ -741,11 +740,9 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.WriteHeader(http.StatusNotFound)
+	http.DefaultServeMux.ServeHTTP(w, r)
 }
 
-func httpServe(backend *dbBackend, handler http.Handler, listenAddress string) {
-	http.Handle("/", &webFront{dbBackend: backend, fs: handler})
-	log.Println("[delayed_job] serving at '" + listenAddress + "'")
-	http.ListenAndServe(listenAddress, nil)
+func httpServe(backend *dbBackend, handler http.Handler, runHttp func(http.Handler)) {
+	runHttp(&webFront{dbBackend: backend, fs: handler})
 }
