@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"log"
+	"net"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -11,11 +12,18 @@ import (
 	"time"
 
 	"errors"
+
+	"github.com/runner-mei/delayed_job/ns20"
 )
 
 var gammu_config string
 var gammu string
 var gammu_with_smsd = flag.Bool("with_smsd", false, "send sms by smsd")
+
+var smsMethod string
+var smsNS20Address string
+var smsNS20Port string
+var smsNS20Timeout int
 
 func init() {
 	if runtime.GOOS == "windows" {
@@ -25,12 +33,17 @@ func init() {
 		flag.StringVar(&gammu_config, "gammu_config", "/etc/tpt/gammu.conf", "the path of gaummu")
 		flag.StringVar(&gammu, "gammu", "runtime_env/gammu/gammu", "the path of gaummu")
 	}
+
+	flag.StringVar(&smsMethod, "sms.method", "gammu", "")
+	flag.StringVar(&smsNS20Address, "sms.ns20.address", "", "")
+	flag.StringVar(&smsNS20Port, "sms.ns20.port", "", "")
+	flag.IntVar(&smsNS20Timeout, "sms.ns20.timeout", 0, "")
 }
 
 var GetUserPhone func(id string) (string, error)
 
 // SendSMS 发送 sms 的钩子
-var SendSMS func(phone, content string) error
+var SendSMS func(method, phone, content string) error
 
 type smsHandler struct {
 	content              string
@@ -136,41 +149,16 @@ func (self *smsHandler) Perform() error {
 
 		var e error
 		if SendSMS != nil {
-			e = SendSMS(phone, self.content)
+			e = SendSMS(smsMethod, phone, self.content)
 		} else {
-			var excepted string
-			var output []byte
-			var cmd *exec.Cmd
-			if *gammu_with_smsd {
-				var gammuPath = filepath.Join(filepath.Dir(gammu), "gammu-smsd-inject")
-				if "windows" == runtime.GOOS {
-					gammuPath = gammuPath + ".exe"
-				}
 
-				//gammu-smsd-inject TEXT 123456 -autolen 130 -unicode -text "All your base are belong to us"
-				cmd = exec.Command(gammuPath, "-c", gammu_config, "TEXT", phone, "-autolen", "130", "-unicode", "-text", self.content)
-				excepted = "Written message with ID"
-			} else {
-				cmd = exec.Command(gammu, "-c", gammu_config, "sendsms", "TEXT", phone, "-autolen", "130", "-unicode", "-text", self.content)
-				excepted = "waiting for network answer..OK"
-			}
-
-			timer := time.AfterFunc(10*time.Minute, func() {
-				defer recover()
-				cmd.Process.Kill()
-			})
-			output, e = cmd.CombinedOutput()
-			timer.Stop()
-
-			if e == nil {
-				if !bytes.Contains(output, []byte(excepted)) {
-					e = errors.New(string(output))
-				}
-			} else {
-				txt := string(bytes.TrimSpace(output))
-				if "" != txt {
-					e = errors.New(txt)
-				}
+			switch smsMethod {
+			case "", "gammu":
+				e = SendByGammu(phone, self.content)
+			case "ns20":
+				e = SendByNS20(phone, self.content)
+			default:
+				e = errors.New("sms method '" + smsMethod + "' is unknown")
 			}
 		}
 
@@ -182,6 +170,57 @@ func (self *smsHandler) Perform() error {
 	}
 	self.failed_phone_numbers = phone_numbers
 	return last
+}
+
+func SendByGammu(phone, content string) error {
+	var excepted string
+	var cmd *exec.Cmd
+	if *gammu_with_smsd {
+		var gammuPath = filepath.Join(filepath.Dir(gammu), "gammu-smsd-inject")
+		if "windows" == runtime.GOOS {
+			gammuPath = gammuPath + ".exe"
+		}
+
+		//gammu-smsd-inject TEXT 123456 -autolen 130 -unicode -text "All your base are belong to us"
+		cmd = exec.Command(gammuPath, "-c", gammu_config, "TEXT", phone, "-autolen", "130", "-unicode", "-text", content)
+		excepted = "Written message with ID"
+	} else {
+		cmd = exec.Command(gammu, "-c", gammu_config, "sendsms", "TEXT", phone, "-autolen", "130", "-unicode", "-text", content)
+		excepted = "waiting for network answer..OK"
+	}
+
+	timer := time.AfterFunc(10*time.Minute, func() {
+		defer recover()
+		cmd.Process.Kill()
+	})
+	output, e := cmd.CombinedOutput()
+	timer.Stop()
+
+	if e != nil {
+		txt := string(bytes.TrimSpace(output))
+		if "" != txt {
+			return errors.New(txt)
+		}
+	}
+
+	if !bytes.Contains(output, []byte(excepted)) {
+		return errors.New(string(output))
+	}
+	return nil
+}
+
+func SendByNS20(phone, content string) error {
+	if smsNS20Address == "" {
+		return errors.New("sms.ns20.address is empty")
+	}
+	if smsNS20Port == "" {
+		return errors.New("sms.ns20.port is empty")
+	}
+	timeout := 5 * time.Minute
+	if smsNS20Timeout > 0 {
+		timeout = time.Duration(smsNS20Timeout) * time.Second
+	}
+	return ns20.Send(net.JoinHostPort(smsNS20Address, smsNS20Port), phone, content, timeout)
 }
 
 func init() {
