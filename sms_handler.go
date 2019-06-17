@@ -220,6 +220,7 @@ func SendByNS20(phone, content string) error {
 	if smsNS20Timeout > 0 {
 		timeout = time.Duration(smsNS20Timeout) * time.Second
 	}
+
 	return ns20.Send(net.JoinHostPort(smsNS20Address, smsNS20Port), phone, content, timeout)
 }
 
