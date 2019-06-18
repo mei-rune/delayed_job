@@ -15,15 +15,17 @@ var charset = unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 
 // 30 00 31 00 31 00 31 00 33 00 33 00 31 00 31 00 36 00 30 00 31 00 36 00 30 00 38 00 60 4f 7d 59
 
-func EncodeOutgoing(phone, content string) ([]byte, error) {
+func EncodeOutgoing(phone string, content []byte) ([]byte, error) {
 	var sb strings.Builder
 	sb.WriteString("0")
 	fmt.Fprintf(&sb, "%02d", len(phone))
 	sb.WriteString(phone)
-	sb.WriteString(content)
 
 	bs, _, err := transform.Bytes(charset.NewEncoder(), []byte(sb.String()))
-	return bs, err
+	if err != nil {
+		return nil, err
+	}
+	return append(bs, content...), nil
 }
 
 func DecodeIncoming(in []byte) (string, error) {
@@ -33,6 +35,7 @@ func DecodeIncoming(in []byte) (string, error) {
 	}
 
 	txt := string(bs)
+	fmt.Println("==", txt)
 	if !strings.HasPrefix(txt, "1:") {
 		return "", errors.New(txt)
 	}
@@ -40,19 +43,25 @@ func DecodeIncoming(in []byte) (string, error) {
 }
 
 func Send(address, phone, content string, timeout time.Duration) error {
+	bs, _, err := transform.Bytes(charset.NewEncoder(), []byte(content))
+	if err != nil {
+		return err
+	}
+
 	for {
-		if len(content) <= 70 {
-			return send(address, phone, content, timeout)
+
+		if len(bs) <= 140 {
+			return send(address, phone, bs, timeout)
 		}
 
-		if err := send(address, phone, content[:70], timeout); err != nil {
+		if err := send(address, phone, bs[:140], timeout); err != nil {
 			return err
 		}
-		content = content[70:]
+		bs = bs[140:]
 	}
 }
 
-func send(address, phone, content string, timeout time.Duration) error {
+func send(address, phone string, content []byte, timeout time.Duration) error {
 	bs, err := EncodeOutgoing(phone, content)
 	if err != nil {
 		return err
