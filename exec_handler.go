@@ -19,6 +19,7 @@ import (
 	"github.com/kardianos/osext"
 )
 
+var logCmdOutput = os.Getenv("tpt_delayed_object_log_cmd_output") == "true"
 var default_directory = flag.String("exec.directory", ".", "the work directory for execute")
 
 type execHandler struct {
@@ -263,9 +264,11 @@ func (self *execHandler) Perform() error {
 				buffer.WriteString(err.Error())
 				return errors.New(buffer.String())
 			}
+			if logCmdOutput {
+				fmt.Println(buffer.String())
+			}
 			return nil
 		}
-
 		return nil
 	}
 
