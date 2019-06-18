@@ -11,6 +11,9 @@ import (
 	"golang.org/x/text/transform"
 )
 
+// ns20 不支持长短信发送
+// https://wenku.baidu.com/view/295896a4dd88d0d233d46ae1.html
+
 var charset = unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 
 // 30 00 31 00 31 00 31 00 33 00 33 00 31 00 31 00 36 00 30 00 31 00 36 00 30 00 38 00 60 4f 7d 59

@@ -548,8 +548,8 @@ func (self *dbBackend) create(jobs ...*Job) (e error) {
 
 			_, e = tx.Exec("INSERT INTO "+*table_name+"(priority, repeat_count, repeat_interval, attempts, max_attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL, $9, NULL, NULL, NULL, $10, $11)",
 				job.priority, job.repeat_count, job.repeat_interval, job.attempts, job.max_attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
-			//fmt.Println("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, NULL, $6, NULL, NULL, NULL, $7, $8)",
-			//	job.priority, job.attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
+			// fmt.Println("INSERT INTO "+*table_name+"(priority, repeat_count, repeat_interval, attempts, max_attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NULL, $9, NULL, NULL, NULL, $10, $11)",
+			//	job.priority, job.repeat_count, job.repeat_interval, job.attempts, job.max_attempts, job.queue, job.handler, job.handler_id, job.run_at, now, now)
 		default:
 			_, e = tx.Exec("DELETE FROM "+*table_name+" WHERE handler_id = ?", job.handler_id)
 			if nil != e {

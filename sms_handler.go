@@ -151,7 +151,6 @@ func (self *smsHandler) Perform() error {
 		if SendSMS != nil {
 			e = SendSMS(smsMethod, phone, self.content)
 		} else {
-
 			switch smsMethod {
 			case "", "gammu":
 				e = SendByGammu(phone, self.content)
@@ -201,6 +200,7 @@ func SendByGammu(phone, content string) error {
 		if "" != txt {
 			return errors.New(txt)
 		}
+		return e
 	}
 
 	if !bytes.Contains(output, []byte(excepted)) {
