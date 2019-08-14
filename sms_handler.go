@@ -60,9 +60,6 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 	phone_numbers := stringsWithDefault(params, "phone_numbers", ",", nil)
 	if 0 == len(phone_numbers) {
 		phone_numbers = stringsWithDefault(params, "phoneNumbers", ",", nil)
-		if 0 == len(phone_numbers) {
-			return nil, errors.New("'phone_numbers' is required")
-		}
 	}
 
 	numbers := make([]string, 0, len(phone_numbers))
