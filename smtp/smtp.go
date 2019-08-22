@@ -22,7 +22,7 @@ import (
 	"strings"
 )
 
-var skipAuthError = os.Getenv("smtp_skip_auth_error") == ""
+var skipAuthError = os.Getenv("smtp_skip_auth_error") == "true"
 var isLog = os.Getenv("smtp_log_enabled") == "true"
 var useTLS = os.Getenv("smtp_use_tls") == "true" || os.Getenv("smtp_use_tls") == ""
 var noLocalHost = os.Getenv("smtp_use_fqdn") == "true"

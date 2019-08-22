@@ -38,7 +38,6 @@ func DecodeIncoming(in []byte) (string, error) {
 	}
 
 	txt := string(bs)
-	fmt.Println("==", txt)
 	if !strings.HasPrefix(txt, "1:") {
 		return "", errors.New(txt)
 	}
@@ -60,6 +59,8 @@ func Send(address, phone, content string, timeout time.Duration) error {
 		if err := send(address, phone, bs[:140], timeout); err != nil {
 			return err
 		}
+		fmt.Println("================ send to ", phone)
+
 		bs = bs[140:]
 	}
 }
