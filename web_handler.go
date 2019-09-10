@@ -388,6 +388,9 @@ var Funcs = template.FuncMap{
 		return buf.String()
 	},
 	"toString": func(v interface{}) string {
+		if v == nil {
+			return ""
+		}
 		return fmt.Sprint(v)
 	},
 	"toInt": func(v interface{}, defaultValue ...int) int {
@@ -401,6 +404,10 @@ var Funcs = template.FuncMap{
 			return asInt64WithDefault(v, defaultValue[0])
 		}
 		return asInt64WithDefault(v, 0)
+	},
+	"keyExists": func(v map[string]interface{}, key string) bool {
+		_, ok := v[key]
+		return ok
 	},
 	"toLower": strings.ToLower,
 	"toUpper": strings.ToUpper,
