@@ -409,6 +409,10 @@ var Funcs = template.FuncMap{
 		_, ok := v[key]
 		return ok
 	},
+	"keyExist": func(v map[string]interface{}, key string) bool {
+		_, ok := v[key]
+		return ok
+	},
 	"toLower": strings.ToLower,
 	"toUpper": strings.ToUpper,
 	"toTitle": strings.ToTitle,
