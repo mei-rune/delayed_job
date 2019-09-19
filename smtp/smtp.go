@@ -266,7 +266,7 @@ func (c *Client) Auth(a Auth) error {
 		}
 		if err != nil {
 			// abort the AUTH
-			c.cmd(501, "*")
+			// c.cmd(501, "*")
 			c.Quit()
 			break
 		}
