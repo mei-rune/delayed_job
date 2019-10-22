@@ -13,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -365,11 +366,24 @@ func init() {
 var Funcs = template.FuncMap{
 	"timeFormat": func(format string, t interface{}) string {
 		now := asTimeWithDefault(t, time.Time{})
+		switch format {
+		case "unix":
+			return strconv.FormatInt(now.Unix(), 10)
+		case "unix_ms":
+			return strconv.FormatInt(now.UnixNano()/int64(time.Millisecond), 10)
+		}
 		return now.Format(format)
 	},
 	"now": func(format ...string) interface{} {
 		if len(format) == 0 {
 			return time.Now()
+		}
+
+		switch format[0] {
+		case "unix":
+			return strconv.FormatInt(time.Now().Unix(), 10)
+		case "unix_ms":
+			return strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
 		}
 		return time.Now().Format(format[0])
 	},
