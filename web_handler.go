@@ -253,6 +253,7 @@ func (self *webHandler) Perform() error {
 	log.Println("execute web:", self.method, self.urlStr)
 	resp, e := http.DefaultClient.Do(req)
 	if nil != e {
+		self.logRequest()
 		return e
 	}
 
@@ -299,6 +300,7 @@ func (self *webHandler) Perform() error {
 	if resp.ContentLength < 1024*1024 {
 		respBody, err := ioutil.ReadAll(resp.Body)
 		if 0 == len(respBody) {
+			self.logRequest()
 			return fmt.Errorf("failed to read body - %s", err)
 		}
 
@@ -311,6 +313,7 @@ func (self *webHandler) Perform() error {
 
 	matched, e := IsContains(resp.Body, self.responseContent)
 	if nil != e {
+		self.logRequest()
 		return errors.New("failed to read body - " + e.Error())
 	}
 	if !matched {
@@ -368,9 +371,13 @@ var Funcs = template.FuncMap{
 		now := asTimeWithDefault(t, time.Time{})
 		switch format {
 		case "unix":
-			return strconv.FormatInt(now.Unix(), 10)
+			return strconv.FormatInt(now.UTC().Unix(), 10)
 		case "unix_ms":
-			return strconv.FormatInt(now.UnixNano()/int64(time.Millisecond), 10)
+			return strconv.FormatInt(now.UTC().UnixNano()/int64(time.Millisecond), 10)
+		case "local_unix":
+			return strconv.FormatInt(now.Local().Unix(), 10)
+		case "local_unix_ms":
+			return strconv.FormatInt(now.Local().UnixNano()/int64(time.Millisecond), 10)
 		}
 		return now.Format(format)
 	},
@@ -381,9 +388,13 @@ var Funcs = template.FuncMap{
 
 		switch format[0] {
 		case "unix":
-			return strconv.FormatInt(time.Now().Unix(), 10)
+			return strconv.FormatInt(time.Now().UTC().Unix(), 10)
 		case "unix_ms":
-			return strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
+			return strconv.FormatInt(time.Now().UTC().UnixNano()/int64(time.Millisecond), 10)
+		case "local_unix":
+			return strconv.FormatInt(time.Now().Local().Unix(), 10)
+		case "local_unix_ms":
+			return strconv.FormatInt(time.Now().Local().UnixNano()/int64(time.Millisecond), 10)
 		}
 		return time.Now().Format(format[0])
 	},
