@@ -366,18 +366,44 @@ func init() {
 	Handlers["itsm_command"] = newWebHandler
 }
 
+func parseInterval(s string, defValue time.Duration) time.Duration {
+	minus := false
+	if strings.HasPrefix(s, "-") {
+		minus = true
+		s = strings.TrimPrefix(s, "-")
+	} else if strings.HasPrefix(s, "+") {
+		s = strings.TrimPrefix(s, "+")
+	}
+
+	a, err := time.ParseDuration(s)
+	if err != nil {
+		return defValue
+	}
+
+	if minus {
+		return -a
+	}
+	return a
+}
+
 var Funcs = template.FuncMap{
 	"timeFormat": func(format string, t interface{}) string {
 		now := asTimeWithDefault(t, time.Time{})
-		switch format {
-		case "unix":
-			return strconv.FormatInt(now.UTC().Unix(), 10)
-		case "unix_ms":
-			return strconv.FormatInt(now.UTC().UnixNano()/int64(time.Millisecond), 10)
-		case "local_unix":
-			return strconv.FormatInt(now.Local().Unix(), 10)
-		case "local_unix_ms":
-			return strconv.FormatInt(now.Local().UnixNano()/int64(time.Millisecond), 10)
+
+		switch {
+		case strings.HasPrefix(format, "unix"):
+			interval := time.Duration(0)
+			if len(format) >= 2 {
+				interval = parseInterval(strings.TrimSpace(strings.TrimPrefix(format, "unix")), 0)
+			}
+
+			return strconv.FormatInt(now.UTC().Add(interval).Unix(), 10)
+		case strings.HasPrefix(format, "unix_ms"):
+			interval := time.Duration(0)
+			if len(format) >= 2 {
+				interval = parseInterval(strings.TrimSpace(strings.TrimPrefix(format, "unix_ms")), 0)
+			}
+			return strconv.FormatInt(now.UTC().Add(interval).UnixNano()/int64(time.Millisecond), 10)
 		}
 		return now.Format(format)
 	},
@@ -386,15 +412,15 @@ var Funcs = template.FuncMap{
 			return time.Now()
 		}
 
+		interval := time.Duration(0)
+		if len(format) >= 2 {
+			interval = parseInterval(format[1], 0)
+		}
 		switch format[0] {
 		case "unix":
-			return strconv.FormatInt(time.Now().UTC().Unix(), 10)
+			return strconv.FormatInt(time.Now().Add(interval).UTC().Unix(), 10)
 		case "unix_ms":
-			return strconv.FormatInt(time.Now().UTC().UnixNano()/int64(time.Millisecond), 10)
-		case "local_unix":
-			return strconv.FormatInt(time.Now().Local().Unix(), 10)
-		case "local_unix_ms":
-			return strconv.FormatInt(time.Now().Local().UnixNano()/int64(time.Millisecond), 10)
+			return strconv.FormatInt(time.Now().Add(interval).UTC().UnixNano()/int64(time.Millisecond), 10)
 		}
 		return time.Now().Format(format[0])
 	},
@@ -445,6 +471,14 @@ var Funcs = template.FuncMap{
 		return strings.Replace(content, old_s, new_s, -1)
 	},
 	"queryEscape": QueryEscape,
+	"charset_encode": func(charset, content string) string {
+		encoding := GetCharset(charset)
+		newContent, _, err := transform.String(encoding.NewEncoder(), content)
+		if err != nil {
+			return content
+		}
+		return newContent
+	},
 }
 
 func genText(content string, args interface{}) (string, error) {
