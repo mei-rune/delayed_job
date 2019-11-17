@@ -24,6 +24,9 @@ services:
   - postgres 
   - mysql
 
+addons:
+  postgresql: "9.6"
+
 before_script:
   - psql -c "CREATE USER delayedtest WITH PASSWORD '123456';" -U postgres
   - psql -c "create database delayed_test with OWNER = delayedtest;" -U postgres
