@@ -31,7 +31,7 @@ before_script:
   - psql -c "CREATE USER delayedtest WITH PASSWORD '123456';" -U postgres
   - psql -c "create database delayed_test with OWNER = delayedtest;" -U postgres
   - mysql -e "CREATE USER 'delayedtest' IDENTIFIED BY '123456';"
-  - mysql -e "create database delayed_test;"
+  - mysql -e "create database delayed_test character set utf8;"
 script:
   - go test -v -redis.address=127.0.0.1:6379
   - go test -v -redis.address=127.0.0.1:6379 -test_db_drv=mysql -test_db_url="travis:@tcp(localhost:3306)/delayed_test?autocommit=true&parseTime=true" -test.run=DbHandler
