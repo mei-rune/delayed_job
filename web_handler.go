@@ -21,6 +21,14 @@ import (
 	"golang.org/x/text/transform"
 )
 
+type WebSMS struct {
+	Method       string
+	Body         interface{}
+	SupportBatch bool
+}
+
+var WebsmsTypes = map[string]WebSMS{}
+
 const head_prefix = "head."
 
 type webHandler struct {
@@ -33,6 +41,11 @@ type webHandler struct {
 	headers         map[string]interface{}
 	responseCode    int
 	responseContent string
+	args            map[string]interface{}
+
+	failedPhoneNumbers []string
+	phoneNumbers       []string
+	supportBatch       bool
 }
 
 func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
@@ -50,16 +63,6 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 	}
 
 	method := stringWithDefault(params, "method", "")
-	if 0 == len(method) {
-		return nil, errors.New("'method' is required.")
-	}
-
-	switch method {
-	case "GET", "PUT", "POST", "DELETE", "TRACE", "HEAD", "OPTIONS", "CONNECT", "PATCH":
-	default:
-		return nil, errors.New("unsupported http method - " + method)
-	}
-
 	urlStr := stringWithDefault(params, "url", "")
 	if 0 == len(urlStr) {
 		return nil, errors.New("'url' is required.")
@@ -92,31 +95,49 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("failed to merge 'url' with params, " + e.Error())
 	}
 
-	contentType := stringWithDefault(params, "contentType", "")
-	body, ok := params["body"]
-	if !ok {
-		values := map[string]interface{}{}
-		for key, value := range params {
-			if strings.HasPrefix(key, "body[") && strings.HasSuffix(key, "]") {
-				key = strings.TrimPrefix(strings.TrimSuffix(key, "]"), "body[")
-				values[key] = value
-			} else if strings.HasPrefix(key, "body.") {
-				key = strings.TrimPrefix(key, "body.")
-				values[key] = value
+	var phoneNumbers []string
+	var supportBatch bool
+	var body interface{}
+	var contentType string
+
+	if "GET" != method {
+		var ok bool
+		contentType = stringWithDefault(params, "contentType", "")
+		body, ok = params["body"]
+		if !ok {
+			values := map[string]interface{}{}
+			for key, value := range params {
+				if strings.HasPrefix(key, "body[") && strings.HasSuffix(key, "]") {
+					key = strings.TrimPrefix(strings.TrimSuffix(key, "]"), "body[")
+					values[key] = value
+				} else if strings.HasPrefix(key, "body.") {
+					key = strings.TrimPrefix(key, "body.")
+					values[key] = value
+				}
 			}
-		}
-		body = values
-	}
+			if len(values) == 0 {
+				websms_type := stringWithDefault(params, "websms_type", "")
+				if websms_type == "" {
+					return nil, errors.New("body is empty")
+				}
+				var err error
+				config := WebsmsTypes[websms_type]
+				phoneNumbers, err = readPhoneNumbers(params)
+				if err != nil {
+					return nil, err
+				}
+				if 0 == len(phoneNumbers) {
+					return nil, errors.New("'phone_numbers' is required")
+				}
 
-	body, err := genBody("body", body, args)
-	if err != nil {
-		return nil, err
-	}
-
-	if contentType == "application/x-www-form-urlencoded" {
-		queryParams := url.Values{}
-		if ok := toUrlEncoded(body, "", queryParams); ok {
-			body = queryParams.Encode()
+				body = config.Body
+				supportBatch = config.SupportBatch
+				if config.Method != "" {
+					method = config.Method
+				}
+			} else {
+				body = values
+			}
 		}
 	}
 
@@ -185,13 +206,28 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
-	user := stringWithDefault(params, "user_name", "")
-	if "" == user {
-		user = stringWithDefault(params, "userName", "")
+	if method == "" {
+		return nil, errors.New("'method' is required.")
 	}
-	password := stringWithDefault(params, "user_password", "")
+	switch method {
+	case "GET", "PUT", "POST", "DELETE", "TRACE", "HEAD", "OPTIONS", "CONNECT", "PATCH":
+	default:
+		return nil, errors.New("unsupported http method - " + method)
+	}
+
+	user := stringWithDefault(params, "username", "")
+	if "" == user {
+		user = stringWithDefault(params, "user_name", "")
+		if "" == user {
+			user = stringWithDefault(params, "userName", "")
+		}
+	}
+	password := stringWithDefault(params, "password", "")
 	if "" == password {
-		password = stringWithDefault(params, "userPassword", "")
+		password = stringWithDefault(params, "user_password", "")
+		if "" == password {
+			password = stringWithDefault(params, "userPassword", "")
+		}
 	}
 
 	return &webHandler{method: method,
@@ -202,7 +238,11 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		user:            user,
 		password:        password,
 		body:            body,
-		headers:         headers}, nil
+		headers:         headers,
+		args:            params,
+		phoneNumbers:    phoneNumbers,
+		supportBatch:    supportBatch,
+	}, nil
 }
 
 func (self *webHandler) logRequest() {
@@ -213,24 +253,89 @@ func (self *webHandler) logRequest() {
 	log.Println("contentType=", self.contentType)
 	log.Println("body=", self.body)
 	log.Println("user=", self.user)
+	log.Println("phoneNumbers=", self.phoneNumbers)
+	log.Println("supportBatch=", self.supportBatch)
+}
+
+func (self *webHandler) UpdatePayloadObject(options map[string]interface{}) {
+	if self.supportBatch {
+		delete(options, "users")
+		options["phone_numbers"] = self.phoneNumbers
+		options["phoneNumbers"] = self.phoneNumbers
+	} else {
+		delete(options, "users")
+		options["phone_numbers"] = self.failedPhoneNumbers
+	}
 }
 
 func (self *webHandler) Perform() error {
+	if self.supportBatch {
+		var body interface{}
+		if self.method != "GET" && self.method != "HEAD" {
+			if self.body != nil {
+				self.args["phone_numbers"] = self.phoneNumbers
+				self.args["phoneNumbers"] = self.phoneNumbers
+				value, err := genBody("body", self.body, self.args)
+				if err != nil {
+					return err
+				}
+				body = value
+			}
+		}
+
+		return self.perform(body)
+	}
+	self.failedPhoneNumbers = self.phoneNumbers
+
+	var failed []string
+
+	var lastErr error
+	for _, phone := range self.phoneNumbers {
+
+		var body interface{}
+		if self.method != "GET" && self.method != "HEAD" {
+			if self.body != nil {
+				self.args["phone"] = phone
+				value, err := genBody("body", self.body, self.args)
+				if err != nil {
+					return err
+				}
+				body = value
+			}
+		}
+		err := self.perform(body)
+		if err != nil {
+			failed = append(failed, phone)
+			lastErr = err
+		}
+	}
+	self.failedPhoneNumbers = failed
+	return lastErr
+}
+
+func (self *webHandler) perform(body interface{}) error {
 	var reader io.Reader
-	switch self.method {
-	case "GET", "HEAD":
-	default:
-		if nil == self.body {
-		} else if s, ok := self.body.(string); ok {
-			reader = bytes.NewBufferString(s)
-		} else {
-			buffer := bytes.NewBuffer(make([]byte, 0, 1024))
-			e := json.NewEncoder(buffer).Encode(self.body)
-			if nil != e {
-				return e
+	if self.method != "GET" && self.method != "HEAD" {
+		if body != nil {
+			if self.contentType == "application/x-www-form-urlencoded" {
+				queryParams := url.Values{}
+				if ok := toUrlEncoded(body, "", queryParams); ok {
+					body = queryParams.Encode()
+				}
 			}
 
-			reader = buffer
+			if s, ok := body.(string); ok {
+				reader = bytes.NewBufferString(s)
+			} else if s, ok := body.([]byte); ok {
+				reader = bytes.NewBuffer(s)
+			} else {
+				buffer := bytes.NewBuffer(make([]byte, 0, 1024))
+				e := json.NewEncoder(buffer).Encode(body)
+				if nil != e {
+					return e
+				}
+				reader = buffer
+			}
 		}
 	}
 
@@ -358,6 +463,8 @@ func IsContains(r io.Reader, excepted string) (bool, error) {
 
 func init() {
 	Handlers["web"] = newWebHandler
+	Handlers["websms"] = newWebHandler
+	Handlers["websms_command"] = newWebHandler
 	Handlers["web_action"] = newWebHandler
 	Handlers["web_command"] = newWebHandler
 	Handlers["http"] = newWebHandler

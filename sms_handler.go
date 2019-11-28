@@ -51,19 +51,15 @@ type smsHandler struct {
 	failed_phone_numbers []string
 }
 
-func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
-	if nil == params {
-		return nil, errors.New("params is nil")
-	}
-
+func readPhoneNumbers(params map[string]interface{}) ([]string, error) {
 	//users := stringsWithDefault(params, "users", ",", nil)
-	phone_numbers := stringsWithDefault(params, "phone_numbers", ",", nil)
-	if 0 == len(phone_numbers) {
-		phone_numbers = stringsWithDefault(params, "phoneNumbers", ",", nil)
+	phoneNumbers := stringsWithDefault(params, "phone_numbers", ",", nil)
+	if 0 == len(phoneNumbers) {
+		phoneNumbers = stringsWithDefault(params, "phoneNumbers", ",", nil)
 	}
 
-	numbers := make([]string, 0, len(phone_numbers))
-	for _, number := range phone_numbers {
+	numbers := make([]string, 0, len(phoneNumbers))
+	for _, number := range phoneNumbers {
 		lines := SplitLines(number)
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
@@ -72,7 +68,7 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 			}
 		}
 	}
-	phone_numbers = numbers
+	phoneNumbers = numbers
 
 	if userIDs := stringsWithDefault(params, "users", ",", nil); len(userIDs) > 0 {
 		for _, id := range userIDs {
@@ -91,21 +87,26 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 			if phone == "" {
 				log.Println("phone is missing for user", id)
 			} else {
-				phone_numbers = append(phone_numbers, phone)
+				phoneNumbers = append(phoneNumbers, phone)
 				// log.Println("phone is '", phone, "' for user", id)
 			}
 		}
 	}
+	return phoneNumbers, nil
+}
 
+func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
+	if nil == params {
+		return nil, errors.New("params is nil")
+	}
+
+	phone_numbers, err := readPhoneNumbers(params)
+	if err != nil {
+		return nil, err
+	}
 	if 0 == len(phone_numbers) {
 		return nil, errors.New("'phone_numbers' is required")
 	}
-
-	// if 0 == len(phone_numbers) {
-	// 	phone_numbers = users
-	// } else if 0 != len(users) {
-	// 	phone_numbers = append(phone_numbers, users...)
-	// }
 
 	content := stringWithDefault(params, "content", "")
 	if 0 == len(content) {
