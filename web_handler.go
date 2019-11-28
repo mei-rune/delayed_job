@@ -22,9 +22,14 @@ import (
 )
 
 type WebSMS struct {
-	Method       string
-	Body         interface{}
-	SupportBatch bool
+	Method          string
+	URL             string
+	Body            interface{}
+	SupportBatch    bool
+	ContentType     string
+	Headers         map[string]string
+	ResponseCode    int
+	ResponseContent string
 }
 
 var WebsmsTypes = map[string]WebSMS{}
@@ -53,20 +58,9 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("params is nil")
 	}
 	responseCode := intWithDefault(params, "response_code", -1)
-	if -1 == responseCode {
-		responseCode = intWithDefault(params, "responseCode", -1)
-	}
-
 	responseContent := stringWithDefault(params, "response_content", "")
-	if "" == responseContent {
-		responseContent = stringWithDefault(params, "responseContent", "")
-	}
-
 	method := stringWithDefault(params, "method", "")
 	urlStr := stringWithDefault(params, "url", "")
-	if 0 == len(urlStr) {
-		return nil, errors.New("'url' is required.")
-	}
 
 	args, ok := params["arguments"]
 	if ok {
@@ -99,6 +93,7 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 	var supportBatch bool
 	var body interface{}
 	var contentType string
+	headers := map[string]interface{}{}
 
 	if "GET" != method {
 		var ok bool
@@ -132,8 +127,25 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 				body = config.Body
 				supportBatch = config.SupportBatch
-				if config.Method != "" {
+				if method == "" {
 					method = config.Method
+				}
+				if contentType == "" {
+					contentType = config.ContentType
+				}
+				if len(config.Headers) != 0 {
+					for k, v := range config.Headers {
+						headers[k] = v
+					}
+				}
+				if urlStr == "" {
+					urlStr = config.URL
+				}
+				if responseCode > 0 {
+					responseCode = config.ResponseCode
+				}
+				if responseContent == "" {
+					responseContent = config.ResponseContent
 				}
 			} else {
 				body = values
@@ -141,7 +153,6 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
-	headers := map[string]interface{}{}
 	var all = []map[string]interface{}{params}
 	if o, ok := params["attributes"]; ok && o != nil {
 		if attributes, ok := o.(map[string]interface{}); ok {
@@ -213,6 +224,17 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 	case "GET", "PUT", "POST", "DELETE", "TRACE", "HEAD", "OPTIONS", "CONNECT", "PATCH":
 	default:
 		return nil, errors.New("unsupported http method - " + method)
+	}
+
+	if urlStr == "" {
+		return nil, errors.New("'url' is required.")
+	}
+
+	if -1 == responseCode {
+		responseCode = intWithDefault(params, "responseCode", -1)
+	}
+	if "" == responseContent {
+		responseContent = stringWithDefault(params, "responseContent", "")
 	}
 
 	user := stringWithDefault(params, "username", "")
