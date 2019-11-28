@@ -267,13 +267,13 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 	}, nil
 }
 
-func (self *webHandler) logRequest() {
+func (self *webHandler) logRequest(body interface{}) {
 	log.Println("method=", self.method)
 	log.Println("url=", self.urlStr)
 	log.Println("headers=", self.headers)
 	log.Println("password=", self.password)
 	log.Println("contentType=", self.contentType)
-	log.Println("body=", self.body)
+	log.Println("body=", body)
 	log.Println("user=", self.user)
 	log.Println("phoneNumbers=", self.phoneNumbers)
 	log.Println("supportBatch=", self.supportBatch)
@@ -380,7 +380,7 @@ func (self *webHandler) perform(body interface{}) error {
 	log.Println("execute web:", self.method, self.urlStr)
 	resp, e := http.DefaultClient.Do(req)
 	if nil != e {
-		self.logRequest()
+		self.logRequest(body)
 		return e
 	}
 
@@ -409,7 +409,7 @@ func (self *webHandler) perform(body interface{}) error {
 	}
 
 	if !ok {
-		self.logRequest()
+		self.logRequest(body)
 
 		respBody, err := ioutil.ReadAll(resp.Body)
 		if 0 == len(respBody) {
@@ -420,31 +420,31 @@ func (self *webHandler) perform(body interface{}) error {
 	if "" == self.responseContent {
 		respBody, _ := ioutil.ReadAll(resp.Body)
 		log.Printf("response is %s", respBody)
-		self.logRequest()
+		self.logRequest(body)
 		return nil
 	}
 
 	if resp.ContentLength < 1024*1024 {
 		respBody, err := ioutil.ReadAll(resp.Body)
 		if 0 == len(respBody) {
-			self.logRequest()
+			self.logRequest(body)
 			return fmt.Errorf("failed to read body - %s", err)
 		}
 
 		if bytes.Contains(respBody, []byte(self.responseContent)) {
 			return nil
 		}
-		self.logRequest()
+		self.logRequest(body)
 		return errors.New("'" + self.responseContent + "' isn't exists in the response body:\r\n" + string(respBody))
 	}
 
 	matched, e := IsContains(resp.Body, self.responseContent)
 	if nil != e {
-		self.logRequest()
+		self.logRequest(body)
 		return errors.New("failed to read body - " + e.Error())
 	}
 	if !matched {
-		self.logRequest()
+		self.logRequest(body)
 		return errors.New("'" + self.responseContent + "' isn't exists in the response body.")
 	}
 	return nil
@@ -678,6 +678,8 @@ func genBody(prefix string, body, args interface{}) (interface{}, error) {
 			}
 			m[key] = a
 		}
+	default:
+		log.Print("参数不正确，类型为 %T\r\n", body)
 	}
 	return body, nil
 }
