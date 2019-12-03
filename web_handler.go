@@ -51,6 +51,7 @@ type webHandler struct {
 	failedPhoneNumbers []string
 	phoneNumbers       []string
 	supportBatch       bool
+	isWebSMS           bool
 }
 
 func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
@@ -89,8 +90,9 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("failed to merge 'url' with params, " + e.Error())
 	}
 
+	var isWebSMS = false
 	var phoneNumbers []string
-	var supportBatch bool
+	var supportBatch = true
 	var body interface{}
 	var contentType string
 	headers := map[string]interface{}{}
@@ -115,6 +117,7 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 				if websms_type == "" {
 					return nil, errors.New("body is empty")
 				}
+				isWebSMS = true
 				var err error
 				config := WebsmsTypes[websms_type]
 				phoneNumbers, err = readPhoneNumbers(params)
@@ -262,6 +265,7 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		body:            body,
 		headers:         headers,
 		args:            params,
+		isWebSMS:        isWebSMS,
 		phoneNumbers:    phoneNumbers,
 		supportBatch:    supportBatch,
 	}, nil
@@ -291,7 +295,20 @@ func (self *webHandler) UpdatePayloadObject(options map[string]interface{}) {
 }
 
 func (self *webHandler) Perform() error {
-	if self.supportBatch {
+	if !self.isWebSMS {
+		var body interface{}
+		if self.method != "GET" && self.method != "HEAD" {
+			if self.body != nil {
+				value, err := genBody("body", self.body, self.args)
+				if err != nil {
+					return err
+				}
+				body = value
+			}
+		}
+
+		return self.perform(body)
+	} else if self.supportBatch {
 		var body interface{}
 		if self.method != "GET" && self.method != "HEAD" {
 			if self.body != nil {
@@ -313,7 +330,6 @@ func (self *webHandler) Perform() error {
 
 	var lastErr error
 	for _, phone := range self.phoneNumbers {
-
 		var body interface{}
 		if self.method != "GET" && self.method != "HEAD" {
 			if self.body != nil {
