@@ -31,8 +31,14 @@ func EnableDebug() {
 	isLog = true
 }
 
+func DisableDebug() {
+	isLog = false
+}
+
 // A Client represents a client connection to an SMTP server.
 type Client struct {
+	Output io.Writer
+
 	// Text is the textproto.Conn used by the Client. It is exported to allow for
 	// clients to add extensions.
 	Text *textproto.Conn
@@ -54,9 +60,9 @@ type Client struct {
 
 // Dial returns a new Client connected to an SMTP server at addr.
 // The addr must include a port number.
-func Dial(addr string) (*Client, error) {
+func Dial(addr string, output io.Writer) (*Client, error) {
 	if isLog {
-		fmt.Println("===========", addr, "===========")
+		fprintln(output, "===========", addr, "===========")
 	}
 	host, port, _ := net.SplitHostPort(addr)
 	if port == "587" {
@@ -64,10 +70,10 @@ func Dial(addr string) (*Client, error) {
 			InsecureSkipVerify: true}
 		conn, err := tls.Dial("tcp", addr, config)
 		if err == nil {
-			client, err := NewClient(conn, host)
+			client, err := NewClient(conn, host, output)
 			if err == nil {
 				if isLog {
-					fmt.Println("connect with tls")
+					fprintln(output, "connect with tls")
 				}
 				return client, nil
 			}
@@ -78,20 +84,24 @@ func Dial(addr string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewClient(conn, host)
+	return NewClient(conn, host, output)
 }
 
 // NewClient returns a new Client using an existing connection and host as a
 // server name to be used when authenticating.
-func NewClient(conn io.ReadWriteCloser, host string) (*Client, error) {
+func NewClient(conn io.ReadWriteCloser, host string, output io.Writer) (*Client, error) {
 	text := textproto.NewConn(conn)
+
 	_, _, err := text.ReadResponse(220)
 	if err != nil {
 		text.Close()
+		if err == io.EOF {
+			return nil, errors.New("connect to mail server, but read welcome message error")
+		}
 		return nil, err
 	}
 	net.LookupHost(host)
-	c := &Client{useTLS: useTLS, Text: text, conn: conn, serverName: host, localName: "localhost"}
+	c := &Client{Output: output, useTLS: useTLS, Text: text, conn: conn, serverName: host, localName: "localhost"}
 	if noLocalHost {
 		c.localName = GetFQDN()
 	}
@@ -103,11 +113,24 @@ func NewClient(conn io.ReadWriteCloser, host string) (*Client, error) {
 	return c, nil
 }
 
+func (c *Client) println(args ...interface{}) {
+	fprintln(c.Output, args...)
+}
+
+func fprintln(output io.Writer, args ...interface{}) {
+	if output != nil {
+		fmt.Fprintln(output, args...)
+	} else {
+		fmt.Println(args...)
+	}
+}
+
 // Close closes the connection.
 func (c *Client) Close() error {
 	if isLog {
-		fmt.Println("C: CLOSED")
+		c.println("C: CLOSED")
 	}
+
 	return c.Text.Close()
 }
 
@@ -149,7 +172,7 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 	defer c.Text.EndResponse(id)
 	code, msg, err := c.Text.ReadResponse(expectCode)
 	if isLog {
-		fmt.Println("S:", code, msg, err)
+		c.println("S:", code, msg, err)
 	}
 	if err == io.EOF {
 		return code, msg, errors.New("ERROR: " + fmt.Sprintf(format, args...))
@@ -335,8 +358,8 @@ var testHookStartTLS func(*tls.Config) // nil, except for tests
 // possible, authenticates with the optional mechanism a if possible,
 // and then sends an email from address from, to addresses to, with
 // message msg.
-func SendMail(addr string, a Auth, from string, to []string, msg []byte, useFQDN, useTLS bool) error {
-	c, err := Dial(addr)
+func SendMail(addr string, a Auth, from string, to []string, msg []byte, useFQDN, useTLS bool, output io.Writer) error {
+	c, err := Dial(addr, output)
 	if err != nil {
 		return err
 	}
