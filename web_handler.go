@@ -695,7 +695,7 @@ func genBody(prefix string, body, args interface{}) (interface{}, error) {
 			m[key] = a
 		}
 	default:
-		log.Print("参数不正确，类型为 %T\r\n", body)
+		log.Printf("参数不正确，类型为 %T\r\n", body)
 	}
 	return body, nil
 }

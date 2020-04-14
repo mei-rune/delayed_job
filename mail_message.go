@@ -153,11 +153,9 @@ func (self *MailMessage) Send(smtpServer string, auth smtp.Auth, useFQDN, useTLS
 		return e
 	}
 
-	//fmt.Println(string(self.Bytes()))
-
-	e = smtp.SendMail(smtpServer, auth, from, to, body, useFQDN, useTLS)
+	e = smtp.SendMail(smtpServer, auth, from, to, body, useFQDN, useTLS, nil)
 	if nil != e {
-		err := smtp.SendMail(smtpServer, nil, from, to, body, useFQDN, useTLS)
+		err := smtp.SendMail(smtpServer, nil, from, to, body, useFQDN, useTLS, nil)
 		if nil == err {
 			return nil
 		}

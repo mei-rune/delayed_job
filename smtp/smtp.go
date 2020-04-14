@@ -23,17 +23,13 @@ import (
 )
 
 var skipAuthError = os.Getenv("smtp_skip_auth_error") == "true"
-var isLog = os.Getenv("smtp_log_enabled") == "true"
+
+// var isLog = os.Getenv("smtp_log_enabled") == "true"
 var useTLS = os.Getenv("smtp_use_tls") == "true" || os.Getenv("smtp_use_tls") == ""
 var noLocalHost = os.Getenv("smtp_use_fqdn") == "true"
 
-func EnableDebug() {
-	isLog = true
-}
-
-func DisableDebug() {
-	isLog = false
-}
+func EnableDebug()  {}
+func DisableDebug() {}
 
 // A Client represents a client connection to an SMTP server.
 type Client struct {
@@ -61,9 +57,8 @@ type Client struct {
 // Dial returns a new Client connected to an SMTP server at addr.
 // The addr must include a port number.
 func Dial(addr string, output io.Writer) (*Client, error) {
-	if isLog {
-		fprintln(output, "===========", addr, "===========")
-	}
+	fprintln(output, "===========", addr, "===========")
+
 	host, port, _ := net.SplitHostPort(addr)
 	if port == "587" {
 		config := &tls.Config{ServerName: "",
@@ -72,9 +67,7 @@ func Dial(addr string, output io.Writer) (*Client, error) {
 		if err == nil {
 			client, err := NewClient(conn, host, output)
 			if err == nil {
-				if isLog {
-					fprintln(output, "connect with tls")
-				}
+				fprintln(output, "connect with tls")
 				return client, nil
 			}
 		}
@@ -127,9 +120,7 @@ func fprintln(output io.Writer, args ...interface{}) {
 
 // Close closes the connection.
 func (c *Client) Close() error {
-	if isLog {
-		c.println("C: CLOSED")
-	}
+	c.println("C: CLOSED")
 
 	return c.Text.Close()
 }
@@ -161,9 +152,8 @@ func (c *Client) Hello(localName string) error {
 
 // cmd is a convenience function that sends a command and returns the response
 func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, string, error) {
-	if isLog {
-		fmt.Printf("C: "+format+"\r\n", args...)
-	}
+	c.println("C:", fmt.Sprintf(format, args...))
+
 	id, err := c.Text.Cmd(format, args...)
 	if err != nil {
 		return 0, "", err
@@ -171,9 +161,7 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 	c.Text.StartResponse(id)
 	defer c.Text.EndResponse(id)
 	code, msg, err := c.Text.ReadResponse(expectCode)
-	if isLog {
-		c.println("S:", code, msg, err)
-	}
+	c.println("S:", code, msg, err)
 	if err == io.EOF {
 		return code, msg, errors.New("ERROR: " + fmt.Sprintf(format, args...))
 	}
