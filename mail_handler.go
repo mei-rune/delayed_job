@@ -43,16 +43,7 @@ var (
 )
 
 func useTls() smtp.TLSMethod {
-	s := strings.TrimSpace(strings.ToLower(*default_mail_useTLS))
-
-	switch s {
-	case "false", "never":
-		return smtp.TlsNever
-	case "always":
-		return smtp.TlsConnect
-	}
-
-	return smtp.TlsAuto
+	return smtp.UseTLS(*default_mail_useTLS)
 }
 
 type mailHandler struct {

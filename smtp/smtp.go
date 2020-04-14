@@ -27,6 +27,26 @@ var skipAuthError = os.Getenv("smtp_skip_auth_error") == "true"
 func EnableDebug()  {}
 func DisableDebug() {}
 
+type TLSMethod int
+
+const (
+	TlsAuto    TLSMethod = 0
+	TlsConnect TLSMethod = 1
+	TlsNever   TLSMethod = 1
+)
+
+func UseTLS(s string) TLSMethod {
+	s = strings.TrimSpace(strings.ToLower(s))
+	switch s {
+	case "false", "never":
+		return TlsNever
+	case "always":
+		return TlsConnect
+	}
+
+	return TlsAuto
+}
+
 // A Client represents a client connection to an SMTP server.
 type Client struct {
 	Output io.Writer
@@ -49,14 +69,6 @@ type Client struct {
 	didHello   bool   // whether we've said HELO/EHLO
 	helloError error  // the error from the hello
 }
-
-type TLSMethod int
-
-const (
-	TlsAuto    TLSMethod = 0
-	TlsConnect TLSMethod = 1
-	TlsNever   TLSMethod = 1
-)
 
 // Dial returns a new Client connected to an SMTP server at addr.
 // The addr must include a port number.
