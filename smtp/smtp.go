@@ -24,10 +24,6 @@ import (
 
 var skipAuthError = os.Getenv("smtp_skip_auth_error") == "true"
 
-// var isLog = os.Getenv("smtp_log_enabled") == "true"
-var useTLS = os.Getenv("smtp_use_tls") == "true" || os.Getenv("smtp_use_tls") == ""
-var noLocalHost = os.Getenv("smtp_use_fqdn") == "true"
-
 func EnableDebug()  {}
 func DisableDebug() {}
 
@@ -43,7 +39,7 @@ type Client struct {
 	conn io.ReadWriteCloser
 	// whether the Client is using TLS
 	tls        bool
-	useTLS     bool
+	useTLS     TLSMethod
 	serverName string
 	// map of supported extensions
 	ext map[string]string
@@ -54,20 +50,30 @@ type Client struct {
 	helloError error  // the error from the hello
 }
 
+type TLSMethod int
+
+const (
+	TlsAuto    TLSMethod = 0
+	TlsConnect TLSMethod = 1
+	TlsNever   TLSMethod = 1
+)
+
 // Dial returns a new Client connected to an SMTP server at addr.
 // The addr must include a port number.
-func Dial(addr string, output io.Writer) (*Client, error) {
+func Dial(addr string, output io.Writer, useTLS TLSMethod, useFQDN bool) (*Client, error) {
 	fprintln(output, "===========", addr, "===========")
 
 	host, port, _ := net.SplitHostPort(addr)
-	if port == "587" {
+	if useTLS == TlsConnect || (useTLS == TlsAuto && port == "587") {
 		config := &tls.Config{ServerName: "",
 			InsecureSkipVerify: true}
 		conn, err := tls.Dial("tcp", addr, config)
 		if err == nil {
-			client, err := NewClient(conn, host, output)
+			client, err := NewClient(conn, host, output, useFQDN)
 			if err == nil {
 				fprintln(output, "connect with tls")
+				client.useTLS = useTLS
+				client.tls = true
 				return client, nil
 			}
 		}
@@ -77,12 +83,16 @@ func Dial(addr string, output io.Writer) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewClient(conn, host, output)
+	client, err := NewClient(conn, host, output, useFQDN)
+	if err == nil {
+		client.useTLS = useTLS
+	}
+	return client, err
 }
 
 // NewClient returns a new Client using an existing connection and host as a
 // server name to be used when authenticating.
-func NewClient(conn io.ReadWriteCloser, host string, output io.Writer) (*Client, error) {
+func NewClient(conn io.ReadWriteCloser, host string, output io.Writer, useFQDN bool) (*Client, error) {
 	text := textproto.NewConn(conn)
 
 	_, _, err := text.ReadResponse(220)
@@ -94,15 +104,12 @@ func NewClient(conn io.ReadWriteCloser, host string, output io.Writer) (*Client,
 		return nil, err
 	}
 	net.LookupHost(host)
-	c := &Client{Output: output, useTLS: useTLS, Text: text, conn: conn, serverName: host, localName: "localhost"}
-	if noLocalHost {
+	c := &Client{Output: output, Text: text, conn: conn, serverName: host, localName: "localhost"}
+	if useFQDN {
 		c.localName = GetFQDN()
 	}
 
 	_, c.tls = conn.(*tls.Conn)
-	if c.tls {
-		c.useTLS = true
-	}
 	return c, nil
 }
 
@@ -156,6 +163,9 @@ func (c *Client) cmd(expectCode int, format string, args ...interface{}) (int, s
 
 	id, err := c.Text.Cmd(format, args...)
 	if err != nil {
+		if err == io.EOF {
+			return 0, "", errors.New("ERROR: " + fmt.Sprintf(format, args...))
+		}
 		return 0, "", err
 	}
 	c.Text.StartResponse(id)
@@ -206,6 +216,10 @@ func (c *Client) ehlo() error {
 // StartTLS sends the STARTTLS command and encrypts all further communication.
 // Only servers that advertise the STARTTLS extension support this function.
 func (c *Client) StartTLS(config *tls.Config) error {
+	if c.tls {
+		return errors.New("conn is already tls")
+	}
+
 	conn, ok := c.conn.(net.Conn)
 	if !ok {
 		return nil
@@ -346,25 +360,18 @@ var testHookStartTLS func(*tls.Config) // nil, except for tests
 // possible, authenticates with the optional mechanism a if possible,
 // and then sends an email from address from, to addresses to, with
 // message msg.
-func SendMail(addr string, a Auth, from string, to []string, msg []byte, useFQDN, useTLS bool, output io.Writer) error {
-	c, err := Dial(addr, output)
+func SendMail(addr string, a Auth, from string, to []string, msg []byte, useTLS TLSMethod, useFQDN bool, output io.Writer) error {
+	c, err := Dial(addr, output, useTLS, useFQDN)
 	if err != nil {
 		return err
 	}
 	defer c.Close()
 
-	if useFQDN {
-		c.localName = GetFQDN()
-	}
-	if useTLS {
-		c.useTLS = useTLS
-	}
-
 	if err = c.hello(); err != nil {
 		return err
 	}
 
-	if c.useTLS && !c.tls {
+	if c.useTLS == TlsAuto && !c.tls {
 		if ok, _ := c.Extension("STARTTLS"); ok {
 			config := &tls.Config{ServerName: c.serverName,
 				InsecureSkipVerify: true}

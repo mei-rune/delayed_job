@@ -94,6 +94,9 @@ func Main(run_mode string, runHttp func(http.Handler)) error {
 		}
 	}
 
+	fmt.Println("useTLS=", *default_mail_useTLS)
+	fmt.Println("useFQDN=", *default_mail_useFQDN)
+
 	if !fileExists(gammu_config) {
 		for _, s := range []string{"data/conf/gammu.conf",
 			"data/etc/gammu.conf",
@@ -118,30 +121,30 @@ func Main(run_mode string, runHttp func(http.Handler)) error {
 		switch *db_type {
 		case MSSQL:
 			script := `if object_id('dbo.` + *table_name + `', 'U') is not null
-BEGIN 
-			 DROP TABLE ` + *table_name + `; 
-END
-if object_id('dbo.` + *table_name + `', 'U') is null
-BEGIN
- CREATE TABLE dbo.` + *table_name + ` (
-		  id                INT IDENTITY(1,1)  PRIMARY KEY,
-		  priority          int DEFAULT 0,
-		  repeat_count      int DEFAULT 0,
-		  repeat_interval   varchar(20) DEFAULT '',
-		  attempts          int DEFAULT 0,
-		  max_attempts      int DEFAULT 0,
-		  queue             varchar(200),
-		  handler           text  NOT NULL,
-		  handler_id        varchar(200),
-		  last_error        varchar(2000),
-		  run_at            DATETIME2,
-		  locked_at         DATETIME2,
-		  failed_at         DATETIME2,
-		  locked_by         varchar(200),
-		  created_at        DATETIME2 NOT NULL,
-		  updated_at        DATETIME2 NOT NULL
-		); 
-END`
+				BEGIN 
+							 DROP TABLE ` + *table_name + `; 
+				END
+				if object_id('dbo.` + *table_name + `', 'U') is null
+				BEGIN
+				 CREATE TABLE dbo.` + *table_name + ` (
+						  id                INT IDENTITY(1,1)  PRIMARY KEY,
+						  priority          int DEFAULT 0,
+						  repeat_count      int DEFAULT 0,
+						  repeat_interval   varchar(20) DEFAULT '',
+						  attempts          int DEFAULT 0,
+						  max_attempts      int DEFAULT 0,
+						  queue             varchar(200),
+						  handler           text  NOT NULL,
+						  handler_id        varchar(200),
+						  last_error        varchar(2000),
+						  run_at            DATETIME2,
+						  locked_at         DATETIME2,
+						  failed_at         DATETIME2,
+						  locked_by         varchar(200),
+						  created_at        DATETIME2 NOT NULL,
+						  updated_at        DATETIME2 NOT NULL
+						); 
+				END`
 			fmt.Println(script)
 			_, e = backend.db.Exec(script)
 			if nil != e {
@@ -209,7 +212,6 @@ END`
 					return i18n(ORACLE, "oci8", e)
 				}
 			}
-
 		default:
 			for _, script := range []string{`DROP TABLE IF EXISTS ` + *table_name + `;`,
 				`CREATE TABLE IF NOT EXISTS ` + *table_name + ` (

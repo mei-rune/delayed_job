@@ -50,8 +50,8 @@ func TestMailMessageTextAndHtml(t *testing.T) {
 		*default_mail_auth_password,
 		*default_mail_auth_host,
 		tryNTLM),
-		*default_mail_useFQDN,
-		*default_mail_useTLS); nil != e {
+		useTls(),
+		*default_mail_useFQDN); nil != e {
 		t.Error(e)
 	}
 }

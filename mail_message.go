@@ -119,7 +119,7 @@ func (self *MailMessage) Bytes() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (self *MailMessage) Send(smtpServer string, auth smtp.Auth, useFQDN, useTLS bool) error {
+func (self *MailMessage) Send(smtpServer string, auth smtp.Auth, useTLS smtp.TLSMethod, useFQDN bool) error {
 	if nil == self.To || 0 == len(self.To) {
 		return errors.New("'to_address' is missing")
 	}
@@ -153,9 +153,9 @@ func (self *MailMessage) Send(smtpServer string, auth smtp.Auth, useFQDN, useTLS
 		return e
 	}
 
-	e = smtp.SendMail(smtpServer, auth, from, to, body, useFQDN, useTLS, nil)
+	e = smtp.SendMail(smtpServer, auth, from, to, body, useTLS, useFQDN, nil)
 	if nil != e {
-		err := smtp.SendMail(smtpServer, nil, from, to, body, useFQDN, useTLS, nil)
+		err := smtp.SendMail(smtpServer, nil, from, to, body, useTLS, useFQDN, nil)
 		if nil == err {
 			return nil
 		}

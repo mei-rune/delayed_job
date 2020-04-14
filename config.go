@@ -95,6 +95,7 @@ func assignFlagSet(prefix string, res map[string]interface{}, flagSet *flag.Flag
 		if nil != err {
 			return err
 		}
+		log.Println("set", nm, "=", v)
 	}
 	return nil
 }
