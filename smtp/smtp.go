@@ -70,9 +70,13 @@ type Client struct {
 	helloError error  // the error from the hello
 }
 
+func (c *Client) IsTLS() bool {
+	return c.tls
+}
+
 // Dial returns a new Client connected to an SMTP server at addr.
 // The addr must include a port number.
-func Dial(addr string, output io.Writer, useTLS TLSMethod, useFQDN bool) (*Client, error) {
+func Dial(addr string, useTLS TLSMethod, useFQDN bool, output io.Writer) (*Client, error) {
 	fprintln(output, "===========", addr, "===========")
 
 	host, port, _ := net.SplitHostPort(addr)
@@ -373,7 +377,7 @@ var testHookStartTLS func(*tls.Config) // nil, except for tests
 // and then sends an email from address from, to addresses to, with
 // message msg.
 func SendMail(addr string, a Auth, from string, to []string, msg []byte, useTLS TLSMethod, useFQDN bool, output io.Writer) error {
-	c, err := Dial(addr, output, useTLS, useFQDN)
+	c, err := Dial(addr, useTLS, useFQDN, output)
 	if err != nil {
 		return err
 	}
