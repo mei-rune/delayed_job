@@ -138,6 +138,11 @@ func (self *smsHandler) UpdatePayloadObject(options map[string]interface{}) {
 }
 
 func (self *smsHandler) Perform() error {
+	if !smsLimiter.CanSend() {
+		log.Println("超过限制不能再发了")
+		return nil
+	}
+
 	var phone_numbers []string
 	var last error
 	for _, phone := range self.phone_numbers {
@@ -164,6 +169,7 @@ func (self *smsHandler) Perform() error {
 			last = e
 			continue
 		}
+		smsLimiter.Add(1)
 	}
 	self.failed_phone_numbers = phone_numbers
 	return last
