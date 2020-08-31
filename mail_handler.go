@@ -345,12 +345,12 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 		if ar, ok := args.([]interface{}); ok {
 			for _, a := range ar {
 				var nm, file string
-				var is_removed bool
+				var isRemoved bool
 
 				if param, ok := a.(map[string]interface{}); ok {
 					nm = stringWithDefault(param, "name", "")
 					file = stringWithDefault(param, "file", "")
-					is_removed = boolWithDefault(param, "is_removed", false)
+					isRemoved = boolWithDefault(param, "is_removed", false)
 				} else {
 					file = fmt.Sprint(a)
 					nm = filepath.Base(file)
@@ -360,11 +360,15 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 					continue
 				}
 
+				if strings.HasPrefix(file, "file:///") {
+					file = strings.TrimPrefix(file, "file:///")
+				}
+
 				if "" == nm {
 					nm = filepath.Base(file)
 				}
 
-				if is_removed {
+				if isRemoved {
 					removeFiles = append(removeFiles, file)
 				}
 
