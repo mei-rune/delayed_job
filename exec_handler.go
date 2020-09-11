@@ -74,15 +74,32 @@ func newExecHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
-	arguments, e := shellwords.Split(command)
-	if nil != e {
-		return nil, errors.New("split shell command failed, " + e.Error())
+	var arguments []string
+	v, ok := params["command_arguments"]
+	if ok {
+		switch values := v.(type) {
+		case []interface{}:
+			arguments = make([]string, len(values))
+			for i, s := range values {
+				arguments[i] = fmt.Sprint(s)
+			}
+		case []string:
+			arguments = values
+		}
+	} else {
+		var e error
+		arguments, e = shellwords.Split(command)
+		if nil != e {
+			return nil, errors.New("split shell command failed, " + e.Error())
+		}
+		command = arguments[0]
+		arguments = arguments[1:]
 	}
 
 	return &execHandler{work_directory: work_directory,
 		prompt:       prompt,
-		command:      arguments[0],
-		arguments:    arguments[1:],
+		command:      command,
+		arguments:    arguments,
 		environments: environments}, nil
 }
 
