@@ -16,7 +16,7 @@ install:
   - go get gopkg.in/chanxuehong/wechat.v1
   - go get github.com/rakyll/statik
   - go get github.com/chanxuehong/util/security
-  - go get github.com/ThomsonReutersEikon/go-ntlm/ntlm
+  - go get github.com/git-lfs/go-ntlm/ntlm
   - go get github.com/kardianos/osext
   
 services:

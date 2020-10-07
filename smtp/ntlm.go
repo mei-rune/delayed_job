@@ -12,7 +12,7 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	"github.com/ThomsonReutersEikon/go-ntlm/ntlm"
+	"github.com/git-lfs/go-ntlm/ntlm"
 	"golang.org/x/crypto/md4"
 )
 
