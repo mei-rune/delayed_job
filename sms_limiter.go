@@ -59,7 +59,7 @@ func (smsLimiter *SmsLimiter) CanSend() bool {
 	year := ts.Year()
 	day := int32(year)*10000 + int32(ts.YearDay())
 
-	if !smsLimiter.canSendByDay(day) {
+	if smsLimiter.dayLimit > 0 && !smsLimiter.canSendByDay(day) {
 		return false
 	}
 
