@@ -271,7 +271,7 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 	}, nil
 }
 
-func (self *webHandler) logRequest(body interface{}) {
+func (self *webHandler) logRequest(body interface{}, response ...[]byte) {
 	log.Println("method=", self.method)
 	log.Println("url=", self.urlStr)
 	log.Println("headers=", self.headers)
@@ -281,6 +281,19 @@ func (self *webHandler) logRequest(body interface{}) {
 	log.Println("user=", self.user)
 	log.Println("phoneNumbers=", self.phoneNumbers)
 	log.Println("supportBatch=", self.supportBatch)
+	if len(response) > 0 {
+		log.Println("response=", string(response[0]))
+
+		responseBytes := response[0]
+		if bytes.HasPrefix(responseBytes, []byte("info=")) {
+			responseBytes = bytes.TrimPrefix(responseBytes, []byte("info="))
+		}
+		dst := make([]byte, len(responseBytes))
+		n, err := base64.StdEncoding.Decode(dst, responseBytes)
+		if err == nil {
+			log.Println("response decoded=", string(dst[:n]))
+		}
+	}
 }
 
 func (self *webHandler) UpdatePayloadObject(options map[string]interface{}) {
@@ -450,7 +463,7 @@ func (self *webHandler) perform(body interface{}) error {
 		if bytes.Contains(respBody, []byte(self.responseContent)) {
 			return nil
 		}
-		self.logRequest(body)
+		self.logRequest(body, respBody)
 		return errors.New("'" + self.responseContent + "' isn't exists in the response body:\r\n" + string(respBody))
 	}
 
