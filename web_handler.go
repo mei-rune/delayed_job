@@ -208,11 +208,15 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 			kvs := strings.SplitN(line, ":", 2)
 			if len(kvs) != 2 {
-				continue
+				kvs = strings.SplitN(line, "=", 2)
+				if len(kvs) != 2 {
+					continue
+				}
 			}
 			k := strings.TrimSpace(kvs[0])
 			v := strings.TrimSpace(kvs[1])
 			if k == "" || v == "" {
+				fmt.Println("请检一下，是不是换行了")
 				continue
 			}
 
@@ -622,9 +626,14 @@ var Funcs = template.FuncMap{
 		_, ok := v[key]
 		return ok
 	},
-	"toLower": strings.ToLower,
-	"toUpper": strings.ToUpper,
-	"toTitle": strings.ToTitle,
+	"toLower":    strings.ToLower,
+	"toUpper":    strings.ToUpper,
+	"toTitle":    strings.ToTitle,
+	"trimPrefix": strings.TrimPrefix,
+	"trimSuffix": strings.TrimSuffix,
+	"trimSpace":  strings.TrimSpace,
+	"trimLeft":   strings.TrimLeft,
+	"trimRight":  strings.TrimRight,
 	"replace": func(old_s, new_s, content string) string {
 		return strings.Replace(content, old_s, new_s, -1)
 	},
