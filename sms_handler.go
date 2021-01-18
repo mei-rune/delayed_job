@@ -171,7 +171,10 @@ func (self *smsHandler) Perform() error {
 			last = e
 			continue
 		}
-		smsLimiter.Add(1)
+
+		if smsLimiter != nil {
+			smsLimiter.Add(1)
+		}
 	}
 	self.failed_phone_numbers = phone_numbers
 	return last
