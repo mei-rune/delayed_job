@@ -40,7 +40,7 @@ func UseTLS(s string) TLSMethod {
 	switch s {
 	case "false", "never":
 		return TlsNever
-	case "always":
+	case "true", "always":
 		return TlsConnect
 	}
 
