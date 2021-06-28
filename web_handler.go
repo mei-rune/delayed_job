@@ -13,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"text/template"
@@ -646,6 +647,21 @@ var Funcs = template.FuncMap{
 		}
 		return newContent
 	},
+	"default": func(values ...interface{}) interface{} {
+		for _, value := range values[:len(values)-1] {
+			if value == nil {
+				continue
+			}
+
+			if b, ok := value.(bool); ok {
+				return b
+			}
+			if !IsZero(reflect.ValueOf(value)) {
+				return value
+			}
+		}
+		return values[len(values)-1]
+	},
 }
 
 func genText(content string, args interface{}) (string, error) {
@@ -746,4 +762,27 @@ func toUrlEncoded(body interface{}, prefix string, queryParams url.Values) bool 
 	default:
 		return false
 	}
+}
+
+func IsZero(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+		return v.Len() == 0
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return v.Float() == 0
+	case reflect.Interface, reflect.Ptr:
+		return v.IsNil()
+	}
+	return false
+}
+
+func IsZeroValue(value interface{}) bool {
+	v := reflect.ValueOf(value)
+	return IsZero(v)
 }
