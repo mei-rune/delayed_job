@@ -16,7 +16,7 @@ import (
 	"github.com/runner-mei/delayed_job/ns20"
 )
 
-var smsLogger = log.Default()
+var smsLogger *log.Logger
 var gammu_config string
 var gammu string
 var gammu_with_smsd = flag.Bool("with_smsd", false, "send sms by smsd")

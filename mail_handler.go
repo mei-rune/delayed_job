@@ -22,7 +22,7 @@ import (
 
 var (
 
-  mailLogger = log.Default()
+  mailLogger *log.Logger
 	tryNTLM                       = os.Getenv("try_ntlm") == "true"
 	BlatExecute                   = os.Getenv("blat_path")
 	mailServerCharset             = flag.String("mail.auth.server_charset", "", "")
