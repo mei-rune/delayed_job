@@ -21,6 +21,8 @@ import (
 )
 
 var (
+
+  mailLogger = log.Default()
 	tryNTLM                       = os.Getenv("try_ntlm") == "true"
 	BlatExecute                   = os.Getenv("blat_path")
 	mailServerCharset             = flag.String("mail.auth.server_charset", "", "")
@@ -41,6 +43,10 @@ var (
 	}
 	GetUserMail func(id string) (string, error)
 )
+
+func SetMailLogger(logger *log.Logger) {
+	mailLogger = logger
+}
 
 func useTls() smtp.TLSMethod {
 	return smtp.UseTLS(*default_mail_useTLS)
@@ -474,6 +480,14 @@ func (self *mailHandler) Perform() error {
 		// if !bytes.Contains(output, []byte(excepted)) {
 		// 	return errors.New(string(output))
 		// }
+
+		if mailLogger != nil {
+			if self.message.ContentText == "" {
+				mailLogger.Println("[mail]", self.message.To, self.message.ContentHtml)
+			} else {
+				mailLogger.Println("[mail]", self.message.To, self.message.ContentText)
+			}
+		}
 		return nil
 	}
 
@@ -538,6 +552,14 @@ func (self *mailHandler) Perform() error {
 			}
 		}
 		return e
+	}
+
+	if mailLogger != nil {
+		if self.message.ContentText == "" {
+			mailLogger.Println("[mail]", self.message.To, self.message.ContentHtml)
+		} else {
+			mailLogger.Println("[mail]", self.message.To, self.message.ContentText)
+		}
 	}
 	return nil
 }

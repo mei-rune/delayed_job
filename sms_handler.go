@@ -16,6 +16,7 @@ import (
 	"github.com/runner-mei/delayed_job/ns20"
 )
 
+var smsLogger = log.Default()
 var gammu_config string
 var gammu string
 var gammu_with_smsd = flag.Bool("with_smsd", false, "send sms by smsd")
@@ -24,6 +25,12 @@ var smsMethod string
 var smsNS20Address string
 var smsNS20Port string
 var smsNS20Timeout int
+
+
+func SetSMSLogger(logger *log.Logger) {
+	smsLogger = logger
+}
+
 
 func init() {
 	if runtime.GOOS == "windows" {
@@ -172,6 +179,9 @@ func (self *smsHandler) Perform() error {
 			continue
 		}
 
+		if smsLogger != nil {
+			smsLogger.Println("[sms]", phone, self.content)
+		}
 		if smsLimiter != nil {
 			smsLimiter.Add(1)
 		}
