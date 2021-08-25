@@ -314,6 +314,16 @@ func (self *Job) rescheduleIt(next_time time.Time, err string) error {
 	}
 
 	e = self.backend.update(self.id, changed)
+	if e != nil {
+		// 更新数据库出错，一般是字符问题， 这时要注意一下了
+		e = self.backend.update(self.id, map[string]interface{}{
+			"@attempts":  self.attempts,
+			"@run_at":    next_time,
+			"@locked_at": nil,
+			"@locked_by": nil,
+			"@last_error": "update fail",
+		})
+	}
 	self.changed_attributes = nil
 	return e
 }
