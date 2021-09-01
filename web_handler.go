@@ -683,9 +683,15 @@ func genText(content string, args interface{}) (string, error) {
 		if _, ok := m["content"]; !ok {
 			m["content"] = "this_is_test_message"
 		}
+		if _, ok := m["triggered_at"]; !ok {
+			m["triggered_at"] = time.Now()
+		}
 	case map[string]string:
 		if _, ok := m["content"]; !ok {
 			m["content"] = "this_is_test_message"
+		}
+		if _, ok := m["triggered_at"]; !ok {
+			m["triggered_at"] = time.Now().Format(time.RFC3339)
 		}
 	}
 
