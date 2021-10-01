@@ -316,6 +316,12 @@ func (self *execHandler) Perform() error {
 			if strings.Contains(scanner.Text(), self.prompt) {
 				return
 			}
+
+			if smsLogger != nil {
+				if bytes.Contains(scanner.Bytes(), []byte("[sms]")) {
+					smsLogger.Println(string(scanner.Bytes()))
+				}
+			}
 			buffer.Write(scanner.Bytes())
 
 			if buffer.Len() > 10*1024*1024 {
