@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/fd/go-shellwords/shellwords"
-	"github.com/garyburd/redigo/redis"
+	"github.com/gomodule/redigo/redis"
 )
 
 type redisHandler struct {
