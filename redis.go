@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/garyburd/redigo/redis"
+	"github.com/gomodule/redigo/redis"
 )
 
 var redisAddress = flag.String("redis.address", "127.0.0.1:36379", "the address of redis")

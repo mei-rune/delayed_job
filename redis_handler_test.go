@@ -1,10 +1,11 @@
 package delayed_job
 
 import (
-	"github.com/garyburd/redigo/redis"
 	"net"
 	"strings"
 	"testing"
+	
+	"github.com/gomodule/redigo/redis"
 )
 
 func TestRedisHandlerParameterError(t *testing.T) {
