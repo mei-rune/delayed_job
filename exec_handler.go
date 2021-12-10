@@ -304,7 +304,7 @@ func (self *execHandler) Perform() error {
 	cmd.Stdout = pw
 	cmd.Stderr = pw
 
-	var scan_error error
+	var scanError error
 	var wait sync.WaitGroup
 	wait.Add(1)
 	go func() {
@@ -314,13 +314,18 @@ func (self *execHandler) Perform() error {
 		scanner := bufio.NewScanner(pr)
 		for scanner.Scan() {
 			if strings.Contains(scanner.Text(), self.prompt) {
+				fmt.Println("[smslogger ok]", string(scanner.Bytes()))
 				return
 			}
 
 			if smsLogger != nil {
 				if bytes.Contains(scanner.Bytes(), []byte("[sms]")) {
 					smsLogger.Println(string(scanner.Bytes()))
+				} else {
+					fmt.Println("[smslogger mismatch]", string(scanner.Bytes()))
 				}
+			} else {
+				fmt.Println("[smslogger null]", string(scanner.Bytes()))
 			}
 			buffer.Write(scanner.Bytes())
 
@@ -331,7 +336,7 @@ func (self *execHandler) Perform() error {
 		}
 		buffer.WriteString("\r\n ************************* prompt `" + self.prompt + "` not found *************************\r\n")
 	end:
-		scan_error = errors.New(buffer.String())
+		scanError = errors.New(buffer.String())
 	}()
 
 	timer := time.AfterFunc(10*time.Minute, func() {
@@ -345,13 +350,13 @@ func (self *execHandler) Perform() error {
 	pr.Close()
 	wait.Wait()
 	if nil != err {
-		if nil != scan_error {
-			return errors.New("start cmd failed, " + err.Error() + "\r\n" + scan_error.Error())
+		if nil != scanError {
+			return errors.New("start cmd failed, " + err.Error() + "\r\n" + scanError.Error())
 		}
 		return errors.New("start cmd failed, " + err.Error())
 	}
 
-	return scan_error
+	return scanError
 }
 
 func init() {

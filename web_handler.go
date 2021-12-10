@@ -154,6 +154,14 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 			} else {
 				body = values
 			}
+		} else {
+			if s, ok := body.(string); ok {
+				s, e = genText(s, args)
+				if nil != e {
+					return nil, errors.New("failed to merge 'body' with params, " + e.Error())
+				}
+				body = s
+			}
 		}
 	}
 
