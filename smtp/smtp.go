@@ -32,7 +32,7 @@ type TLSMethod int
 const (
 	TlsAuto    TLSMethod = 0
 	TlsConnect TLSMethod = 1
-	TlsNever   TLSMethod = 1
+	TlsNever   TLSMethod = 2
 )
 
 func UseTLS(s string) TLSMethod {
