@@ -27,6 +27,7 @@ const (
 	ORACLE     = 4
 	DB2        = 5
 	SYBASE     = 6
+	DM         = 7
 )
 
 var (
@@ -53,6 +54,8 @@ func preprocessArgs(args interface{}) interface{} {
 
 func DbType(drv string) int {
 	switch drv {
+	case "dm":
+		return DM
 	case "postgres":
 		return POSTGRESQL
 	case "mysql", "mymysql":

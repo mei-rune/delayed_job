@@ -175,7 +175,7 @@ func Main(run_mode string, runHttp func(http.Handler)) error {
 			if nil != e {
 				return e
 			}
-		case ORACLE:
+		case ORACLE, DM:
 			for _, script := range []string{`BEGIN     EXECUTE IMMEDIATE 'DROP SEQUENCE ` + *table_name + `_sequence_id';     EXCEPTION WHEN OTHERS THEN NULL; END;`,
 				`CREATE SEQUENCE ` + *table_name + `_sequence_id START WITH 1 INCREMENT BY 1 CACHE 100`,
 				`BEGIN EXECUTE IMMEDIATE 'DROP TABLE ` + *table_name + `';     EXCEPTION WHEN OTHERS THEN NULL; END;`,
