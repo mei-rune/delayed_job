@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/garyburd/redigo/redis"
+	"github.com/gomodule/redigo/redis"
 )
 
 func clearRedis(t *testing.T, c redis.Conn, key string) {

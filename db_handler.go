@@ -247,18 +247,18 @@ func newDbHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("params is nil")
 	}
 
-	drv := stringWithDefault(params, "drv", *db_drv)
+	drv := stringWithDefault(params, "drv", GetTestConnDrv())
 	if 0 == len(drv) {
-		drv = *db_drv
+		drv = GetTestConnDrv()
 
 		if 0 == len(drv) {
 			return nil, errors.New("'drv' is required")
 		}
 	}
 
-	urlStr := stringWithDefault(params, "url", *db_url)
+	urlStr := stringWithDefault(params, "url", GetTestConnURL())
 	if 0 == len(urlStr) {
-		urlStr = *db_url
+		urlStr = GetTestConnURL()
 		if 0 == len(urlStr) {
 			return nil, errors.New("'url' is required")
 		}

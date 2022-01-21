@@ -2,20 +2,23 @@ package delayed_job
 
 import (
 	"database/sql"
+	"flag"
 	"math"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
-)
 
+	_ "gitee.com/runner.mei/dm" // 达梦
+)
 
 var (
 	PostgreSQLUrl = "host=127.0.0.1 user=golang password=123456 dbname=golang sslmode=disable"
 	MySQLUrl      = "golang:123456@tcp(localhost:3306)/golang?autocommit=true&parseTime=true&multiStatements=true"
 	MsSqlUrl      = "sqlserver://golang:123456@127.0.0.1?database=golang&connection+timeout=30"
-	DMSqlUrl      = "dm://" + os.Getenv("dm_username") + ":" + os.Getenv("dm_password") + "@" + os.Getenv("dm_host")+"?noConvertToHex=true"
+	DMSqlUrl      = "dm://" + os.Getenv("dm_username") + ":" + os.Getenv("dm_password") + "@" + os.Getenv("dm_host") + "?noConvertToHex=true"
 )
 
 var (
@@ -30,9 +33,12 @@ func init() {
 	//flag.StringVar(&TestConnURL, "dbURL", "sqlserver://golang:123456@127.0.0.1?database=golang&connection+timeout=30", "")
 }
 
+func GetTestConnDrv() string {
+	return *db_drv
+}
 
 func GetTestConnURL() string {
-	if TestConnURL == "" {
+	if *db_url == "" {
 		switch TestDrv {
 		case "postgres", "":
 			return PostgreSQLUrl
@@ -45,7 +51,7 @@ func GetTestConnURL() string {
 		}
 	}
 
-	return TestConnURL
+	return *db_url
 }
 
 func backendTest(t *testing.T, cb func(backend *dbBackend)) {
@@ -60,7 +66,7 @@ func backendTest(t *testing.T, cb func(backend *dbBackend)) {
 		return
 	}
 
-	backend, e := newBackend(*db_drv, *db_url, nil)
+	backend, e := newBackend(GetTestConnDrv(), GetTestConnURL(), nil)
 	if nil != e {
 		t.Error(e)
 		return

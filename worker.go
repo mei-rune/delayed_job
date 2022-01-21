@@ -71,7 +71,7 @@ type worker struct {
 
 func newWorker(options map[string]interface{}) (*worker, error) {
 	ctx := map[string]interface{}{}
-	backend, e := newBackend(*db_drv, *db_url, ctx)
+	backend, e := newBackend(GetTestConnDrv(), GetTestConnURL(), ctx)
 	if nil != e {
 		return nil, e
 	}

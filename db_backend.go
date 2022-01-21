@@ -248,6 +248,7 @@ func (self *dbBackend) readJobFromRow(row interface {
 	var locked_by sql.NullString
 	var created_at NullTime
 	var updated_at NullTime
+	var handler []byte
 
 	e := row.Scan(
 		&job.id,
@@ -257,7 +258,7 @@ func (self *dbBackend) readJobFromRow(row interface {
 		&attempts,
 		&job.max_attempts,
 		&queue,
-		&job.handler,
+		&handler,
 		&handler_id,
 		&last_error,
 		&run_at,
@@ -272,6 +273,10 @@ func (self *dbBackend) readJobFromRow(row interface {
 
 	if queue.Valid {
 		job.queue = queue.String
+	}
+
+	if len(handler) > 0 {
+		job.handler = string(handler)
 	}
 
 	if attempts.Valid {

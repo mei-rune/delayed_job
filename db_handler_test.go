@@ -185,7 +185,7 @@ if object_id('dbo.tpt_test_for_handler', 'U') is null BEGIN CREATE TABLE tpt_tes
 			t.Error(e)
 			return
 		}
-	case ORACLE:
+	case ORACLE, DM:
 		for _, s := range []string{`BEGIN     EXECUTE IMMEDIATE 'DROP TABLE tpt_test_for_handler';     EXCEPTION WHEN OTHERS THEN NULL; END;`,
 			`CREATE TABLE tpt_test_for_handler(priority int, queue varchar(200))`} {
 			t.Log("execute sql:", s)

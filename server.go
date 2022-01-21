@@ -113,7 +113,7 @@ func Main(run_mode string, runHttp func(http.Handler)) error {
 	switch run_mode {
 	case "init_db":
 		ctx := map[string]interface{}{}
-		backend, e := newBackend(*db_drv, *db_url, ctx)
+		backend, e := newBackend(GetTestConnDrv(), GetTestConnURL(), ctx)
 		if nil != e {
 			return e
 		}
@@ -242,7 +242,7 @@ func Main(run_mode string, runHttp func(http.Handler)) error {
 
 	case "console":
 		ctx := map[string]interface{}{}
-		backend, e := newBackend(*db_drv, *db_url, ctx)
+		backend, e := newBackend(GetTestConnDrv(), GetTestConnURL(), ctx)
 		if nil != e {
 			return e
 		}
