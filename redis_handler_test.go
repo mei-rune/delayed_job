@@ -4,7 +4,7 @@ import (
 	"net"
 	"strings"
 	"testing"
-	
+
 	"github.com/gomodule/redigo/redis"
 )
 
@@ -145,24 +145,23 @@ func TestRedisHandler(t *testing.T) {
 }
 
 func TestRedisHandlerFailed(t *testing.T) {
-
 	listener, e := net.Listen("tcp", ":0")
 	if nil != e {
 		t.Error(e)
 		return
 	}
-
 	old := *redisAddress
-
 	ss := strings.Split(listener.Addr().String(), ":")
-
 	*redisAddress = "127.0.0.1:" + ss[len(ss)-1]
+	oldSim := *redisSim
+	*redisSim = false
 
 	defer func() {
+		*redisSim = oldSim
+
 		*redisAddress = old
 		listener.Close()
 	}()
-
 	go func() {
 		for {
 			t, e := listener.Accept()

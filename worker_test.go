@@ -67,7 +67,7 @@ func TestRunErrorAndRescheduleIt(t *testing.T) {
 		var run_at NullTime
 		var locked_at NullTime
 		var locked_by sql.NullString
-		var handler sql.NullString
+		var handler NullString
 		var last_error sql.NullString
 
 		e = row.Scan(&attempts, &run_at, &locked_at, &locked_by, &handler, &last_error)
@@ -188,7 +188,7 @@ func TestRunFailedAndNotDestoryIt(t *testing.T) {
 			var run_at NullTime
 			var locked_at NullTime
 			var locked_by sql.NullString
-			var handler sql.NullString
+			var handler NullString
 			var last_error sql.NullString
 
 			e = rows.Scan(&attempts, &run_at, &locked_at, &locked_by, &handler, &last_error)
@@ -355,7 +355,7 @@ func TestRunWithMaxErrorAndRescheduleIt(t *testing.T) {
 		var run_at NullTime
 		var locked_at NullTime
 		var locked_by sql.NullString
-		var handler sql.NullString
+		var handler NullString
 		var last_error sql.NullString
 
 		e = row.Scan(&attempts, &run_at, &locked_at, &locked_by, &handler, &last_error)

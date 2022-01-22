@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"gitee.com/runner.mei/dm" // 达梦
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/ziutek/mymysql/godrv"
@@ -181,6 +182,73 @@ func (n NullTime) Value() (driver.Value, error) {
 	return n.Time, nil
 }
 
+type NullString struct {
+	String string
+	Valid  bool // Valid is true if Int64 is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (n *NullString) Scan(value interface{}) error {
+	if value == nil {
+		n.String, n.Valid = "", false
+		return nil
+	}
+	switch s := value.(type) {
+	case []byte:
+		if s != nil {
+			n.Valid = true
+			n.String = string(s)
+		} else {
+			n.String, n.Valid = "", false
+		}
+		return nil
+	case string:
+		n.Valid = true
+		n.String = s
+		return nil
+	case *[]byte:
+		if s != nil && *s != nil {
+			n.Valid = true
+			n.String = string(*s)
+		} else {
+			n.String, n.Valid = "", false
+		}
+		return nil
+	case *string:
+		if s == nil {
+			n.String, n.Valid = "", false
+		} else {
+			n.Valid = true
+			n.String = *s
+		}
+		return nil
+	case *dm.DmClob:
+		l, err := s.GetLength()
+		if err != nil {
+			return err
+		}
+		if l == 0 {
+			n.Valid = true
+			return nil
+		}
+		n.String, err = s.ReadString(1, int(l))
+		if err != nil {
+			return err
+		}
+		n.Valid = true
+		return nil
+	}
+	return fmt.Errorf("unsupported Scan, storing driver.Value type %T into type NullString", value)
+}
+
+// Value implements the driver Valuer interface.
+func (n NullString) Value() (driver.Value, error) {
+	if !n.Valid {
+		return nil, nil
+	}
+	return n.String, nil
+}
+
 // A job object that is persisted to the database.
 // Contains the work object as a YAML field.
 type dbBackend struct {
@@ -240,7 +308,7 @@ func (self *dbBackend) readJobFromRow(row interface {
 	var queue sql.NullString
 	var handler_id sql.NullString
 	var repeat_interval sql.NullString
-	var last_error sql.NullString
+	var last_error NullString
 	var attempts sql.NullInt64
 	var run_at NullTime
 	var locked_at NullTime
@@ -248,7 +316,7 @@ func (self *dbBackend) readJobFromRow(row interface {
 	var locked_by sql.NullString
 	var created_at NullTime
 	var updated_at NullTime
-	var handler []byte
+	var handler NullString
 
 	e := row.Scan(
 		&job.id,
@@ -275,8 +343,8 @@ func (self *dbBackend) readJobFromRow(row interface {
 		job.queue = queue.String
 	}
 
-	if len(handler) > 0 {
-		job.handler = string(handler)
+	if handler.Valid {
+		job.handler = handler.String
 	}
 
 	if attempts.Valid {
@@ -394,7 +462,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 		}
 		return nil, nil
 	default:
-		// fmt.Println(buffer.String(), ",", now, now.Truncate(w.max_run_time), w.name)
+		fmt.Println(buffer.String(), ",", now, now.Truncate(w.max_run_time), w.name)
 		rows, e := self.db.Query(select_sql_string+buffer.String(), now, now.Truncate(w.max_run_time), w.name)
 		if nil != e {
 			if sql.ErrNoRows == e {

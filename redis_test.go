@@ -1,15 +1,163 @@
 package delayed_job
 
 import (
+	"flag"
 	"fmt"
-	"net/http"
+	"log"
+	"net"
 	_ "net/http/pprof"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
+	"github.com/tidwall/redcon"
 )
+
+var redisSim = flag.Bool("redis_sim", false, "")
+
+var addr = ":6380"
+
+func StartRedis(addr string) (*redcon.Server, int, error) {
+	var mu sync.RWMutex
+	var items = make(map[string][]byte)
+	var ps redcon.PubSub
+
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return nil, 0, err
+	}
+	tcpAddr := ln.Addr().(*net.TCPAddr)
+	srv := redcon.NewServer(ln.Addr().String(),
+		func(conn redcon.Conn, cmd redcon.Command) {
+			switch strings.ToLower(string(cmd.Args[0])) {
+			default:
+				conn.WriteError("ERR unknown command '" + string(cmd.Args[0]) + "'")
+			case "publish":
+				// Publish to all pub/sub subscribers and return the number of
+				// messages that were sent.
+				if len(cmd.Args) != 3 {
+					conn.WriteError("ERR wrong number of arguments for '" + string(cmd.Args[0]) + "' command")
+					return
+				}
+				count := ps.Publish(string(cmd.Args[1]), string(cmd.Args[2]))
+				conn.WriteInt(count)
+			case "subscribe", "psubscribe":
+				// Subscribe to a pub/sub channel. The `Psubscribe` and
+				// `Subscribe` operations will detach the connection from the
+				// event handler and manage all network I/O for this connection
+				// in the background.
+				if len(cmd.Args) < 2 {
+					conn.WriteError("ERR wrong number of arguments for '" + string(cmd.Args[0]) + "' command")
+					return
+				}
+				command := strings.ToLower(string(cmd.Args[0]))
+				for i := 1; i < len(cmd.Args); i++ {
+					if command == "psubscribe" {
+						ps.Psubscribe(conn, string(cmd.Args[i]))
+					} else {
+						ps.Subscribe(conn, string(cmd.Args[i]))
+					}
+				}
+			case "detach":
+				hconn := conn.Detach()
+				log.Printf("connection has been detached")
+				go func() {
+					defer hconn.Close()
+					hconn.WriteString("OK")
+					hconn.Flush()
+				}()
+			case "ping":
+				conn.WriteString("PONG")
+			case "quit":
+				conn.WriteString("OK")
+				conn.Close()
+			case "set":
+				if len(cmd.Args) != 3 {
+					conn.WriteError("ERR wrong number of arguments for '" + string(cmd.Args[0]) + "' command")
+					return
+				}
+				mu.Lock()
+				items[string(cmd.Args[1])] = cmd.Args[2]
+				mu.Unlock()
+				conn.WriteString("OK")
+			case "get":
+				if len(cmd.Args) != 2 {
+					conn.WriteError("ERR wrong number of arguments for '" + string(cmd.Args[0]) + "' command")
+					return
+				}
+				mu.RLock()
+				val, ok := items[string(cmd.Args[1])]
+				mu.RUnlock()
+				if !ok {
+					conn.WriteNull()
+				} else {
+					conn.WriteBulk(val)
+				}
+			case "del":
+				if len(cmd.Args) != 2 {
+					conn.WriteError("ERR wrong number of arguments for '" + string(cmd.Args[0]) + "' command")
+					return
+				}
+				mu.Lock()
+				_, ok := items[string(cmd.Args[1])]
+				delete(items, string(cmd.Args[1]))
+				mu.Unlock()
+				if !ok {
+					conn.WriteInt(0)
+				} else {
+					conn.WriteInt(1)
+				}
+			case "config":
+				// This simple (blank) response is only here to allow for the
+				// redis-benchmark command to work with this example.
+				conn.WriteArray(2)
+				conn.WriteBulk(cmd.Args[2])
+				conn.WriteBulkString("")
+			}
+		},
+		func(conn redcon.Conn) bool {
+			// Use this function to accept or deny the connection.
+			log.Printf("[redis-sim] accept: %s", conn.RemoteAddr())
+			return true
+		},
+		func(conn redcon.Conn, err error) {
+			// This is called when the connection has been closed
+			log.Printf("[redis-sim] closed: %s, err: %v", conn.RemoteAddr(), err)
+		},
+	)
+
+	go func() {
+		err := srv.Serve(ln)
+		if err != nil {
+			log.Println("[redis-sim]", err)
+		}
+	}()
+	return srv, tcpAddr.Port, nil
+}
+
+func startRedis(t testing.TB) func() {
+	if !*redisSim {
+		t.Log("[redis-sim] disabled")
+		return func() {}
+	}
+
+	srv, redisPort, err := StartRedis(":")
+	if err != nil {
+		t.Error(err)
+		return func() {}
+	}
+	flag.Set("redis.address", "127.0.0.1:"+strconv.Itoa(redisPort))
+	flag.Set("redis.password", "")
+
+	t.Log("[redis-sim] listen at:", *redisAddress)
+
+	return func() {
+		srv.Close()
+	}
+}
 
 func clearRedis(t *testing.T, c redis.Conn, key string) {
 	reply, err := c.Do("DEL", key)
@@ -20,9 +168,9 @@ func clearRedis(t *testing.T, c redis.Conn, key string) {
 }
 
 func redisTest(t *testing.T, cb func(client *redis_gateway, c redis.Conn)) {
-	go func() {
-		http.ListenAndServe(":7890", nil)
-	}()
+	cancel := startRedis(t)
+	defer cancel()
+
 	redis_client, err := newRedis(*redisAddress, *redisPassword)
 	if nil != err {
 		t.Error(err)

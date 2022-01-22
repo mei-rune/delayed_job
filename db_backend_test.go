@@ -114,6 +114,7 @@ func TestEnqueue(t *testing.T) {
 		var locked_at NullTime
 		var failed_at NullTime
 		var locked_by sql.NullString
+		var handler NullString
 
 		var created_at NullTime
 		var updated_at NullTime
@@ -123,7 +124,7 @@ func TestEnqueue(t *testing.T) {
 			&job.priority,
 			&job.attempts,
 			&queue,
-			&job.handler,
+			&handler,
 			&job.handler_id,
 			&last_error,
 			&run_at,
@@ -137,6 +138,9 @@ func TestEnqueue(t *testing.T) {
 			return
 		}
 
+		if handler.Valid {
+			job.handler = handler.String
+		}
 		if job.priority != 1 {
 			t.Error("excepted priority is 1, actual is ", job.priority)
 		}
@@ -565,7 +569,7 @@ func TestRescheduleIt(t *testing.T) {
 		var run_at NullTime
 		var locked_at NullTime
 		var locked_by sql.NullString
-		var handler sql.NullString
+		var handler NullString
 		var last_error sql.NullString
 
 		e = row.Scan(&attempts, &run_at, &locked_at, &locked_by, &handler, &last_error)

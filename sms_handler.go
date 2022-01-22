@@ -26,11 +26,9 @@ var smsNS20Address string
 var smsNS20Port string
 var smsNS20Timeout int
 
-
 func SetSMSLogger(logger *log.Logger) {
 	smsLogger = logger
 }
-
 
 func init() {
 	if runtime.GOOS == "windows" {

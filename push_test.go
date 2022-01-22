@@ -55,7 +55,7 @@ func TestPush(t *testing.T) {
 		var locked_at NullTime
 		var failed_at NullTime
 		var locked_by sql.NullString
-		var handler string
+		var handler NullString
 
 		e = row.Scan(
 			&job.id,
@@ -76,8 +76,8 @@ func TestPush(t *testing.T) {
 			return
 		}
 
-		if len(handler) > 0 {
-			job.handler = string(handler)
+		if handler.Valid {
+			job.handler = handler.String
 		}
 		if job.priority != 1 {
 			t.Error("excepted priority is 1, actual is ", job.priority)
