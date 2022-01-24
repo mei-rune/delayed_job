@@ -78,7 +78,7 @@ func searchFile() (string, bool) {
 	}
 }
 
-func Main(run_mode string, runHttp func(http.Handler)) error {
+func Main(runMode, dbDrv, dbURL string, runHttp func(http.Handler)) error {
 	default_actuals = loadActualFlags(nil)
 	initDB()
 
@@ -110,15 +110,15 @@ func Main(run_mode string, runHttp func(http.Handler)) error {
 		}
 	}
 
-	switch run_mode {
+	switch runMode {
 	case "init_db":
 		ctx := map[string]interface{}{}
-		backend, e := newBackend(GetTestConnDrv(), GetTestConnURL(), ctx)
+		backend, e := newBackend(dbDrv, dbURL, ctx)
 		if nil != e {
 			return e
 		}
 		defer backend.Close()
-		switch *db_type {
+		switch ToDbType(dbDrv) {
 		case MSSQL:
 			script := `if object_id('dbo.` + *table_name + `', 'U') is not null
 				BEGIN 
@@ -196,7 +196,7 @@ func Main(run_mode string, runHttp func(http.Handler)) error {
 					  created_at        timestamp with time zone, -- NOT NULL,
 					  updated_at        timestamp with time zone
 					)`,
-				} {
+			} {
 				fmt.Println(script)
 				_, e = backend.db.Exec(script)
 				if nil != e {
@@ -233,7 +233,7 @@ func Main(run_mode string, runHttp func(http.Handler)) error {
 
 	case "console":
 		ctx := map[string]interface{}{}
-		backend, e := newBackend(GetTestConnDrv(), GetTestConnURL(), ctx)
+		backend, e := newBackend(dbDrv, dbURL, ctx)
 		if nil != e {
 			return e
 		}
@@ -253,7 +253,10 @@ func Main(run_mode string, runHttp func(http.Handler)) error {
 		defer removePidFile(*pidFile)
 		httpServe(backend, findFs(), runHttp)
 	case "backend":
-		w, e := newWorker(map[string]interface{}{})
+		w, e := newWorker(map[string]interface{}{
+			"db_drv": dbDrv,
+			"db_url": dbURL,
+		})
 		if nil != e {
 			return e
 		}
@@ -274,7 +277,10 @@ func Main(run_mode string, runHttp func(http.Handler)) error {
 
 		w.RunForever()
 	case "all":
-		w, e := newWorker(map[string]interface{}{})
+		w, e := newWorker(map[string]interface{}{
+			"db_drv": dbDrv,
+			"db_url": dbURL,
+		})
 		if nil != e {
 			return e
 		}

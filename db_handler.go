@@ -247,21 +247,20 @@ func newDbHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("params is nil")
 	}
 
-	drv := stringWithDefault(params, "drv", GetTestConnDrv())
+	drv := stringWithDefault(params, "drv", "") // GetTestConnDrv())
 	if 0 == len(drv) {
-		drv = GetTestConnDrv()
-
-		if 0 == len(drv) {
-			return nil, errors.New("'drv' is required")
-		}
+		// drv = GetTestConnDrv()
+		//if 0 == len(drv) {
+		return nil, errors.New("'drv' is required")
+		//}
 	}
 
-	urlStr := stringWithDefault(params, "url", GetTestConnURL())
+	urlStr := stringWithDefault(params, "url", "") // GetTestConnURL())
 	if 0 == len(urlStr) {
-		urlStr = GetTestConnURL()
-		if 0 == len(urlStr) {
-			return nil, errors.New("'url' is required")
-		}
+		// urlStr = GetTestConnURL()
+		//if 0 == len(urlStr) {
+		return nil, errors.New("'url' is required")
+		//}
 	}
 
 	script := stringWithDefault(params, "script", "")
@@ -305,7 +304,7 @@ func newDbHandler(ctx, params map[string]interface{}) (Handler, error) {
 }
 
 func (self *dbHandler) Perform() (err error) {
-	dbType := DbType(self.drv)
+	dbType := ToDbType(self.drv)
 	drv := self.drv
 	if strings.HasPrefix(self.drv, "odbc_with_") {
 		drv = "odbc"

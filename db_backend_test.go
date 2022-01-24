@@ -34,11 +34,11 @@ func init() {
 }
 
 func GetTestConnDrv() string {
-	return *db_drv
+	return TestDrv
 }
 
 func GetTestConnURL() string {
-	if *db_url == "" {
+	if TestConnURL == "" {
 		switch TestDrv {
 		case "postgres", "":
 			return PostgreSQLUrl
@@ -51,7 +51,7 @@ func GetTestConnURL() string {
 		}
 	}
 
-	return *db_url
+	return TestConnURL
 }
 
 func backendTest(t *testing.T, cb func(backend *dbBackend)) {

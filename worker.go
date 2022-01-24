@@ -71,7 +71,11 @@ type worker struct {
 
 func newWorker(options map[string]interface{}) (*worker, error) {
 	ctx := map[string]interface{}{}
-	backend, e := newBackend(GetTestConnDrv(), GetTestConnURL(), ctx)
+
+	dbDrv := stringWithDefault(options, "db_drv", "")
+	dbURL := stringWithDefault(options, "db_url", "")
+
+	backend, e := newBackend(dbDrv, dbURL, ctx)
 	if nil != e {
 		return nil, e
 	}
@@ -84,9 +88,11 @@ func newWorker(options map[string]interface{}) (*worker, error) {
 	ctx["redis"] = redis_client
 	ctx["backend"] = backend
 
-	w := &worker{ctx: ctx,
+	w := &worker{
+		ctx:      ctx,
 		backend:  backend,
-		shutdown: make(chan int)}
+		shutdown: make(chan int),
+	}
 	w.initialize(options)
 
 	w.closes = append(w.closes, redis_client)
@@ -356,13 +362,16 @@ func (self *TestWorker) WorkOff(num int) (int, int, error) {
 	return self.work_off(num)
 }
 
-func WorkTest(t *testing.T, cb func(w *TestWorker)) {
-	e := Main("init_db", nil)
+func WorkTest(t *testing.T, dbDrv, dbURL string, cb func(w *TestWorker)) {
+	e := Main("init_db", dbDrv, dbURL, nil)
 	if nil != e {
 		t.Error(e)
 		return
 	}
-	w, e := newWorker(map[string]interface{}{})
+	w, e := newWorker(map[string]interface{}{
+		"db_drv": dbDrv,
+		"db_url": dbURL,
+	})
 	if nil != e {
 		t.Error(e)
 		return

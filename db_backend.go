@@ -34,9 +34,6 @@ const (
 var (
 	PreprocessArgs func(args interface{}) interface{}
 
-	db_url     = flag.String("db_url", "host=127.0.0.1 dbname=delayed_test user=delayedtest password=123456 sslmode=disable", "the db url")
-	db_drv     = flag.String("db_drv", "postgres", "the db driver")
-	db_type    = flag.Int("db_type", AUTO, "the db type, 0 is auto")
 	table_name = flag.String("db_table", "delayed_jobs", "the table name for jobs")
 
 	is_test_for_lock = false
@@ -53,7 +50,7 @@ func preprocessArgs(args interface{}) interface{} {
 	return args
 }
 
-func DbType(drv string) int {
+func ToDbType(drv string) int {
 	switch drv {
 	case "dm":
 		return DM
@@ -82,7 +79,7 @@ func DbType(drv string) int {
 	}
 }
 func initDB() {
-	flag.Set("db_type", fmt.Sprint(DbType(*db_drv)))
+	//flag.Set("db_type", fmt.Sprint(DbType(*db_drv)))
 	createSQL()
 }
 
@@ -95,11 +92,11 @@ func SetTable(table_name string) {
 	createSQL()
 }
 
-func SetDbUrl(drv, url string) {
-	flag.Set("db_url", url)
-	flag.Set("db_drv", drv)
-	initDB()
-}
+// func SetDbUrl(drv, url string) {
+// 	flag.Set("db_url", url)
+// 	flag.Set("db_drv", drv)
+// 	initDB()
+// }
 
 func i18n(dbType int, drv string, e error) error {
 	return I18n(dbType, drv, e)
@@ -259,17 +256,24 @@ type dbBackend struct {
 	isNumericParams bool
 }
 
-func newBackend(drvName, url string, ctx map[string]interface{}) (*dbBackend, error) {
+func newBackend(drvName, dbURL string, ctx map[string]interface{}) (*dbBackend, error) {
+	if drvName == "" {
+		return nil, errors.New("db_drv is missing")
+	}
+	if dbURL == "" {
+		return nil, errors.New("db_url is missing")
+	}
+
 	drv := drvName
 	if strings.HasPrefix(drvName, "odbc_with_") {
 		drv = "odbc"
 	}
 
-	db, e := sql.Open(drv, url)
+	db, e := sql.Open(drv, dbURL)
 	if nil != e {
 		return nil, e
 	}
-	return &dbBackend{ctx: ctx, drv: drv, db: db, dbType: *db_type, isNumericParams: IsNumericParams(drvName)}, nil
+	return &dbBackend{ctx: ctx, drv: drv, db: db, dbType: ToDbType(drv), isNumericParams: IsNumericParams(drvName)}, nil
 }
 
 func (self *dbBackend) Close() error {
@@ -445,10 +449,10 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 	// Optimizations for faster lookups on some common databases
 	switch self.dbType {
 	case POSTGRESQL:
-		sql_str := "UPDATE " + *table_name + " SET locked_at = $1, locked_by = $2 WHERE id in (SELECT id FROM " + *table_name +
+		sqlStr := "UPDATE " + *table_name + " SET locked_at = $1, locked_by = $2 WHERE id in (SELECT id FROM " + *table_name +
 			buffer.String() + " LIMIT 1) RETURNING " + fields_sql_string
-		// fmt.Println(sql_str, now, w.name, now, now.Truncate(w.max_run_time), w.name)
-		rows, e := self.db.Query(sql_str, now, w.name, now, now.Truncate(w.max_run_time), w.name)
+		// fmt.Println(sqlStr, now, w.name, now, now.Truncate(w.max_run_time), w.name)
+		rows, e := self.db.Query(sqlStr, now, w.name, now, now.Truncate(w.max_run_time), w.name)
 		if nil != e {
 			if sql.ErrNoRows == e {
 				return nil, nil
@@ -559,7 +563,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 // Note: This does not ping the DB to get the time, so all your clients
 // must have syncronized clocks.
 func (self *dbBackend) db_time_now() time.Time {
-	switch *db_type {
+	switch self.dbType {
 	case MSSQL:
 		return time.Now() //.UTC()
 	case POSTGRESQL:
