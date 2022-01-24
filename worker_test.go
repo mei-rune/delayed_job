@@ -10,7 +10,7 @@ import (
 
 func workTest(t *testing.T, cb func(w *worker, backend *dbBackend)) {
 	*default_sleep_delay = 1 * time.Second
-	WorkTest(t, func(w *TestWorker) {
+	WorkTest(t, GetTestConnDrv(), GetTestConnURL(), func(w *TestWorker) {
 		w.start()
 		defer w.Close()
 

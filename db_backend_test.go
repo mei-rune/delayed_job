@@ -60,7 +60,7 @@ func backendTest(t *testing.T, cb func(backend *dbBackend)) {
 	// defer func() {
 	// 	*run_mode = old_mode
 	// }()
-	e := Main("init_db", func(http.Handler) {})
+	e := Main("init_db", GetTestConnDrv(), GetTestConnURL(), func(http.Handler) {})
 	if nil != e {
 		t.Error(e)
 		return
@@ -300,7 +300,7 @@ func TestGetWithLocked(t *testing.T) {
 			return
 		}
 
-		if strings.Contains(*db_drv, "odbc_with_mssql") {
+		if strings.Contains(GetTestConnDrv(), "odbc_with_mssql") {
 			_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = SYSUTCDATETIME(), locked_by = 'aa'")
 		} else {
 			_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = now(), locked_by = 'aa'")
@@ -332,7 +332,7 @@ func TestGetWithFailed(t *testing.T) {
 			return
 		}
 
-		if strings.Contains(*db_drv, "odbc_with_mssql") {
+		if strings.Contains(GetTestConnDrv(), "odbc_with_mssql") {
 			_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = SYSUTCDATETIME(), last_error = 'aa'")
 		} else {
 			_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = now(), last_error = 'aa'")
@@ -377,7 +377,7 @@ func TestLockedJobInGet(t *testing.T) {
 			<-test_ch_for_lock
 
 			var e error
-			if strings.Contains(*db_drv, "odbc_with_mssql") {
+			if strings.Contains(GetTestConnDrv(), "odbc_with_mssql") {
 				_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = SYSUTCDATETIME(), locked_by = 'aa'")
 			} else {
 				_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = now(), locked_by = 'aa'")
@@ -423,7 +423,7 @@ func TestFailedJobInGet(t *testing.T) {
 			<-test_ch_for_lock
 
 			var e error
-			if strings.Contains(*db_drv, "odbc_with_mssql") {
+			if strings.Contains(GetTestConnDrv(), "odbc_with_mssql") {
 				_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = SYSUTCDATETIME(), last_error = 'aa'")
 			} else {
 				_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = now(), last_error = 'aa'")

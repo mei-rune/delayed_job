@@ -83,7 +83,7 @@ func TestDbHandlerConnectError(t *testing.T) {
 			return
 		}
 
-		switch DbType(test.drv) {
+		switch ToDbType(test.drv) {
 		case POSTGRESQL:
 			if !strings.Contains(e.Error(), "dial tcp") {
 				t.Error("test[", test.drv, "] excepted error contains [dial tcp], but actual is", e)
@@ -150,14 +150,14 @@ func TestDbHandlerAuthError(t *testing.T) {
 
 func dbTest(t *testing.T, cb func(backend *sql.DB)) {
 	if 0 == len(*test_db_url) {
-		*test_db_url = *db_url
+		*test_db_url = GetTestConnURL()
 	}
 
 	if 0 == len(*test_db_drv) {
-		*test_db_drv = *db_drv
+		*test_db_drv = GetTestConnDrv()
 	}
 
-	dbType := DbType(*test_db_drv)
+	dbType := ToDbType(*test_db_drv)
 	drv := *test_db_drv
 	if strings.HasPrefix(*test_db_drv, "odbc_with_") {
 		drv = "odbc"
@@ -221,11 +221,11 @@ if object_id('dbo.tpt_test_for_handler', 'U') is null BEGIN CREATE TABLE tpt_tes
 
 func TestDbHandlerScriptError(t *testing.T) {
 	if 0 == len(*test_db_url) {
-		*test_db_url = *db_url
+		*test_db_url = GetTestConnURL()
 	}
 
 	if 0 == len(*test_db_drv) {
-		*test_db_drv = *db_drv
+		*test_db_drv = GetTestConnDrv()
 	}
 
 	handler, e := newDbHandler(map[string]interface{}{}, map[string]interface{}{"drv": *test_db_drv, "url": *test_db_url, "script": "insert aa"})
@@ -240,7 +240,7 @@ func TestDbHandlerScriptError(t *testing.T) {
 		return
 	}
 
-	switch DbType(*test_db_drv) {
+	switch ToDbType(*test_db_drv) {
 	case MSSQL:
 		if !strings.Contains(e.Error(), "SQLExecute: {42000} [Microsoft]") {
 			t.Error("excepted error contains [[Microsoft]], but actual is", e)
