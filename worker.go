@@ -2,6 +2,7 @@ package delayed_job
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"expvar"
@@ -348,6 +349,7 @@ func (self *worker) reschedule(job *Job, next_time time.Time, e error) error {
 
 type TestWorker struct {
 	*worker
+	Conn   *sql.DB
 	Buffer bytes.Buffer
 }
 
@@ -378,5 +380,5 @@ func WorkTest(t *testing.T, dbDrv, dbURL string, cb func(w *TestWorker)) {
 	}
 	defer w.innerClose()
 
-	cb(&TestWorker{worker: w})
+	cb(&TestWorker{Conn: w.backend.db, worker: w})
 }
