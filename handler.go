@@ -25,6 +25,13 @@ func newHandler(ctx, options map[string]interface{}) (Handler, error) {
 	if nil == makeHandler {
 		return nil, errors.New("'" + t + "' is unsupported handler")
 	}
+	if o := options["attributes"]; o != nil {
+		if m, ok := o.(map[string]interface{}); ok {
+			for key, value := range m {
+				options[key] = value
+			}
+		}
+	}
 
 	return makeHandler(ctx, options)
 }
