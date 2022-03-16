@@ -1,73 +1,43 @@
 package delayed_job
 
-// var (
-// 	weixin_corp_id     = flag.String("weixin_corp_id", "", "")
-// 	weixin_corp_secret = flag.String("weixin_corp_secret", "", "")
-// 	weixin_target_type = flag.String("weixin_target_type", "user", "")
-// 	weixin_targets     = flag.String("weixin_targets", "", "")
-// 	weixin_agent_id    = flag.String("weixin_agent_id", "1", "")
-// )
+import (
+	"flag"
+	"os"
+	"testing"
+)
 
-// func TestDingtalkHandler(t *testing.T) {
-// 	if "" == *weixin_corp_id {
-// 		t.Skip("weixin is skipped.")
-// 	}
+var (
+	ding_webhook = flag.String("ding_webhook", os.Getenv("ding_webhook"), "")
+	ding_secret  = flag.String("ding_secret", os.Getenv("ding_secret"), "")
+	ding_targets = flag.String("ding_targets", os.Getenv("ding_targets"), "")
+)
 
-// 	handler, e := newWeixinHandler(nil, map[string]interface{}{"type": "weixin",
-// 		"corp_id":     *weixin_corp_id,
-// 		"corp_secret": *weixin_corp_secret,
-// 		"target_type": *weixin_target_type,
-// 		"targets":     *weixin_targets,
-// 		"content":     "this is test message.",
-// 		"agent_id":    *weixin_agent_id})
-// 	if nil != e {
-// 		t.Error(e)
-// 		// if e.Error() != test.excepted_error {
-// 		// 	t.Error(e)
-// 		// }
-// 		return
-// 	}
+func TestDingtalkHandler(t *testing.T) {
+	if "" == *ding_webhook {
+		t.Skip("dingtalk is skipped.")
+	}
 
-// 	e = handler.Perform()
-// 	if nil != e {
-// 		t.Error(e)
-// 		// if e.Error() != test.excepted_error {
-// 		// 	t.Error(e)
-// 		// }
-// 		return
-// 	}
-// }
+	handler, e := newDingHandler(nil, map[string]interface{}{
+		"type":    "dingtalk",
+		"webhook": *ding_webhook,
+		"secret":  *ding_secret,
+		"targets": *ding_targets,
+		"content": "TEST this is test message.",
+	})
+	if nil != e {
+		t.Error(e)
+		// if e.Error() != test.excepted_error {
+		// 	t.Error(e)
+		// }
+		return
+	}
 
-// func TestRunWeixin(t *testing.T) {
-// 	t.Skip("===")
-
-// 	e := Main(":0", "backend")
-// 	if nil != e {
-// 		t.Error(e)
-// 		return
-// 	}
-// 	w, e := newWorker(map[string]interface{}{})
-// 	if nil != e {
-// 		t.Error(e)
-// 		return
-// 	}
-// 	defer w.innerClose()
-
-// 	w.start()
-// 	defer w.Close()
-
-// 	func(w *worker, backend *dbBackend) {
-// 		e := backend.enqueue(1, 0, 1, "aa", time.Time{}, map[string]interface{}{"type": "test"})
-// 		if nil != e {
-// 			t.Error(e)
-// 			return
-// 		}
-
-// 		select {
-// 		case <-test_chan:
-// 			return
-// 		case <-time.After(2 * time.Second):
-// 			t.Error("not recv")
-// 		}
-// 	}(w, w.backend)
-// }
+	e = handler.Perform()
+	if nil != e {
+		t.Error(e)
+		// if e.Error() != test.excepted_error {
+		// 	t.Error(e)
+		// }
+		return
+	}
+}

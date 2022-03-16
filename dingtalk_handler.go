@@ -2,52 +2,23 @@ package delayed_job
 
 import (
 	"errors"
-	"sync"
+	"time"
 
-	"github.com/CatchZeng/dingtalk"
+	"github.com/CodyGuo/dingtalk"
+	"github.com/CodyGuo/dingtalk/pkg/robot"
 )
-
-var dingLock sync.Mutex
-var dingClients = map[string]*DingClient{}
-
-type DingClient struct {
-	client *dingtalk.Client
-	mu     sync.Mutex
-}
-
-func GetDingClient(accessToken, secret string) *DingClient {
-	dingLock.Lock()
-	defer dingLock.Unlock()
-
-	cl, ok := dingClients[accessToken+"-"+secret]
-	if ok {
-		return cl
-	}
-
-	cl = &DingClient{}
-	cl.client = dingtalk.NewClient(accessToken, secret)
-
-	dingClients[accessToken+"-"+secret] = cl
-	return cl
-}
-
-type dingHandler struct {
-	accessToken string
-	secret      string
-	msg         *dingtalk.TextMessage
-}
 
 func newDingHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if nil == params {
 		return nil, errors.New("params is nil")
 	}
-	accessToken := stringWithDefault(params, "access_token", "")
+	webhook := stringWithDefault(params, "webhook", "")
+	if webhook == "" {
+		webhook = stringWithDefault(params, "web_hook", "")
+	}
 	secret := stringWithDefault(params, "secret", "")
-
-	msg := dingtalk.NewTextMessage()
-
 	content := stringWithDefault(params, "content", "")
-	if "" == content {
+	if content == "" {
 		return nil, errors.New("content is missing")
 	}
 
@@ -67,29 +38,42 @@ func newDingHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
-	msg.SetContent(content)
-
 	targets := stringsWithDefault(params, "targets", ",", nil)
 	if len(targets) == 0 {
 		targets = stringsWithDefault(params, "userList", ",", nil)
 	}
-	if len(targets) == 0 {
-		return nil, errors.New("targets is empty")
-	}
-	msg.SetAt(targets, false)
 
 	return &dingHandler{
-		accessToken: accessToken,
-		secret:      secret,
-		msg:         msg,
+		webhook: webhook,
+		secret:  secret,
+		content: content,
+		targets: targets,
 	}, nil
 }
 
+type dingHandler struct {
+	webhook string
+	secret  string
+	content string
+	targets []string
+}
+
 func (self *dingHandler) Perform() error {
-	client := GetDingClient(self.accessToken, Decrypt(self.secret))
-	client.mu.Lock()
-	defer client.mu.Unlock()
-	_, err := client.client.Send(self.msg)
+	client := dingtalk.New(self.webhook,
+		dingtalk.WithSecret(self.secret),
+		dingtalk.WithTimeout(30*time.Second))
+	// defer client.Close()
+
+	var opts = []robot.SendOption{}
+	if len(self.targets) > 0 {
+		opts = append(opts, robot.SendWithAtMobiles(self.targets))
+	}
+	err := client.RobotSendText(self.content, opts...)
+	if err != nil {
+		if e, ok := err.(*dingtalk.Error); ok {
+			return e.Unwrap()
+		}
+	}
 	return err
 }
 
