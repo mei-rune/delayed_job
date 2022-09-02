@@ -670,6 +670,10 @@ var Funcs = template.FuncMap{
 		}
 		return values[len(values)-1]
 	},
+
+	"decrypt": func(s string) string {
+		return Decrypt(s)
+	},
 }
 
 func genText(content string, args interface{}) (string, error) {

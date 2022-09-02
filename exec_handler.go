@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"log"
 
 	"github.com/fd/go-shellwords/shellwords"
 	"github.com/kardianos/osext"
@@ -21,6 +22,13 @@ import (
 
 var logCmdOutput = os.Getenv("tpt_delayed_object_log_cmd_output") == "true"
 var default_directory = flag.String("exec.directory", ".", "the work directory for execute")
+
+
+var testLogger *log.Logger
+
+func SetTestLogger(logger *log.Logger) {
+	testLogger = logger
+}
 
 type execHandler struct {
 	work_directory string
@@ -314,19 +322,31 @@ func (self *execHandler) Perform() error {
 		scanner := bufio.NewScanner(pr)
 		for scanner.Scan() {
 			if strings.Contains(scanner.Text(), self.prompt) {
-				fmt.Println("[smslogger ok]", string(scanner.Bytes()))
+				if bytes.Contains(scanner.Bytes(), []byte("[sms]")) {
+					if smsLogger != nil {
+						smsLogger.Println(string(scanner.Bytes()))
+					} else {
+						fmt.Println("[smslogger ok]", string(scanner.Bytes()))
+					}
+				} else {
+					if testLogger != nil {
+						testLogger.Println("[execlogger ok]", string(scanner.Bytes()))
+					}
+					// fmt.Println("[execlogger ok]", string(scanner.Bytes()))
+				}
 				return
 			}
 
-			if smsLogger != nil {
-				if bytes.Contains(scanner.Bytes(), []byte("[sms]")) {
+			if bytes.Contains(scanner.Bytes(), []byte("[sms]")) {
+				if smsLogger != nil {
 					smsLogger.Println(string(scanner.Bytes()))
 				} else {
-					fmt.Println("[smslogger mismatch]", string(scanner.Bytes()))
+					fmt.Println("[smslogger null]", string(scanner.Bytes()))
 				}
-			} else {
-				fmt.Println("[smslogger null]", string(scanner.Bytes()))
+			// } else {
+			// 	fmt.Println("[execlogger mismatch]", string(scanner.Bytes()))
 			}
+
 			buffer.Write(scanner.Bytes())
 
 			if buffer.Len() > 10*1024*1024 {
