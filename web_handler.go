@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+    "mime/multipart"
 	"errors"
 	"fmt"
 	"io"
@@ -210,29 +211,7 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		if nil != e {
 			return nil, errors.New("failed to merge 'headers' with params, " + e.Error())
 		}
-		lines := SplitLines(headerText)
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-
-			kvs := strings.SplitN(line, ":", 2)
-			if len(kvs) != 2 {
-				kvs = strings.SplitN(line, "=", 2)
-				if len(kvs) != 2 {
-					continue
-				}
-			}
-			k := strings.TrimSpace(kvs[0])
-			v := strings.TrimSpace(kvs[1])
-			if k == "" || v == "" {
-				fmt.Println("请检一下，是不是换行了")
-				continue
-			}
-
-			headers[k] = v
-		}
+		headers = toKeyValues(headerText, headers)
 	}
 
 	if method == "" {
@@ -383,24 +362,37 @@ func (self *webHandler) perform(body interface{}) error {
 	var reader io.Reader
 	if self.method != "GET" && self.method != "HEAD" {
 		if body != nil {
-			if self.contentType == "application/x-www-form-urlencoded" {
-				queryParams := url.Values{}
-				if ok := toUrlEncoded(body, "", queryParams); ok {
-					body = queryParams.Encode()
+			if strings.HasPrefix(self.contentType, "multipart/form-data") {
+				keyvalues, ok := toMap(body)
+				if ok {
+					body := new(bytes.Buffer)
+				    w := multipart.NewWriter(body)
+				    for k,v := range keyvalues {
+				        w.WriteField(k, fmt.Sprint(v))
+				    }
+				    w.Close()
+				    self.contentType = w.FormDataContentType()
+					reader = body
 				}
-			}
-
-			if s, ok := body.(string); ok {
-				reader = bytes.NewBufferString(s)
-			} else if s, ok := body.([]byte); ok {
-				reader = bytes.NewBuffer(s)
 			} else {
-				buffer := bytes.NewBuffer(make([]byte, 0, 1024))
-				e := json.NewEncoder(buffer).Encode(body)
-				if nil != e {
-					return e
+				if self.contentType == "application/x-www-form-urlencoded" {
+					queryParams := url.Values{}
+					if ok := toUrlEncoded(body, "", queryParams); ok {
+						body = queryParams.Encode()
+					}
 				}
-				reader = buffer
+				if s, ok := body.(string); ok {
+					reader = bytes.NewBufferString(s)
+				} else if s, ok := body.([]byte); ok {
+					reader = bytes.NewBuffer(s)
+				} else {
+					buffer := bytes.NewBuffer(make([]byte, 0, 1024))
+					e := json.NewEncoder(buffer).Encode(body)
+					if nil != e {
+						return e
+					}
+					reader = buffer
+				}
 			}
 		}
 	}
@@ -905,4 +897,60 @@ func (x *ecbDecrypter) CryptBlocks(dst, src []byte) {
 		src = src[x.blockSize:]
 		dst = dst[x.blockSize:]
 	}
+}
+
+func toMap(body interface{}) (map[string]interface{}, bool) {
+	if s, ok := body.(string); ok {
+		if strings.HasPrefix(s, "# keyvalues") {
+			strings.TrimPrefix(s, "# keyvalues")
+		}
+		return toKeyValues(s, nil), true
+	} else if s, ok := body.([]byte); ok {
+		if bytes.HasPrefix(s, []byte("# keyvalues")) {
+			s = bytes.TrimPrefix(s, []byte("# keyvalues"))
+		}
+		return toKeyValues(string(s), nil), true
+	} else if m, ok := body.(map[string]interface{}); ok {
+		return m, true
+	} else if m, ok := body.(map[string]string); ok {
+		var result = map[string]interface{}{}
+		for key, value := range m {
+			result[key] = value
+		}
+		return result, true
+	} else {
+		return nil, false
+	}
+}
+
+func toKeyValues(txt string, headers map[string]interface{}) map[string]interface{} {
+	if headers == nil {
+		headers = map[string]interface{}{}
+	}
+
+	lines := SplitLines(txt)
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		kvs := strings.SplitN(line, ":", 2)
+		if len(kvs) != 2 {
+			kvs = strings.SplitN(line, "=", 2)
+			if len(kvs) != 2 {
+				continue
+			}
+		}
+		k := strings.TrimSpace(kvs[0])
+		v := strings.TrimSpace(kvs[1])
+		if k == "" || v == "" {
+			fmt.Println("请检一下，是不是换行了")
+			continue
+		}
+
+		headers[k] = v
+	}
+
+	return headers
 }
