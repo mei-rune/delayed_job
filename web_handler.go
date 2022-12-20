@@ -691,6 +691,12 @@ func genText(content string, args interface{}) (string, error) {
 
 	switch m := args.(type) {
 	case map[string]interface{}:
+		if _, ok := m["level"]; !ok {
+			m["level"] = "alert"
+		}
+		if _, ok := m["event_id"]; !ok {
+			m["event_id"] = "testxxxid"
+		}
 		if _, ok := m["content"]; !ok {
 			m["content"] = "this_is_test_message"
 		}
@@ -698,6 +704,12 @@ func genText(content string, args interface{}) (string, error) {
 			m["triggered_at"] = time.Now()
 		}
 	case map[string]string:
+		if _, ok := m["level"]; !ok {
+			m["level"] = "alert"
+		}
+		if _, ok := m["event_id"]; !ok {
+			m["event_id"] = "testxxxid"
+		}
 		if _, ok := m["content"]; !ok {
 			m["content"] = "this_is_test_message"
 		}
