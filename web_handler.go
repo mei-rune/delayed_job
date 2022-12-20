@@ -448,8 +448,11 @@ func (self *webHandler) perform(body interface{}) error {
 		self.logRequest(body)
 
 		respBody, err := ioutil.ReadAll(resp.Body)
-		if 0 == len(respBody) {
+		if err != nil {
 			return fmt.Errorf("failed to read body - %s", err)
+		}
+		if len(respBody) == 0 {
+			return errors.New(resp.Status)
 		}
 		return fmt.Errorf("%v: %v", resp.StatusCode, string(respBody))
 	}

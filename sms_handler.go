@@ -9,10 +9,12 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"errors"
 
+	alyunsms "github.com/aliyun-sdk/sms-go"
 	"github.com/runner-mei/delayed_job/ns20"
 )
 
@@ -25,6 +27,8 @@ var smsMethod string
 var smsNS20Address string
 var smsNS20Port string
 var smsNS20Timeout int
+
+var GetAliyunClientParams func() (accessKey, secretKey, signName, templateCode string)
 
 func SetSMSLogger(logger *log.Logger) {
 	smsLogger = logger
@@ -166,6 +170,8 @@ func (self *smsHandler) Perform() error {
 				e = SendByGammu(phone, self.content)
 			case "ns20":
 				e = SendByNS20(phone, self.content)
+			case "aliyun":
+				e = SendByAliyun(phone, self.content)
 			default:
 				e = errors.New("sms method '" + smsMethod + "' is unknown")
 			}
@@ -239,6 +245,60 @@ func SendByNS20(phone, content string) error {
 	}
 
 	return ns20.Send(net.JoinHostPort(smsNS20Address, smsNS20Port), phone, content, timeout)
+}
+
+var (
+	aliyunClientLock sync.Mutex
+	aliyunClient     *alyunsms.Client
+)
+
+func GetAliyunClient() (*alyunsms.Client, error) {
+	aliyunClientLock.Lock()
+	defer aliyunClientLock.Unlock()
+	if aliyunClient != nil {
+		return aliyunClient, nil
+	}
+
+	if GetAliyunClientParams == nil {
+		return nil, errors.New("GetAliyunClientParams is null")
+	}
+
+	accessKey, secretKey, signName, templateCode := GetAliyunClientParams()
+	if accessKey == "" {
+		return nil, errors.New("请配置好阿里云网关")
+	}
+
+	client, err := alyunsms.New(accessKey, secretKey, alyunsms.SignName(signName), alyunsms.Template(templateCode))
+	if err != nil {
+		aliyunClient = nil
+	} else {
+		aliyunClient = client
+	}
+
+	return client, err
+}
+
+func SendByAliyun(phone, content string) error {
+	client, err := GetAliyunClient()
+	if err != nil {
+		return err
+	}
+	err = client.Send(
+		alyunsms.Mobile(phone),
+		alyunsms.Parameter(map[string]string{
+			"content": content,
+		}),
+	)
+	if err == nil {
+		return nil
+	}
+
+	aliyunClientLock.Lock()
+	defer aliyunClientLock.Unlock()
+
+	// client.Close()
+	aliyunClient = nil
+	return err
 }
 
 func init() {
