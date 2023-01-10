@@ -35,6 +35,7 @@ func GetWeixinClient(corp_id, corp_secret string) *WeixinClient {
 }
 
 type weixinHandler struct {
+	corp_server_url string
 	corp_id     string
 	corp_secret string
 	msg         send.Text
@@ -44,6 +45,7 @@ func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
 	if nil == params {
 		return nil, errors.New("params is nil")
 	}
+	corp_server_url := stringWithDefault(params, "corp_server_url", "")
 	corp_id := stringWithDefault(params, "corp_id", "")
 	corp_secret := stringWithDefault(params, "corp_secret", "")
 	target_type := stringWithDefault(params, "target_type", "")
@@ -97,12 +99,23 @@ func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
 		msg.ToUser = strings.Replace(targets, ",", "|", -1)
 	}
 
-	return &weixinHandler{corp_id: corp_id,
+	return &weixinHandler{
+		corp_server_url: corp_server_url,
+		corp_id: corp_id,
 		corp_secret: corp_secret,
 		msg:         msg}, nil
 }
 
 func (self *weixinHandler) Perform() error {
+	if self.corp_server_url != "" {
+		old := corp.QyApiURL
+		corp.QyApiURL = self.corp_server_url
+
+		defer func() {
+			corp.QyApiURL = old
+		}()
+	}
+
 	ul := GetWeixinClient(self.corp_id, Decrypt(self.corp_secret))
 	ul.mu.Lock()
 	defer ul.mu.Unlock()
