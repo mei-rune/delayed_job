@@ -7,6 +7,7 @@ import (
 )
 
 var (
+	weixin_corp_server_url     = flag.String("weixin_corp_server_url", "", "")
 	weixin_corp_id     = flag.String("weixin_corp_id", "", "")
 	weixin_corp_secret = flag.String("weixin_corp_secret", "", "")
 	weixin_target_type = flag.String("weixin_target_type", "user", "")
@@ -19,7 +20,8 @@ func TestWeixinHandler(t *testing.T) {
 		t.Skip("weixin is skipped.")
 	}
 
-	handler, e := newWeixinHandler(nil, map[string]interface{}{"type": "weixin",
+	handler, e := newWeixinHandler(nil, map[string]interface{}{"type": "weixin_command",
+		"corp_server_url": *weixin_corp_server_url,
 		"corp_id":     *weixin_corp_id,
 		"corp_secret": *weixin_corp_secret,
 		"target_type": *weixin_target_type,
