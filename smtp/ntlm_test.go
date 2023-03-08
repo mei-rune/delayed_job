@@ -63,13 +63,13 @@ func TestCh(t *testing.T) {
 }
 
 func TestNTLMSend(t *testing.T) {
-	auth := NTLMAuth("", "hengwei/admin1", "tpt_8498b2c7", NTLMVersion2)
+	auth := NTLMAuth("", "aaaaaa/admin1", "1234556", NTLMVersion2)
 
 	// Connect to the server, authenticate, set the sender and recipient,
 	// and send the email all in one step.
 	to := []string{"testpang@mychery.com"}
 	msg := []byte("This is the email body.")
-	err := SendMail("192.168.1.144:25", auth, "admin1@hengwei.com.cn", to, msg)
+	err := SendMail("192.168.1.144:25", auth, "admin1@aaaaaa", to, msg)
 	if err != nil {
 		t.Fatal(err)
 	}
