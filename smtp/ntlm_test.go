@@ -11,8 +11,9 @@ import (
 
 func TestCh(t *testing.T) {
 
-	txt := "TlRMTVNTUAABAAAAB4IIogAAAAAAAAAAAAAAAAAAAAAGAbEdAAAADw=="
+	// txt := "TlRMTVNTUAABAAAAB4IIogAAAAAAAAAAAAAAAAAAAAAGAbEdAAAADw=="
 	//TlRMTVNTUAABAAAAB4IIogAAAAAAAAAAAAAAAAAAAAAGAbEdAAAADw==
+	txt := "TlRMTVNTUAABAAAAMZCI4g4ADgAoAAAAAAAAADYAAAAGAbEdAAAAD2gAZQBuAGcAdwBlAGkA"
 
 	maxLen := base64.StdEncoding.DecodedLen(len(txt))
 	dst := make([]byte, maxLen)
@@ -25,7 +26,7 @@ func TestCh(t *testing.T) {
 	fmt.Println(string(dst[:resultLen]))
 
 	flags := binary.LittleEndian.Uint32(dst[12:])
-	fmt.Println(binary.LittleEndian.Uint32(dst[12:]), NEGOTIATE_FLAGS)
+	// fmt.Println(binary.LittleEndian.Uint32(dst[12:]), NEGOTIATE_FLAGS)
 
 	fmt.Println("NEGOTIATE_UNICODE                  =", (flags&0x00000001) != 0)
 	fmt.Println("NEGOTIATE_OEM                      =", (flags&0x00000002) != 0)
@@ -69,7 +70,7 @@ func TestNTLMSend(t *testing.T) {
 	// and send the email all in one step.
 	to := []string{"testpang@mychery.com"}
 	msg := []byte("This is the email body.")
-	err := SendMail("192.168.1.144:25", auth, "admin1@aaaaaa", to, msg)
+	err := SendMail("192.168.1.144:25", auth, "admin1@aaaaaa", to, msg, TlsAuto, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

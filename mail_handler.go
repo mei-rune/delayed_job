@@ -522,7 +522,7 @@ func (self *mailHandler) Perform() error {
 		case "ntlmv1", "ntlm":
 			auth = smtp.NTLMAuth("", self.user, self.password, smtp.NTLMVersion1)
 		case "ntlmv2":
-			auth = smtp.NTLMAuth("", self.user, self.password, smtp.NTLMVersion1)
+			auth = smtp.NTLMAuth("", self.user, self.password, smtp.NTLMVersion2)
 		default:
 			return errors.New("unsupported auth type - " + self.authType)
 		}

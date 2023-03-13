@@ -236,7 +236,7 @@ func TestNewClient(t *testing.T) {
 	}
 	var fake faker
 	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
-	c, err := NewClient(fake, "fake.host")
+	c, err := NewClient(fake, "fake.host", nil, false)
 	if err != nil {
 		t.Fatalf("NewClient: %v\n(after %v)", err, out())
 	}
@@ -277,7 +277,7 @@ func TestNewClient2(t *testing.T) {
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	var fake faker
 	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
-	c, err := NewClient(fake, "fake.host")
+	c, err := NewClient(fake, "fake.host", nil, false)
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
@@ -323,7 +323,7 @@ func TestHello(t *testing.T) {
 		bcmdbuf := bufio.NewWriter(&cmdbuf)
 		var fake faker
 		fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
-		c, err := NewClient(fake, "fake.host")
+		c, err := NewClient(fake, "fake.host", nil, false)
 		if err != nil {
 			t.Fatalf("NewClient: %v", err)
 		}
@@ -506,7 +506,7 @@ To: other@example.com
 Subject: SendMail test
 
 SendMail is working for me.
-`, "\n", "\r\n", -1)))
+`, "\n", "\r\n", -1)), TlsAuto, false, nil)
 
 	if err != nil {
 		t.Errorf("%v", err)
@@ -551,7 +551,7 @@ func TestAuthFailed(t *testing.T) {
 	bcmdbuf := bufio.NewWriter(&cmdbuf)
 	var fake faker
 	fake.ReadWriter = bufio.NewReadWriter(bufio.NewReader(strings.NewReader(server)), bcmdbuf)
-	c, err := NewClient(fake, "fake.host")
+	c, err := NewClient(fake, "fake.host", nil, false)
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
@@ -699,7 +699,7 @@ func sendMail(hostPort string) error {
 	auth := PlainAuth("", "", "", host, false)
 	from := "joe1@example.com"
 	to := []string{"joe2@example.com"}
-	return SendMail(hostPort, auth, from, to, []byte("Subject: test\n\nhowdy!"))
+	return SendMail(hostPort, auth, from, to, []byte("Subject: test\n\nhowdy!"), TlsAuto, false, nil)
 }
 
 // (copied from net/http/httptest)
