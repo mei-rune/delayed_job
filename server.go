@@ -620,18 +620,20 @@ func (self *webFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			readSettingsFileHandler(w, r, backend)
 			return
 		default:
-			if nil == self.fs && !strings.HasPrefix(r.URL.Path, "/debug/") {
-				statikFS, err := fs.New()
-				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					io.WriteString(w, err.Error())
-					return
+			if !strings.HasPrefix(r.URL.Path, "/debug/") {
+				if nil == self.fs {
+					statikFS, err := fs.New()
+					if err != nil {
+						w.WriteHeader(http.StatusInternalServerError)
+						io.WriteString(w, err.Error())
+						return
+					}
+					//http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(statikFS)))
+					self.fs = http.StripPrefix("/", http.FileServer(statikFS))
 				}
-				//http.Handle("/public/", http.StripPrefix("/public/", http.FileServer(statikFS)))
-				self.fs = http.StripPrefix("/", http.FileServer(statikFS))
+				self.fs.ServeHTTP(w, r)
+				return
 			}
-			self.fs.ServeHTTP(w, r)
-			return
 		}
 
 	case "PUT":
