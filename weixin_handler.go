@@ -36,9 +36,9 @@ func GetWeixinClient(corp_id, corp_secret string) *WeixinClient {
 
 type weixinHandler struct {
 	corp_server_url string
-	corp_id     string
-	corp_secret string
-	msg         send.Text
+	corp_id         string
+	corp_secret     string
+	msg             send.Text
 }
 
 func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
@@ -101,9 +101,9 @@ func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 	return &weixinHandler{
 		corp_server_url: corp_server_url,
-		corp_id: corp_id,
-		corp_secret: corp_secret,
-		msg:         msg}, nil
+		corp_id:         corp_id,
+		corp_secret:     corp_secret,
+		msg:             msg}, nil
 }
 
 func (self *weixinHandler) Perform() error {

@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,7 +15,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"log"
 
 	"github.com/fd/go-shellwords/shellwords"
 	"github.com/kardianos/osext"
@@ -22,7 +22,6 @@ import (
 
 var logCmdOutput = os.Getenv("tpt_delayed_object_log_cmd_output") == "true"
 var default_directory = flag.String("exec.directory", ".", "the work directory for execute")
-
 
 var testLogger *log.Logger
 
@@ -343,8 +342,8 @@ func (self *execHandler) Perform() error {
 				} else {
 					fmt.Println("[smslogger null]", string(scanner.Bytes()))
 				}
-			// } else {
-			// 	fmt.Println("[execlogger mismatch]", string(scanner.Bytes()))
+				// } else {
+				// 	fmt.Println("[execlogger mismatch]", string(scanner.Bytes()))
 			}
 
 			buffer.Write(scanner.Bytes())

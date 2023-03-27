@@ -55,6 +55,7 @@ var GetUserPhone func(id string) (string, error)
 var SendSMS func(method, phone, content string) error
 
 type smsHandler struct {
+	args                 interface{}
 	content              string
 	phone_numbers        []string
 	failed_phone_numbers []string
@@ -122,7 +123,8 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("'content' is required")
 	}
 
-	if args, ok := params["arguments"]; ok {
+	args, ok := params["arguments"]
+	if ok {
 		args = preprocessArgs(args)
 		if props, ok := args.(map[string]interface{}); ok {
 			if _, ok := props["self"]; !ok {
@@ -138,7 +140,11 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
-	return &smsHandler{content: content, phone_numbers: phone_numbers}, nil
+	return &smsHandler{
+		content:       content,
+		phone_numbers: phone_numbers,
+		args:          args,
+	}, nil
 }
 
 func (self *smsHandler) UpdatePayloadObject(options map[string]interface{}) {
@@ -151,6 +157,21 @@ func (self *smsHandler) Perform() error {
 		if !smsLimiter.CanSend() {
 			log.Println("超过限制不能再发了")
 			return nil
+		}
+	}
+
+	switch smsMethod {
+	case "web":
+		if smsWebBatchSupport == "true" ||
+			smsWebBatchSupport == "True" ||
+			smsWebBatchSupport == "TRUE" {
+			return BatchSendByWebSvc(self.args, self.phone_numbers, self.content)
+		}
+	case "exec":
+		if smsExecBatchSupport == "true" ||
+			smsExecBatchSupport == "True" ||
+			smsExecBatchSupport == "TRUE" {
+			return BatchSendByExec(self.args, self.phone_numbers, self.content)
 		}
 	}
 
@@ -172,6 +193,10 @@ func (self *smsHandler) Perform() error {
 				e = SendByNS20(phone, self.content)
 			case "aliyun":
 				e = SendByAliyun(phone, self.content)
+			case "web":
+				e = SendByWebSvc(self.args, phone, self.content)
+			case "exec":
+				e = SendByExec(self.args, phone, self.content)
 			default:
 				e = errors.New("sms method '" + smsMethod + "' is unknown")
 			}

@@ -259,10 +259,11 @@ var ErrPartClosed = errors.New("mail: part has been closed")
 // an attachment.
 //
 // Example:
-// 	alt, _ := part.AddMultipart("multipart/mixed")
-// 	alt.AddText("text/plain", text)
-// 	alt.AddAttachment("gopher.png", "", image)
-// 	alt.Close()
+//
+//	alt, _ := part.AddMultipart("multipart/mixed")
+//	alt.AddText("text/plain", text)
+//	alt.AddAttachment("gopher.png", "", image)
+//	alt.Close()
 func (p *Multipart) AddMultipart(mediaType string) (nested *Multipart, err error) {
 	if !strings.HasPrefix(mediaType, "multipart") {
 		return nil, errors.New("mail: mediaType must start with the word \"multipart\" as in multipart/mixed or multipart/alter")
@@ -380,7 +381,8 @@ func (p *Multipart) AddText(mediaType string, txt string) error {
 //
 // In the following example, the media MIME type will be set to "image/png"
 // based on the ".png" extension of the filename "gopher.png":
-// 	part.AddAttachment(Inline, "gopher.png", "", image)
+//
+//	part.AddAttachment(Inline, "gopher.png", "", image)
 func (p *Multipart) AddAttachment(attachType AttachmentType, filename, mediaType string, r io.Reader) (err error) {
 	if p.isClosed {
 		return ErrPartClosed
@@ -476,10 +478,11 @@ func createPart(w io.Writer, header textproto.MIMEHeader, mediaType string, boun
 // part inside which other parts, texts and attachments can be nested.
 //
 // Example:
-// 	multipart := NewMultipart("multipart/alternative", msg)
-// 	multipart.AddPart("text/plain", text)
-// 	multipart.AddPart("text/html", html)
-// 	multipart.Close()
+//
+//	multipart := NewMultipart("multipart/alternative", msg)
+//	multipart.AddPart("text/plain", text)
+//	multipart.AddPart("text/html", html)
+//	multipart.Close()
 func NewMultipart(w io.Writer, mediaType string) (root *Multipart) {
 	boundary := randomString()
 	fmt.Fprintf(w, "Content-Type: %s; boundary=%s%s%s", mediaType, boundary, crlf, crlf)

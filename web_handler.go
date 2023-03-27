@@ -8,12 +8,12 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-    "mime/multipart"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -103,7 +103,10 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 	if "GET" != method {
 		var ok bool
-		contentType = stringWithDefault(params, "contentType", "")
+		contentType = stringWithDefault(params, "content_type", "")
+		if contentType == "" {
+			contentType = stringWithDefault(params, "contentType", "")
+		}
 		body, ok = params["body"]
 		if !ok {
 			values := map[string]interface{}{}
@@ -119,7 +122,7 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 			if len(values) == 0 {
 				websms_type := stringWithDefault(params, "websms_type", "")
 				if websms_type == "" {
-					return nil, errors.New("body is empty")
+					return nil, errors.New("websms_type is empty")
 				}
 				isWebSMS = true
 				var err error
@@ -366,12 +369,12 @@ func (self *webHandler) perform(body interface{}) error {
 				keyvalues, ok := toMap(body)
 				if ok {
 					body := new(bytes.Buffer)
-				    w := multipart.NewWriter(body)
-				    for k,v := range keyvalues {
-				        w.WriteField(k, fmt.Sprint(v))
-				    }
-				    w.Close()
-				    self.contentType = w.FormDataContentType()
+					w := multipart.NewWriter(body)
+					for k, v := range keyvalues {
+						w.WriteField(k, fmt.Sprint(v))
+					}
+					w.Close()
+					self.contentType = w.FormDataContentType()
 					reader = body
 				}
 			} else {
