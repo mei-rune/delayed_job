@@ -144,6 +144,16 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	} else {
 		args = params
+
+
+		var e error
+		content, e = genText(content, map[string]interface{}{
+			"content": "this is test messge",
+			"triggered_at": time.Now().Format(time.RFC3339),
+		})
+		if nil != e {
+			return nil, e
+		}
 	}
 
 

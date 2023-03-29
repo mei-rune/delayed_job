@@ -457,6 +457,8 @@ func (self *webHandler) perform(body interface{}) error {
 		if len(respBody) == 0 {
 			return errors.New(resp.Status)
 		}
+
+		// log.Printf("response is %s", respBody)
 		return fmt.Errorf("%v: %v", resp.StatusCode, string(respBody))
 	}
 	if "" == self.responseContent {
