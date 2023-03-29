@@ -119,8 +119,8 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("'phone_numbers' is required")
 	}
 
-	fmt.Println("====== ctx =", ctx)
-	fmt.Println("====== params =", params)
+	// fmt.Println("====== ctx =", ctx)
+	// fmt.Println("====== params =", params)
 
 	content := stringWithDefault(params, "content", "")
 	if 0 == len(content) {
