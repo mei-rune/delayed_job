@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-
+	"fmt"
 	"errors"
 
 	alyunsms "github.com/aliyun-sdk/sms-go"
@@ -55,6 +55,7 @@ var GetUserPhone func(id string) (string, error)
 var SendSMS func(method, phone, content string) error
 
 type smsHandler struct {
+	method string
 	args                 interface{}
 	content              string
 	phone_numbers        []string
@@ -118,6 +119,9 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 		return nil, errors.New("'phone_numbers' is required")
 	}
 
+	fmt.Println("====== ctx =", ctx)
+	fmt.Println("====== params =", params)
+
 	content := stringWithDefault(params, "content", "")
 	if 0 == len(content) {
 		return nil, errors.New("'content' is required")
@@ -138,11 +142,20 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 		if nil != e {
 			return nil, e
 		}
+	} else {
+		args = params
+	}
+
+
+	method := stringWithDefault(params, "sms.method", "")
+	if method == "" {
+		method = smsMethod
 	}
 
 	return &smsHandler{
 		content:       content,
 		phone_numbers: phone_numbers,
+		method: method,
 		args:          args,
 	}, nil
 }
@@ -150,6 +163,26 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 func (self *smsHandler) UpdatePayloadObject(options map[string]interface{}) {
 	delete(options, "users")
 	options["phone_numbers"] = self.failed_phone_numbers
+}
+
+func readStringWith(o interface{}, key, defaultValue string) string {
+	if o == nil {
+		return defaultValue
+	}
+
+	args, _ := o.(map[string]interface{})
+	if args == nil {
+		return defaultValue
+	}
+
+	v := args[key]
+	if v == nil {
+		return defaultValue
+	}
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return fmt.Sprint(v)
 }
 
 func (self *smsHandler) Perform() error {
@@ -160,17 +193,19 @@ func (self *smsHandler) Perform() error {
 		}
 	}
 
-	switch smsMethod {
+	switch self.method {
 	case "web":
-		if smsWebBatchSupport == "true" ||
-			smsWebBatchSupport == "True" ||
-			smsWebBatchSupport == "TRUE" {
+		support := readStringWith(self.args, "sms.web.batch_support", smsWebBatchSupport)
+		if support == "true" ||
+			support == "True" ||
+			support == "TRUE" {
 			return BatchSendByWebSvc(self.args, self.phone_numbers, self.content)
 		}
 	case "exec":
-		if smsExecBatchSupport == "true" ||
-			smsExecBatchSupport == "True" ||
-			smsExecBatchSupport == "TRUE" {
+		support := readStringWith(self.args, "sms.exec.batch_support", smsExecBatchSupport)
+		if support == "true" ||
+			support == "True" ||
+			support == "TRUE" {
 			return BatchSendByExec(self.args, self.phone_numbers, self.content)
 		}
 	}
@@ -184,9 +219,9 @@ func (self *smsHandler) Perform() error {
 
 		var e error
 		if SendSMS != nil {
-			e = SendSMS(smsMethod, phone, self.content)
+			e = SendSMS(self.method, phone, self.content)
 		} else {
-			switch smsMethod {
+			switch self.method {
 			case "", "gammu":
 				e = SendByGammu(phone, self.content)
 			case "ns20":

@@ -452,17 +452,23 @@ func testJobHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) 
 		return
 	}
 
+
+	handler_o, ok := ent["handler"]
+	if ok {
+		handler, ok := handler_o.(map[string]interface{})
+		if ok {
+			if _, ok := handler["content"]; !ok {
+				handler["content"] = "this is test job message."
+			}
+		}
+	}
+
+
 	job, e := createJobFromMap(backend, ent)
 	if nil != e {
 		w.WriteHeader(http.StatusInternalServerError)
 		io.WriteString(w, e.Error())
 		return
-	}
-
-	if args, _ := job.attributes(); args != nil {
-		if _, ok := args["content"]; !ok {
-			args["content"] = "this is test job message."
-		}
 	}
 
 	e = job.invokeJob()

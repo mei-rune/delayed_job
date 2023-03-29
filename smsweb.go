@@ -5,6 +5,7 @@ import (
 	"flag"
 	"net/http"
 	"strconv"
+  "strings"
 
 	"github.com/runner-mei/goutils/as"
 )
@@ -52,49 +53,57 @@ func BatchSendByWebSvc(args interface{}, phones []string, content string) error 
 		"content": msg,
 	}
 
-	urlStr, e := genText(smsWebURL, params)
+  webURL := readStringWith(args, "sms.web.url", smsWebURL)
+	urlStr, e := genText(webURL, params)
 	if nil != e {
 		return errors.New("failed to merge 'url' with params, " + e.Error())
 	}
 
-	headerText, e := genText(smsWebHeaders, params)
+  txt := readStringWith(args, "sms.web.headers", smsWebHeaders)
+	headerText, e := genText(txt, params)
 	if nil != e {
 		return errors.New("failed to merge 'headers' with params, " + e.Error())
 	}
 	headers := toKeyValues(headerText, nil)
 
-	body, e := genText(smsWebBody, params)
+  txt = readStringWith(args, "sms.web.body", smsWebBody)
+	body, e := genText(txt, params)
 	if nil != e {
 		return errors.New("failed to merge 'body' with params, " + e.Error())
 	}
 
-	responseContent, e := genText(smsWebResponseContent, params)
+  txt = readStringWith(args, "sms.web.response_content", smsWebResponseContent)
+	responseContent, e := genText(txt, params)
 	if nil != e {
 		return errors.New("failed to merge 'response_content' with params, " + e.Error())
 	}
 
+  txt = readStringWith(args, "sms.web.response_code", smsWebResponseCode)
 	var responseCode = http.StatusOK
-	if smsWebResponseCode != "" && smsWebResponseCode != "0" {
-		i, e := strconv.Atoi(smsWebResponseCode)
+	if txt != "" && txt != "0" {
+		i, e := strconv.Atoi(txt)
 		if nil != e {
 			return errors.New("failed to merge 'response_code' with params, " + e.Error())
 		}
 		responseCode = i
 	}
 
+  batchSupport := readStringWith(args, "sms.web.batch_support", smsWebBatchSupport)
+  method := readStringWith(args, "sms.web.method", smsWebMethod)
+
 	handler := webHandler{
-		method:          smsWebMethod,
+		method:          strings.ToUpper(method),
 		urlStr:          urlStr,
-		user:            smsWebUsername,
-		password:        smsWebPassword,
-		contentType:     smsWebContentType,
+		user:            readStringWith(args, "sms.web.username", smsWebUsername),
+		password:        readStringWith(args, "sms.web.password", smsWebPassword),
+		contentType:     readStringWith(args, "sms.web.content_type", smsWebContentType),
 		body:            body,
 		headers:         headers,
 		responseCode:    responseCode,
 		responseContent: responseContent,
 		args:            params,
 		phoneNumbers:    phones,
-		supportBatch:    as.BoolWithDefault(smsWebBatchSupport, false),
+		supportBatch:    as.BoolWithDefault(batchSupport, false),
 		isWebSMS:        true,
 	}
 	return handler.Perform()
