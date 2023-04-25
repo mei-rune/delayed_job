@@ -580,6 +580,9 @@ var Funcs = template.FuncMap{
 		}
 		return now.Format(format)
 	},
+	"timeNow": func() time.Time {
+			return time.Now()
+	},
 	"now": func(format ...string) interface{} {
 		if len(format) == 0 {
 			return time.Now()

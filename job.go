@@ -335,7 +335,11 @@ func (self *Job) failIt(err string) error {
 	now := self.backend.db_time_now()
 	self.failed_at = now
 	self.last_error = err
-	return self.backend.update(self.id, map[string]interface{}{"@failed_at": now, "@last_error": err})
+	updateErr := self.backend.update(self.id, map[string]interface{}{"@failed_at": now, "@last_error": err})
+	if updateErr != nil {
+		return self.backend.update(self.id, map[string]interface{}{"@failed_at": now, "@last_error": "save error message fail"})
+	}
+	return nil
 }
 
 func (self *Job) destroyIt() error {
