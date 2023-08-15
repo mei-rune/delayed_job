@@ -458,7 +458,7 @@ func testJobHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) 
 		handler, ok := handler_o.(map[string]interface{})
 		if ok {
 			if _, ok := handler["content"]; !ok {
-				handler["content"] = "this is test job message."
+				handler["content"] = "this is test job message. 这是一个测试消息。"
 			}
 		}
 	}

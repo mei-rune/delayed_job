@@ -2,6 +2,7 @@ package delayed_job
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -107,6 +108,8 @@ func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
 }
 
 func (self *weixinHandler) Perform() error {
+
+	fmt.Printf("1===###", self.msg.Text.Content)
 	if self.corp_server_url != "" {
 		old := corp.QyApiURL
 		corp.QyApiURL = self.corp_server_url
@@ -120,6 +123,8 @@ func (self *weixinHandler) Perform() error {
 	ul.mu.Lock()
 	defer ul.mu.Unlock()
 
+	fmt.Printf("2===###", self.msg.Text.Content)
+
 	if r, err := ul.client.SendText(&self.msg); nil != err {
 		return err
 	} else if "" != r.InvalidUser {
@@ -128,6 +133,8 @@ func (self *weixinHandler) Perform() error {
 		return errors.New("invalid party - " + r.InvalidParty)
 	} else if "" != r.InvalidTag {
 		return errors.New("invalid tag - " + r.InvalidUser)
+	} else {
+		fmt.Println(fmt.Sprintf("%#v", r))
 	}
 	return nil
 }

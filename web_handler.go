@@ -252,6 +252,12 @@ func newWebHandler(ctx, params map[string]interface{}) (Handler, error) {
 		}
 	}
 
+	if s := stringWithDefault(headers, "content_type", ""); s != "" {
+		contentType = s
+	} else if s := stringWithDefault(headers, "contentType", ""); s != "" {
+		contentType = s
+	}
+
 	return &webHandler{method: method,
 		urlStr:          urlStr,
 		contentType:     contentType, //stringWithDefault(params, "contentType", ""),

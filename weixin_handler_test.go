@@ -26,7 +26,7 @@ func TestWeixinHandler(t *testing.T) {
 		"corp_secret":     *weixin_corp_secret,
 		"target_type":     *weixin_target_type,
 		"targets":         *weixin_targets,
-		"content":         "this is test message.",
+		"content":         "this is test message.这是一个测试消息。",
 		"agent_id":        *weixin_agent_id})
 	if nil != e {
 		t.Error(e)

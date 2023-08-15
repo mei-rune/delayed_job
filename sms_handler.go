@@ -28,6 +28,11 @@ var smsNS20Address string
 var smsNS20Port string
 var smsNS20Timeout int
 
+
+var smsMuboatV1Address string
+var smsMuboatV1Port string
+var smsMuboatV1Timeout int
+
 var GetAliyunClientParams func() (accessKey, secretKey, signName, templateCode string)
 
 func SetSMSLogger(logger *log.Logger) {
@@ -47,6 +52,11 @@ func init() {
 	flag.StringVar(&smsNS20Address, "sms.ns20.address", "", "")
 	flag.StringVar(&smsNS20Port, "sms.ns20.port", "", "")
 	flag.IntVar(&smsNS20Timeout, "sms.ns20.timeout", 0, "")
+
+	// flag.StringVar(&smsMethod, "sms.method", "muboat_v1", "")
+	flag.StringVar(&smsMuboatV1Address, "sms.muboat_v1.address", "", "")
+	flag.StringVar(&smsMuboatV1Port, "sms.muboat_v1.port", "", "")
+	flag.IntVar(&smsMuboatV1Timeout, "sms.muboat_v1.timeout", 0, "")
 }
 
 var GetUserPhone func(id string) (string, error)
@@ -148,7 +158,7 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 		var e error
 		content, e = genText(content, map[string]interface{}{
-			"content": "this is test messge",
+			"content": "this is test messge.这是一个测试消息。",
 			"triggered_at": time.Now().Format(time.RFC3339),
 		})
 		if nil != e {
@@ -236,6 +246,8 @@ func (self *smsHandler) Perform() error {
 				e = SendByGammu(phone, self.content)
 			case "ns20":
 				e = SendByNS20(phone, self.content)
+			case "muboat_v1":
+				e = SendByMuboatv1(phone, self.content)
 			case "aliyun":
 				e = SendByAliyun(phone, self.content)
 			case "web":
@@ -316,6 +328,12 @@ func SendByNS20(phone, content string) error {
 
 	return ns20.Send(net.JoinHostPort(smsNS20Address, smsNS20Port), phone, content, timeout)
 }
+
+
+func SendByMuboatv1(phone, content string) error {
+	return errors.New("还不支持呢")
+}
+
 
 var (
 	aliyunClientLock sync.Mutex
