@@ -7,7 +7,7 @@ import (
 	"strconv"
   "strings"
 
-	"github.com/runner-mei/goutils/as"
+	"tech.hengwei.com.cn/go/goutils/as"
 )
 
 var (
