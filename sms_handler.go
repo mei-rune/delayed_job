@@ -2,7 +2,9 @@ package delayed_job
 
 import (
 	"bytes"
+	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"os/exec"
@@ -11,8 +13,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"fmt"
-	"errors"
 
 	alyunsms "github.com/aliyun-sdk/sms-go"
 	"github.com/runner-mei/delayed_job/ns20"
@@ -27,7 +27,6 @@ var smsMethod string
 var smsNS20Address string
 var smsNS20Port string
 var smsNS20Timeout int
-
 
 var smsMuboatV1Address string
 var smsMuboatV1Port string
@@ -65,7 +64,7 @@ var GetUserPhone func(id string) (string, error)
 var SendSMS func(method, phone, content string) error
 
 type smsHandler struct {
-	method string
+	method               string
 	args                 interface{}
 	content              string
 	phone_numbers        []string
@@ -155,17 +154,15 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 	} else {
 		args = params
 
-
 		var e error
 		content, e = genText(content, map[string]interface{}{
-			"content": "this is test messge.这是一个测试消息。",
+			"content":      "this is test messge.这是一个测试消息。",
 			"triggered_at": time.Now().Format(time.RFC3339),
 		})
 		if nil != e {
 			return nil, e
 		}
 	}
-
 
 	method := stringWithDefault(params, "sms.method", "")
 	if method == "" {
@@ -175,7 +172,7 @@ func newSMSHandler(ctx, params map[string]interface{}) (Handler, error) {
 	return &smsHandler{
 		content:       content,
 		phone_numbers: phone_numbers,
-		method: method,
+		method:        method,
 		args:          args,
 	}, nil
 }
@@ -209,6 +206,10 @@ func (self *smsHandler) Perform() error {
 	if smsLimiter != nil {
 		if !smsLimiter.CanSend() {
 			log.Println("超过限制不能再发了")
+
+			if smsLogger != nil {
+				smsLogger.Println("[sms] 超过限制不能再发了", self.phone_numbers)
+			}
 			return nil
 		}
 	}
@@ -266,7 +267,7 @@ func (self *smsHandler) Perform() error {
 		}
 
 		if smsLogger != nil {
-			smsLogger.Println("[sms]", phone, self.content)
+			smsLogger.Println("[sms]", "["+self.method+"]", phone, self.content)
 		}
 		if smsLimiter != nil {
 			smsLimiter.Add(1)
@@ -311,6 +312,8 @@ func SendByGammu(phone, content string) error {
 	if !bytes.Contains(output, []byte(excepted)) {
 		return errors.New(string(output))
 	}
+
+	fmt.Println("[sms]", phone, content, string(output))
 	return nil
 }
 
@@ -329,11 +332,9 @@ func SendByNS20(phone, content string) error {
 	return ns20.Send(net.JoinHostPort(smsNS20Address, smsNS20Port), phone, content, timeout)
 }
 
-
 func SendByMuboatv1(phone, content string) error {
 	return errors.New("还不支持呢")
 }
-
 
 var (
 	aliyunClientLock sync.Mutex
