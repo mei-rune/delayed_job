@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"gitee.com/runner.mei/dm" // 达梦
+	"gitee.com/chunanyong/dm" // 达梦
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/ziutek/mymysql/godrv"

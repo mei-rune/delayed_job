@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	_ "gitee.com/runner.mei/dm" // 达梦
+	_ "gitee.com/chunanyong/dm" // 达梦
 )
 
 var (

@@ -108,8 +108,6 @@ func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
 }
 
 func (self *weixinHandler) Perform() error {
-
-	fmt.Printf("1===###", self.msg.Text.Content)
 	if self.corp_server_url != "" {
 		old := corp.QyApiURL
 		corp.QyApiURL = self.corp_server_url
@@ -122,8 +120,6 @@ func (self *weixinHandler) Perform() error {
 	ul := GetWeixinClient(self.corp_id, Decrypt(self.corp_secret))
 	ul.mu.Lock()
 	defer ul.mu.Unlock()
-
-	fmt.Printf("2===###", self.msg.Text.Content)
 
 	if r, err := ul.client.SendText(&self.msg); nil != err {
 		return err
