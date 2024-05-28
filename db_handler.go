@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"strings"
 )
 
@@ -127,8 +129,51 @@ func transformUrl(drv, urlStr string) (string, error) {
 	if nil != e {
 		return "", e
 	}
-	fmt.Println(options)
+
 	switch drv {
+	case "sqlserver", "mssql":
+		host, port, dbname, user, password, args, e := fetchArguments(options)
+		if nil != e {
+			return "", e
+		}
+
+		query := url.Values{}
+		query.Add("database", dbname)
+		query.Add("connection timeout", "30")
+		query.Add("app name", "tpt_delay_jobs")
+		for key, value := range args {
+			query.Set(key, value)
+		}
+		u := &url.URL{
+			Scheme: "sqlserver",
+			User:   url.UserPassword(user, password),
+			Host:   net.JoinHostPort(host, port),
+			// Path:  instance, // if connecting to an instance instead of a port
+			RawQuery: query.Encode(),
+		}
+		return u.String(), nil
+	case "oracle":
+		host, port, dbname, user, password, args, e := fetchArguments(options)
+		if nil != e {
+			return "", e
+		}
+		
+		query := url.Values{}
+		// query.Add("database", db.DbName)
+		// query.Add("connection timeout", "30")
+		// query.Add("app name", "moo")
+		for key, value := range args {
+			query.Set(key, value)
+		}
+
+		u := &url.URL{
+			Scheme:   "oracle",
+			User:     url.UserPassword(user, password),
+			Host:     net.JoinHostPort(host, port),
+			Path:     dbname,
+			RawQuery: query.Encode(),
+		}
+		return u.String(), nil
 	case "postgres":
 		host, port, dbname, user, password, _, e := fetchArguments(options)
 		if nil != e {

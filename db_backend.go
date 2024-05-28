@@ -16,6 +16,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/ziutek/mymysql/godrv"
+	_ "github.com/denisenkom/go-mssqldb"
+	_ "github.com/sijms/go-ora/v2"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 )
@@ -58,15 +60,15 @@ func ToDbType(drv string) int {
 		return POSTGRESQL
 	case "mysql", "mymysql":
 		return MYSQL
-	case "odbc_with_mssql":
+	case "odbc_with_mssql", "mssql", "sqlserver":
 		return MSSQL
-	case "oci8", "odbc_with_oracle":
+	case "oci8", "odbc_with_oracle", "oracle", "ora":
 		return ORACLE
 	default:
 		if strings.Contains(drv, "oracle") {
 			return ORACLE
 		}
-		if strings.Contains(drv, "sqlserver") {
+		if strings.Contains(drv, "sqlserver") || strings.Contains(drv, "mssql") {
 			return MSSQL
 		}
 		if strings.Contains(drv, "db2") {
