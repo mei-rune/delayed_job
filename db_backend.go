@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"gitee.com/chunanyong/dm" // 达梦
+	_ "github.com/denisenkom/go-mssqldb"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
-	_ "github.com/ziutek/mymysql/godrv"
-	_ "github.com/denisenkom/go-mssqldb"
 	_ "github.com/sijms/go-ora/v2"
+	_ "github.com/ziutek/mymysql/godrv"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 )
@@ -31,6 +31,7 @@ const (
 	DB2        = 5
 	SYBASE     = 6
 	DM         = 7
+	KINGBASE   = 8
 )
 
 var (
@@ -54,6 +55,8 @@ func preprocessArgs(args interface{}) interface{} {
 
 func ToDbType(drv string) int {
 	switch drv {
+	case "kingbase":
+		return KINGBASE
 	case "dm":
 		return DM
 	case "postgres":
@@ -134,9 +137,9 @@ func i18nString(dbType int, drv string, e error) string {
 	// return e.Error()
 }
 
-func IsNumericParams(drv string) bool {
-	switch drv {
-	case "postgres", "oracle", "odbc_with_oracle", "oci8":
+func IsNumericParams(dbType int) bool {
+	switch dbType {
+	case ORACLE, DM, POSTGRESQL, KINGBASE:
 		return true
 	default:
 		return false
@@ -275,7 +278,8 @@ func newBackend(drvName, dbURL string, ctx map[string]interface{}) (*dbBackend, 
 	if nil != e {
 		return nil, e
 	}
-	return &dbBackend{ctx: ctx, drv: drv, db: db, dbType: ToDbType(drv), isNumericParams: IsNumericParams(drvName)}, nil
+	dbType := ToDbType(drv)
+	return &dbBackend{ctx: ctx, drv: drv, db: db, dbType: dbType, isNumericParams: IsNumericParams(dbType)}, nil
 }
 
 func (self *dbBackend) Close() error {
@@ -403,7 +407,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 	//buffer.WriteString("SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM "+ *table_name+"")
 	//buffer.WriteString(select_sql_string)
 	if self.isNumericParams {
-		if self.dbType == POSTGRESQL {
+		if self.dbType == POSTGRESQL || self.dbType == KINGBASE {
 			buffer.WriteString(" WHERE ((run_at IS NULL OR run_at <= $3) AND (locked_at IS NULL OR locked_at < $4) OR locked_by = $5) AND failed_at IS NULL")
 		} else {
 			buffer.WriteString(" WHERE ((run_at IS NULL OR run_at <= $1) AND (locked_at IS NULL OR locked_at < $2) OR locked_by = $3) AND failed_at IS NULL")
@@ -450,7 +454,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 
 	// Optimizations for faster lookups on some common databases
 	switch self.dbType {
-	case POSTGRESQL:
+	case POSTGRESQL, KINGBASE:
 		sqlStr := "UPDATE " + *table_name + " SET locked_at = $1, locked_by = $2 WHERE id in (SELECT id FROM " + *table_name +
 			buffer.String() + " LIMIT 1) RETURNING " + fields_sql_string
 		// fmt.Println(sqlStr, now, w.name, now, now.Truncate(w.max_run_time), w.name)
@@ -568,7 +572,7 @@ func (self *dbBackend) db_time_now() time.Time {
 	switch self.dbType {
 	case MSSQL:
 		return time.Now() //.UTC()
-	case POSTGRESQL:
+	case POSTGRESQL, KINGBASE:
 		return time.Now()
 	}
 	return time.Now().UTC()
@@ -607,7 +611,7 @@ func (self *dbBackend) create(jobs ...*Job) (e error) {
 		//1         2         3      4        5           NULL        6       NULL       NULL       NULL       7           8
 		//priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at
 		switch self.dbType {
-		case ORACLE:
+		case ORACLE, DM:
 			_, e = tx.Exec("DELETE FROM "+*table_name+" WHERE handler_id = ?", job.handler_id)
 			if nil != e {
 				break
@@ -622,7 +626,7 @@ func (self *dbBackend) create(jobs ...*Job) (e error) {
 				job.priority, job.repeat_count, job.repeat_interval, job.attempts, job.max_attempts, job.queue, job.handler_id, job.run_at.Format("2006-01-02 15:04:05"), now_str, now_str), job.handler)
 			//fmt.Println(fmt.Sprintf("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, run_at, created_at, updated_at) VALUES (%d, %d, '%s', :1, '%s', TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'), TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'), TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'))",
 			//	job.priority, job.attempts, job.queue, job.handler_id, job.run_at.Format("2006-01-02 15:04:05"), now_str, now_str), job.handler)
-		case POSTGRESQL:
+		case POSTGRESQL, KINGBASE:
 			_, e = tx.Exec("DELETE FROM "+*table_name+" WHERE handler_id = $1", job.handler_id)
 			if nil != e {
 				break
@@ -681,10 +685,10 @@ func (self *dbBackend) update(id int64, attributes map[string]interface{}) error
 			buffer.WriteString(" = NULL")
 		} else {
 			switch self.dbType {
-			case ORACLE:
+			case ORACLE, DM:
 				buffer.WriteString(" = :")
 				buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
-			case POSTGRESQL:
+			case POSTGRESQL, KINGBASE:
 				buffer.WriteString(" = $")
 				buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
 			default:
@@ -702,14 +706,14 @@ func (self *dbBackend) update(id int64, attributes map[string]interface{}) error
 	}
 
 	switch self.dbType {
-	case ORACLE:
+	case ORACLE, DM:
 		buffer.WriteString("updated_at = :")
 		buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
 		params = append(params, self.db_time_now())
 		buffer.WriteString(" WHERE id = :")
 		buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
 		params = append(params, id)
-	case POSTGRESQL:
+	case POSTGRESQL, KINGBASE:
 		buffer.WriteString("updated_at = $")
 		buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
 		params = append(params, self.db_time_now())
@@ -776,10 +780,10 @@ func buildSQL(dbType int, params map[string]interface{}) (string, []interface{},
 		}
 
 		switch dbType {
-		case ORACLE:
+		case ORACLE, DM:
 			buffer.WriteString(" = :")
 			buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
-		case POSTGRESQL:
+		case POSTGRESQL, KINGBASE:
 			buffer.WriteString(" = $")
 			buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
 		default:

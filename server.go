@@ -152,7 +152,7 @@ func Main(runMode, dbDrv, dbURL string, runHttp func(http.Handler)) error {
 			if nil != e {
 				return e
 			}
-		case POSTGRESQL:
+		case POSTGRESQL, KINGBASE:
 			script := `DROP TABLE IF EXISTS ` + *table_name + `;
 				CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
 				  id                SERIAL PRIMARY KEY,
@@ -454,7 +454,6 @@ func testJobHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) 
 		return
 	}
 
-
 	handler_o, ok := ent["handler"]
 	if ok {
 		handler, ok := handler_o.(map[string]interface{})
@@ -464,7 +463,6 @@ func testJobHandler(w http.ResponseWriter, r *http.Request, backend *dbBackend) 
 			}
 		}
 	}
-
 
 	job, e := createJobFromMap(backend, ent)
 	if nil != e {
