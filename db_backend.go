@@ -55,7 +55,7 @@ func preprocessArgs(args interface{}) interface{} {
 
 func ToDbType(drv string) int {
 	switch drv {
-	case "kingbase":
+	case "kingbase", "kingbase8":
 		return KINGBASE
 	case "dm":
 		return DM
