@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"gitee.com/chunanyong/dm" // 达梦
-	_ "github.com/denisenkom/go-mssqldb"
+	_ "github.com/microsoft/go-mssqldb"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/sijms/go-ora/v2"
