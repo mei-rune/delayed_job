@@ -11,6 +11,11 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/microsoft/go-mssqldb"
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
+	_ "github.com/sijms/go-ora/v2"
+	_ "github.com/ziutek/mymysql/godrv"
 	_ "gitee.com/chunanyong/dm" // 达梦
 )
 

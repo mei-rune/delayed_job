@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"database/sql/driver"
-
 	"errors"
 	"flag"
 	"fmt"
@@ -13,11 +12,6 @@ import (
 	"time"
 
 	"gitee.com/chunanyong/dm" // 达梦
-	_ "github.com/microsoft/go-mssqldb"
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
-	_ "github.com/sijms/go-ora/v2"
-	_ "github.com/ziutek/mymysql/godrv"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 )
