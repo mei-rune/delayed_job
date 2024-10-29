@@ -16,6 +16,7 @@ import (
 
 	alyunsms "github.com/aliyun-sdk/sms-go"
 	"github.com/runner-mei/delayed_job/ns20"
+	"github.com/runner-mei/delayed_job/muboat"
 )
 
 var smsLogger *log.Logger
@@ -333,7 +334,25 @@ func SendByNS20(phone, content string) error {
 }
 
 func SendByMuboatv1(phone, content string) error {
-	return errors.New("还不支持呢")
+	if smsMuboatV1Address == "" {
+		return errors.New("缺省 'sms.muboat_v1.address' 参数")
+	}
+	if smsMuboatV1Port == "" {
+		smsMuboatV1Port = "6006"
+	}
+	if smsMuboatV1Timeout <= 0 {
+		smsMuboatV1Timeout = 30
+	}
+
+	conn, err := muboat.Connect(net.JoinHostPort(smsMuboatV1Address, smsMuboatV1Port))
+	if err != nil {
+		return errors.New("连接短信猫失败, "+err.Error())
+	}
+	defer conn.Close()
+
+	log.Println("sms connect ok")
+
+	return muboat.SendMessage(conn, false, true, true, time.Duration(smsMuboatV1Timeout) * time.Second, phone, content)
 }
 
 var (
