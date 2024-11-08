@@ -17,6 +17,7 @@ import (
 	alyunsms "github.com/aliyun-sdk/sms-go"
 	"github.com/runner-mei/delayed_job/ns20"
 	"github.com/runner-mei/delayed_job/muboat"
+	"github.com/runner-mei/delayed_job/j311"
 )
 
 var smsLogger *log.Logger
@@ -32,6 +33,17 @@ var smsNS20Timeout int
 var smsMuboatV1Address string
 var smsMuboatV1Port string
 var smsMuboatV1Timeout int
+
+
+var smsj311Address string
+var smsj311Port string
+var smsj311Timeout int
+var smsj311Charset string
+
+var smsf405Address string
+var smsf405Port string
+var smsf405Timeout int
+var smsf405Charset string
 
 var GetAliyunClientParams func() (accessKey, secretKey, signName, templateCode string)
 
@@ -57,6 +69,17 @@ func init() {
 	flag.StringVar(&smsMuboatV1Address, "sms.muboat_v1.address", "", "")
 	flag.StringVar(&smsMuboatV1Port, "sms.muboat_v1.port", "", "")
 	flag.IntVar(&smsMuboatV1Timeout, "sms.muboat_v1.timeout", 0, "")
+
+
+	flag.StringVar(&smsj311Address, "sms.j311.address", "", "")
+	flag.StringVar(&smsj311Port, "sms.j311.port", "", "")
+	flag.IntVar(&smsj311Timeout, "sms.j311.timeout", 0, "")
+	flag.StringVar(&smsj311Charset, "sms.j311.charset", "", "")
+
+	flag.StringVar(&smsf405Address, "sms.f405.address", "", "")
+	flag.StringVar(&smsf405Port, "sms.f405.port", "", "")
+	flag.IntVar(&smsf405Timeout, "sms.f405.timeout", 0, "")
+	flag.StringVar(&smsf405Charset, "sms.f405.charset", "", "")
 }
 
 var GetUserPhone func(id string) (string, error)
@@ -250,6 +273,10 @@ func (self *smsHandler) Perform() error {
 				e = SendByNS20(phone, self.content)
 			case "muboat_v1":
 				e = SendByMuboatv1(phone, self.content)
+			case "j311":
+				e = SendByJ311(phone, self.content)
+			case "f405":
+				e = SendByF405(phone, self.content)
 			case "aliyun":
 				e = SendByAliyun(phone, self.content)
 			case "web":
@@ -353,6 +380,39 @@ func SendByMuboatv1(phone, content string) error {
 	log.Println("sms connect ok")
 
 	return muboat.SendMessage(conn, false, true, true, time.Duration(smsMuboatV1Timeout) * time.Second, phone, content)
+}
+
+func SendByJ311(phone, content string) error {
+	if smsj311Address == "" {
+		return errors.New("缺省 'sms.j311.address' 参数")
+	}
+	if smsj311Port == "" {
+		smsj311Port = "8234"
+	}
+	if smsj311Timeout <= 0 {
+		smsj311Timeout = 30
+	}
+
+	return j311.SendMessage(net.JoinHostPort(smsj311Address, smsj311Port),
+			time.Duration(smsj311Timeout)*time.Second,
+			smsj311Charset, phone, content)
+}
+
+func SendByF405(phone, content string) error {
+	// if smsf405Address == "" {
+	// 	return errors.New("缺省 'sms.f405.address' 参数")
+	// }
+	// if smsf405Port == "" {
+	// 	smsf405Port = "8234"
+	// }
+	// if smsf405Timeout <= 0 {
+	// 	smsf405Timeout = 30
+	// }
+
+	// return j311.SendMessage(net.JoinHostPort(smsf405Address, smsf405Port),
+	// 		time.Duration(smsf405Timeout)*time.Second,
+	// 		smsf405Charset, phone, content)
+	return errors.New("不支持")
 }
 
 var (

@@ -1,0 +1,6 @@
+=== RUN   TestSend
+2024/11/08 12:45:56 8613311601608:0:¿Í»§Ñ½°¡ [56 54 49 51 51 49 49 54 48 49 54 48 56 58 48 58 191 205 187 167 209 189 176 161]
+2024/11/08 12:45:57 [j311] read tcp 192.168.1.203:57794->192.168.1.222:8234: use of closed network connection
+--- PASS: TestSend (1.46s)
+PASS
+ok  	github.com/runner-mei/delayed_job/j311	1.684s
