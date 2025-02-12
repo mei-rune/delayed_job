@@ -568,21 +568,20 @@ func parseInterval(s string, defValue time.Duration) time.Duration {
 var Funcs = template.FuncMap{
 	"timeFormat": func(format string, t interface{}) string {
 		now := asTimeWithDefault(t, time.Time{})
-
-		switch {
-		case strings.HasPrefix(format, "unix"):
+		if strings.HasPrefix(format, "unix_ms") {
+			interval := time.Duration(0)
+			if len(format) >= 2 {
+				interval = parseInterval(strings.TrimSpace(strings.TrimPrefix(format, "unix_ms")), 0)
+			}
+			return strconv.FormatInt(now.UTC().Add(interval).UnixNano()/int64(time.Millisecond), 10)
+		}
+		if strings.HasPrefix(format, "unix") {
 			interval := time.Duration(0)
 			if len(format) >= 2 {
 				interval = parseInterval(strings.TrimSpace(strings.TrimPrefix(format, "unix")), 0)
 			}
 
 			return strconv.FormatInt(now.UTC().Add(interval).Unix(), 10)
-		case strings.HasPrefix(format, "unix_ms"):
-			interval := time.Duration(0)
-			if len(format) >= 2 {
-				interval = parseInterval(strings.TrimSpace(strings.TrimPrefix(format, "unix_ms")), 0)
-			}
-			return strconv.FormatInt(now.UTC().Add(interval).UnixNano()/int64(time.Millisecond), 10)
 		}
 		return now.Format(format)
 	},
