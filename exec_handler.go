@@ -22,6 +22,7 @@ import (
 	"golang.org/x/text/transform"
 )
 
+var IsDebug = false
 var logCmdOutput = os.Getenv("tpt_delayed_object_log_cmd_output") == "true"
 var default_directory = flag.String("exec.directory", ".", "the work directory for execute")
 
@@ -402,6 +403,13 @@ func (self *execHandler) Perform() error {
 	pr.Close()
 	wait.Wait()
 	if nil != err {
+
+		if errors.Is(err, exec.ErrNotFound) {
+			if IsDebug {
+				return errors.New("start '"+cmd.Path + " " + strings.Join(cmd.Args, " ") +"' failed, " + err.Error())
+			}
+		}
+
 		if nil != scanError {
 			return errors.New("start cmd failed, " + err.Error() + "\r\n" + scanError.Error())
 		}
