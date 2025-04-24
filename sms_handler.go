@@ -395,7 +395,7 @@ func SendByJ311(phone, content string) error {
 
 	return j311.SendMessage(net.JoinHostPort(smsj311Address, smsj311Port),
 			time.Duration(smsj311Timeout)*time.Second,
-			smsj311Charset, phone, content)
+			j311.SMS,	smsj311Charset, phone, content)
 }
 
 func SendByF405(phone, content string) error {
