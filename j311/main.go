@@ -56,7 +56,14 @@ func GetCharset(charset string) encoding.Encoding {
 	}
 }
 
-func SendMessage(address string, timeout time.Duration, charset, number string, msg string) error {
+type MsgType int
+
+const (
+	SMS MsgType = iota
+	TTS
+)
+
+func SendMessage(address string, timeout time.Duration, t MsgType, charset, number string, msg string) error {
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
 		return err
@@ -90,12 +97,16 @@ func SendMessage(address string, timeout time.Duration, charset, number string, 
 		number = strings.TrimPrefix(number, "0")
 	}
 
-	if !strings.HasPrefix(number, "86") {
-		number = "86" + number
-	}
+	// if !strings.HasPrefix(number, "86") {
+	// 	number = "86" + number
+	// }
 
 	buf.WriteString(number)
-	buf.WriteString(":0:")
+	if t == TTS {
+		buf.WriteString(":3:")
+	} else {
+		buf.WriteString(":0:")
+	}
 
 	if charset == "" {
 		charset = "GB2312"
@@ -124,13 +135,43 @@ func SendMessage(address string, timeout time.Duration, charset, number string, 
 				buf.WriteByte(b)
 				if bytes.Contains(buf.Bytes(), []byte("SMS_SEND_SUCESS")) {
 					running = false
+				} else if bytes.Contains(buf.Bytes(), []byte("ready")) {
+					if bytes.Contains(buf.Bytes(), []byte("TTS speack")) {
+
+						//tts busy
+						// OK
+						// +COLP:TTS speack
+						//  "13311601608",129
+						// OK
+						// +QWTTS: 0
+						// ready
+
+						running = false
+					}
 				}
+
+				// 1）tts busy，正在拨打对方电话，未接通状态。
+				// 2）TTS speack，电话已接通，正在播放语音。
+				// 3）ready，播放完毕，并已经挂断电话。
+
 			} else {
+				log.Println(buf.String())
 				return errors.New("disconnected")
 			}
 		case <-timer.C:
+			log.Println(buf.String())
+
+			if bytes.Contains(buf.Bytes(), []byte("TTS speack")) {
+				return nil
+			}
+			if bytes.Contains(buf.Bytes(), []byte("tts busy")) {
+				return errors.New("tts busy")
+			}
+
 			return errors.New("timeout")
 		}
 	}
+
+	log.Println(buf.String())
 	return nil
 }
