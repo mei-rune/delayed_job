@@ -215,6 +215,10 @@ commands_label:
 }
 
 func (self *redisHandler) Perform() error {
+	if IsDevEnv {
+		return ErrDevEnv
+	}
+
 	if self.client == nil {
 		dialOpts := []redis.DialOption{
 			redis.DialWriteTimeout(1 * time.Second),

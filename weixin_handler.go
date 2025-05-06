@@ -108,6 +108,10 @@ func newWeixinHandler(ctx, params map[string]interface{}) (Handler, error) {
 }
 
 func (self *weixinHandler) Perform() error {
+	if IsDevEnv {
+		return ErrDevEnv
+	}
+
 	if self.corp_server_url != "" {
 		old := corp.QyApiURL
 		corp.QyApiURL = self.corp_server_url

@@ -408,6 +408,10 @@ func newMailHandler(ctx, params map[string]interface{}) (Handler, error) {
 }
 
 func (self *mailHandler) Perform() error {
+	if IsDevEnv {
+		return ErrDevEnv
+	}
+
 	if 0 == len(self.message.To) {
 		return nil
 	}

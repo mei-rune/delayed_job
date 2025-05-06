@@ -311,6 +311,10 @@ func (self *webHandler) UpdatePayloadObject(options map[string]interface{}) {
 }
 
 func (self *webHandler) Perform() error {
+	if IsDevEnv {
+		return ErrDevEnv
+	}
+
 	if !self.isWebSMS {
 		var body interface{}
 		if self.method != "GET" && self.method != "HEAD" {

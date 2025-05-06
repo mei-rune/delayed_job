@@ -59,6 +59,10 @@ func newKafkaHandler(ctx, params map[string]interface{}) (Handler, error) {
 }
 
 func (self *kafkaHandler) Perform() error {
+	if IsDevEnv {
+		return ErrDevEnv
+	}
+
 	// make a writer that produces to topic-A, using the least-bytes distribution
 	w := &kafka.Writer{
 		Addr:                   kafka.TCP(self.addresses...),

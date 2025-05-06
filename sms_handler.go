@@ -227,6 +227,9 @@ func readStringWith(o interface{}, key, defaultValue string) string {
 }
 
 func (self *smsHandler) Perform() error {
+	if IsDevEnv {
+		return ErrDevEnv
+	}
 	if smsLimiter != nil {
 		if !smsLimiter.CanSend() {
 			log.Println("超过限制不能再发了")

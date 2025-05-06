@@ -1,11 +1,16 @@
 package delayed_job
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 )
+
+var IsDevEnv = false
+var ErrDevEnv = errors.New("请注意，这是测试环境是不可以发送信息 想要发信息，请在 tpt_settings 中增加一条记录:\r\n" +
+	"  INSERT INTO tpt_settings(name, value) values('send_in_tpt_networks', 'true')")
 
 func boolWithDefault(args map[string]interface{}, key string, defaultValue bool) bool {
 	v, ok := args[key]

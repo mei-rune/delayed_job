@@ -240,6 +240,10 @@ func lookPath(executableFolder string, alias ...string) (string, bool) {
 }
 
 func (self *execHandler) Perform() error {
+	if IsDevEnv {
+		return ErrDevEnv
+	}
+
 	if "tpt" == self.command || "tpt.exe" == self.command {
 		if a, ok := lookPath(ExecutableFolder, "tpt"); ok {
 			self.command = a

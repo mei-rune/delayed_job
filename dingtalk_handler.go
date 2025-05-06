@@ -59,6 +59,10 @@ type dingHandler struct {
 }
 
 func (self *dingHandler) Perform() error {
+	if IsDevEnv {
+		return ErrDevEnv
+	}
+
 	client := dingtalk.New(self.webhook,
 		dingtalk.WithSecret(self.secret),
 		dingtalk.WithTimeout(30*time.Second))

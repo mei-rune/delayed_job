@@ -240,6 +240,10 @@ func newSyslogHandler(ctx, params map[string]interface{}) (Handler, error) {
 }
 
 func (self *syslogHandler) Perform() error {
+	if IsDevEnv {
+		return ErrDevEnv
+	}
+
 	buf := bytes.NewBuffer(make([]byte, 0, 1000))
 	hasOk := false
 	for _, to := range self.to {
