@@ -26,6 +26,7 @@ const (
 	SYBASE     = 6
 	DM         = 7
 	KINGBASE   = 8
+	OPENGAUSS  = 9
 )
 
 var (
@@ -55,6 +56,8 @@ func ToDbType(drv string) int {
 		return DM
 	case "postgres":
 		return POSTGRESQL
+	case "opengauss":
+		return OPENGAUSS
 	case "mysql", "mymysql":
 		return MYSQL
 	case "odbc_with_mssql", "mssql", "sqlserver":
@@ -133,7 +136,7 @@ func i18nString(dbType int, drv string, e error) string {
 
 func IsNumericParams(dbType int) bool {
 	switch dbType {
-	case ORACLE, DM, POSTGRESQL, KINGBASE:
+	case ORACLE, DM, POSTGRESQL, KINGBASE, OPENGAUSS:
 		return true
 	default:
 		return false
@@ -401,7 +404,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 	//buffer.WriteString("SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM "+ *table_name+"")
 	//buffer.WriteString(select_sql_string)
 	if self.isNumericParams {
-		if self.dbType == POSTGRESQL || self.dbType == KINGBASE {
+		if self.dbType == POSTGRESQL || self.dbType == KINGBASE || self.dbType == OPENGAUSS {
 			buffer.WriteString(" WHERE ((run_at IS NULL OR run_at <= $3) AND (locked_at IS NULL OR locked_at < $4) OR locked_by = $5) AND failed_at IS NULL")
 		} else {
 			buffer.WriteString(" WHERE ((run_at IS NULL OR run_at <= $1) AND (locked_at IS NULL OR locked_at < $2) OR locked_by = $3) AND failed_at IS NULL")
@@ -448,7 +451,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 
 	// Optimizations for faster lookups on some common databases
 	switch self.dbType {
-	case POSTGRESQL, KINGBASE:
+	case POSTGRESQL, KINGBASE, OPENGAUSS:
 		sqlStr := "UPDATE " + *table_name + " SET locked_at = $1, locked_by = $2 WHERE id in (SELECT id FROM " + *table_name +
 			buffer.String() + " LIMIT 1) RETURNING " + fields_sql_string
 		// fmt.Println(sqlStr, now, w.name, now, now.Truncate(w.max_run_time), w.name)
@@ -566,7 +569,7 @@ func (self *dbBackend) db_time_now() time.Time {
 	switch self.dbType {
 	case MSSQL:
 		return time.Now() //.UTC()
-	case POSTGRESQL, KINGBASE:
+	case POSTGRESQL, KINGBASE, OPENGAUSS:
 		return time.Now()
 	}
 	return time.Now().UTC()
@@ -620,7 +623,7 @@ func (self *dbBackend) create(jobs ...*Job) (e error) {
 				job.priority, job.repeat_count, job.repeat_interval, job.attempts, job.max_attempts, job.queue, job.handler_id, job.run_at.Format("2006-01-02 15:04:05"), now_str, now_str), job.handler)
 			//fmt.Println(fmt.Sprintf("INSERT INTO "+*table_name+"(priority, attempts, queue, handler, handler_id, run_at, created_at, updated_at) VALUES (%d, %d, '%s', :1, '%s', TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'), TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'), TO_DATE('%s', 'YYYY-MM-DD HH24:MI:SS'))",
 			//	job.priority, job.attempts, job.queue, job.handler_id, job.run_at.Format("2006-01-02 15:04:05"), now_str, now_str), job.handler)
-		case POSTGRESQL, KINGBASE:
+		case POSTGRESQL, KINGBASE, OPENGAUSS:
 			_, e = tx.Exec("DELETE FROM "+*table_name+" WHERE handler_id = $1", job.handler_id)
 			if nil != e {
 				break
@@ -682,7 +685,7 @@ func (self *dbBackend) update(id int64, attributes map[string]interface{}) error
 			case ORACLE, DM:
 				buffer.WriteString(" = :")
 				buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
-			case POSTGRESQL, KINGBASE:
+			case POSTGRESQL, KINGBASE, OPENGAUSS:
 				buffer.WriteString(" = $")
 				buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
 			default:
@@ -707,7 +710,7 @@ func (self *dbBackend) update(id int64, attributes map[string]interface{}) error
 		buffer.WriteString(" WHERE id = :")
 		buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
 		params = append(params, id)
-	case POSTGRESQL, KINGBASE:
+	case POSTGRESQL, KINGBASE, OPENGAUSS:
 		buffer.WriteString("updated_at = $")
 		buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
 		params = append(params, self.db_time_now())
@@ -777,7 +780,7 @@ func buildSQL(dbType int, params map[string]interface{}) (string, []interface{},
 		case ORACLE, DM:
 			buffer.WriteString(" = :")
 			buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
-		case POSTGRESQL, KINGBASE:
+		case POSTGRESQL, KINGBASE, OPENGAUSS:
 			buffer.WriteString(" = $")
 			buffer.WriteString(strconv.FormatInt(int64(len(params)+1), 10))
 		default:

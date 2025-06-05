@@ -84,7 +84,7 @@ func TestDbHandlerConnectError(t *testing.T) {
 		}
 
 		switch ToDbType(test.drv) {
-		case POSTGRESQL, KINGBASE:
+		case POSTGRESQL, KINGBASE, OPENGAUSS:
 			if !strings.Contains(e.Error(), "dial tcp") {
 				t.Error("test[", test.drv, "] excepted error contains [dial tcp], but actual is", e)
 			}
@@ -258,7 +258,7 @@ func TestDbHandlerScriptError(t *testing.T) {
 		if !strings.Contains(e.Error(), "-2007:") {
 			t.Error("excepted error contains [-2007:], but actual is", e)
 		}
-	case POSTGRESQL, KINGBASE:
+	case POSTGRESQL, KINGBASE, OPENGAUSS:
 		if !strings.Contains(e.Error(), "scanner_yyerror") &&
 			!strings.Contains(e.Error(), "syntax error at or near \"aa\"") {
 			t.Error("excepted error contains [scanner_yyerror], but actual is", e)

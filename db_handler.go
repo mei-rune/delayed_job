@@ -174,7 +174,7 @@ func transformUrl(drv, urlStr string) (string, error) {
 			RawQuery: query.Encode(),
 		}
 		return u.String(), nil
-	case "postgres":
+	case "postgres", "opengauss", "kingbase":
 		host, port, dbname, user, password, _, e := fetchArguments(options)
 		if nil != e {
 			return "", e
