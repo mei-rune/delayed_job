@@ -76,7 +76,7 @@ func SendMessage(address string, timeout time.Duration, t MsgType, charset, numb
 		for {
 			n, err := conn.Read(buf[:])
 			if err != nil {
-				log.Println("[j311]", err)
+				log.Println("[j311] read fail", err)
 				close(c)
 				break
 			}
@@ -122,6 +122,7 @@ func SendMessage(address string, timeout time.Duration, t MsgType, charset, numb
 	log.Println(buf.String(), buf.Bytes())
 	_, err = conn.Write(buf.Bytes())
 	if err != nil {
+		log.Println("[J311] write fail", err)
 		return err
 	}
 	buf.Reset()
@@ -135,6 +136,9 @@ func SendMessage(address string, timeout time.Duration, t MsgType, charset, numb
 				buf.WriteByte(b)
 				if bytes.Contains(buf.Bytes(), []byte("SMS_SEND_SUCESS")) {
 					running = false
+				} else if bytes.Contains(buf.Bytes(), []byte("SMS_SEND_FAIL")) {
+					log.Println("[J311]",buf.String())
+					return errors.New("SMS_SEND_FAIL")
 				} else if bytes.Contains(buf.Bytes(), []byte("ready")) {
 					if bytes.Contains(buf.Bytes(), []byte("TTS speack")) {
 
@@ -155,11 +159,11 @@ func SendMessage(address string, timeout time.Duration, t MsgType, charset, numb
 				// 3）ready，播放完毕，并已经挂断电话。
 
 			} else {
-				log.Println(buf.String())
+				log.Println("[J311]",buf.String())
 				return errors.New("disconnected")
 			}
 		case <-timer.C:
-			log.Println(buf.String())
+			log.Println("[J311] data", buf.String())
 
 			if bytes.Contains(buf.Bytes(), []byte("TTS speack")) {
 				return nil
@@ -172,6 +176,6 @@ func SendMessage(address string, timeout time.Duration, t MsgType, charset, numb
 		}
 	}
 
-	log.Println(buf.String())
+	log.Println("[J311]", buf.String())
 	return nil
 }
