@@ -152,7 +152,7 @@ func Main(runMode, dbDrv, dbURL string, runHttp func(http.Handler)) error {
 			if nil != e {
 				return e
 			}
-		case POSTGRESQL, KINGBASE, OPENGAUSS:
+		case POSTGRESQL, KINGBASE, OPENGAUSS, GAUSSDB:
 			script := `DROP TABLE IF EXISTS ` + *table_name + `;
 				CREATE TABLE IF NOT EXISTS ` + *table_name + ` (
 				  id                SERIAL PRIMARY KEY,
