@@ -55,7 +55,7 @@ func ToDbType(drv string) int {
 		return KINGBASE
 	case "dm":
 		return DM
-	case "postgres":
+	case "postgres", "pgx", "pgx/v5":
 		return POSTGRESQL
 	case "opengauss":
 		return OPENGAUSS

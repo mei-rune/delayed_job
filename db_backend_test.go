@@ -369,7 +369,9 @@ func TestLockedJobInGet(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
 		if "postgres" == backend.drv ||
 		"kingbase" == backend.drv ||
-		"opengauss" == backend.drv {
+		"opengauss" == backend.drv ||
+		"pgx" == backend.drv ||
+		"pgx/v5" == backend.drv {
 			t.Skip("postgres is skipped.")
 		}
 
