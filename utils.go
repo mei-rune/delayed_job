@@ -307,3 +307,48 @@ func FormatIP(formatStr, ip string) (int64, error) {
 
 	return result, nil
 }
+
+
+// FormatIP 根据格式化字符串转换IP地址
+// formatStr: 格式化字符串，如"1100"表示保留前两个字节，丢弃后两个字节
+// ip: 要处理的IP地址字符串
+// 返回值: 转换后的字符串和错误信息
+func FormatIP2(formatStr, sep string, delta []int64,  ip string) (string, error) {
+	// 验证格式化字符串
+	if len(formatStr) != 4 {
+		return "", fmt.Errorf("格式化字符串长度必须为4，当前长度为%d", len(formatStr))
+	}
+
+	for _, char := range formatStr {
+		if char != '0' && char != '1' {
+			return "", fmt.Errorf("格式化字符串只能包含'0'或'1'，包含非法字符: %c", char)
+		}
+	}
+
+	// 解析IP地址
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return "", fmt.Errorf("无效的IP地址: %s", ip)
+	}
+
+	// 转换为IPv4格式
+	ipv4 := parsedIP.To4()
+	if ipv4 == nil {
+		return "", fmt.Errorf("不支持IPv6地址: %s", ip)
+	}
+
+	// 处理IP地址的每个字节
+	var results []string
+
+	for i, action := range formatStr {
+		if i >= len(ipv4) {
+			break // 防止索引越界
+		}
+
+		if action == '1' {
+			results = append(results, strconv.FormatInt( int64(ipv4[i]) + delta[i],  10))
+		}
+	}
+
+	return strings.Join(results, sep), nil
+}

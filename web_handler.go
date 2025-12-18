@@ -691,13 +691,13 @@ var Funcs = template.FuncMap{
 		return Decrypt(s)
 	},
 
-	"ipFormat": func(fmtStr, text string) string {
+	"ipFormat": func(fmtStr string, delta int, text string) string {
 		replaced, err := ReplaceIPs(text, func(ip string) string {
 			a, err := FormatIP(fmtStr, ip)
 			if err != nil {
 				return ip
 			}
-			return strconv.FormatInt(a, 10)
+			return strconv.FormatInt(a+int64(delta), 10)
 		})
 		if err != nil {
 			return text
