@@ -5,7 +5,7 @@ import (
 	"flag"
 	"net/http"
 	"strconv"
-  "strings"
+	"strings"
 
 	"tech.hengwei.com.cn/go/goutils/as"
 )
@@ -53,32 +53,32 @@ func BatchSendByWebSvc(args interface{}, phones []string, content string) error 
 		"content": msg,
 	}
 
-  webURL := readStringWith(args, "sms.web.url", smsWebURL)
+	webURL := readStringWith(args, "sms.web.url", smsWebURL)
 	urlStr, e := genText(webURL, params)
 	if nil != e {
 		return errors.New("failed to merge 'url' with params, " + e.Error())
 	}
 
-  txt := readStringWith(args, "sms.web.headers", smsWebHeaders)
+	txt := readStringWith(args, "sms.web.headers", smsWebHeaders)
 	headerText, e := genText(txt, params)
 	if nil != e {
 		return errors.New("failed to merge 'headers' with params, " + e.Error())
 	}
 	headers := toKeyValues(headerText, nil)
 
-  txt = readStringWith(args, "sms.web.body", smsWebBody)
+	txt = readStringWith(args, "sms.web.body", smsWebBody)
 	body, e := genText(txt, params)
 	if nil != e {
 		return errors.New("failed to merge 'body' with params, " + e.Error())
 	}
 
-  txt = readStringWith(args, "sms.web.response_content", smsWebResponseContent)
+	txt = readStringWith(args, "sms.web.response_content", smsWebResponseContent)
 	responseContent, e := genText(txt, params)
 	if nil != e {
 		return errors.New("failed to merge 'response_content' with params, " + e.Error())
 	}
 
-  txt = readStringWith(args, "sms.web.response_code", smsWebResponseCode)
+	txt = readStringWith(args, "sms.web.response_code", smsWebResponseCode)
 	var responseCode = http.StatusOK
 	if txt != "" && txt != "0" {
 		i, e := strconv.Atoi(txt)
@@ -88,8 +88,8 @@ func BatchSendByWebSvc(args interface{}, phones []string, content string) error 
 		responseCode = i
 	}
 
-  batchSupport := readStringWith(args, "sms.web.batch_support", smsWebBatchSupport)
-  method := readStringWith(args, "sms.web.method", smsWebMethod)
+	batchSupport := readStringWith(args, "sms.web.batch_support", smsWebBatchSupport)
+	method := readStringWith(args, "sms.web.method", smsWebMethod)
 
 	handler := webHandler{
 		method:          strings.ToUpper(method),

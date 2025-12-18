@@ -298,23 +298,22 @@ func (self *execHandler) Perform() error {
 				if nil == err {
 					output = string(bs)
 				}
-		  }
-
+			}
 
 			if err != nil {
-					if output != "" {
-				  	buffer.Reset()
-				  	buffer.WriteString(output)
-				  }
+				if output != "" {
+					buffer.Reset()
+					buffer.WriteString(output)
+				}
 
 				buffer.WriteString("\r\n ************************* exit *************************\r\n")
 				buffer.WriteString(err.Error())
 				return errors.New(buffer.String())
 			}
 			if logCmdOutput {
-			  if output == "" {
-						output = buffer.String()
-			  }
+				if output == "" {
+					output = buffer.String()
+				}
 				fmt.Println(output)
 			}
 			return nil
@@ -383,15 +382,15 @@ func (self *execHandler) Perform() error {
 	end:
 
 		scanError = nil
-	  strBytes := buffer.Bytes()
-	  if runtime.GOOS == "windows" {
+		strBytes := buffer.Bytes()
+		if runtime.GOOS == "windows" {
 			decoder := simplifiedchinese.GB18030.NewDecoder()
 			bs, _, err := transform.Bytes(decoder, strBytes)
 			if nil == err {
 				scanError = errors.New(string(bs))
 			}
-	  }
-	  if scanError == nil {
+		}
+		if scanError == nil {
 			scanError = errors.New(string(strBytes))
 		}
 	}()
@@ -410,7 +409,7 @@ func (self *execHandler) Perform() error {
 
 		if errors.Is(err, exec.ErrNotFound) {
 			if IsDebug {
-				return errors.New("start '"+cmd.Path + " " + strings.Join(cmd.Args, " ") +"' failed, " + err.Error())
+				return errors.New("start '" + cmd.Path + " " + strings.Join(cmd.Args, " ") + "' failed, " + err.Error())
 			}
 		}
 

@@ -157,7 +157,7 @@ func transformUrl(drv, urlStr string) (string, error) {
 		if nil != e {
 			return "", e
 		}
-		
+
 		query := url.Values{}
 		// query.Add("database", db.DbName)
 		// query.Add("connection timeout", "30")

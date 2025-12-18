@@ -33,7 +33,7 @@ func BatchSendByExec(args interface{}, phones []string, content string) error {
 		"content": content,
 	}
 
-  text := readStringWith(args, "sms.exec.command", smsExecCommand)
+	text := readStringWith(args, "sms.exec.command", smsExecCommand)
 	command, e := genText(text, params)
 	if nil != e {
 		return errors.New("failed to merge 'command' with params, " + e.Error())
@@ -41,8 +41,7 @@ func BatchSendByExec(args interface{}, phones []string, content string) error {
 
 	var arguments []string
 
-
-  text = readStringWith(args, "sms.exec.arguments", smsExecArguments)
+	text = readStringWith(args, "sms.exec.arguments", smsExecArguments)
 	if smsExecArguments != "" {
 		text, e := genText(smsExecArguments, params)
 		if nil != e {

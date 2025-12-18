@@ -137,7 +137,7 @@ func SendMessage(address string, timeout time.Duration, t MsgType, charset, numb
 				if bytes.Contains(buf.Bytes(), []byte("SMS_SEND_SUCESS")) {
 					running = false
 				} else if bytes.Contains(buf.Bytes(), []byte("SMS_SEND_FAIL")) {
-					log.Println("[J311]",buf.String())
+					log.Println("[J311]", buf.String())
 					return errors.New("SMS_SEND_FAIL")
 				} else if bytes.Contains(buf.Bytes(), []byte("ready")) {
 					if bytes.Contains(buf.Bytes(), []byte("TTS speack")) {
@@ -159,7 +159,7 @@ func SendMessage(address string, timeout time.Duration, t MsgType, charset, numb
 				// 3）ready，播放完毕，并已经挂断电话。
 
 			} else {
-				log.Println("[J311]",buf.String())
+				log.Println("[J311]", buf.String())
 				return errors.New("disconnected")
 			}
 		case <-timer.C:

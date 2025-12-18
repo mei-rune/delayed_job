@@ -15,9 +15,9 @@ import (
 	"time"
 
 	alyunsms "github.com/aliyun-sdk/sms-go"
-	"github.com/runner-mei/delayed_job/ns20"
-	"github.com/runner-mei/delayed_job/muboat"
 	"github.com/runner-mei/delayed_job/j311"
+	"github.com/runner-mei/delayed_job/muboat"
+	"github.com/runner-mei/delayed_job/ns20"
 )
 
 var smsLogger *log.Logger
@@ -33,7 +33,6 @@ var smsNS20Timeout int
 var smsMuboatV1Address string
 var smsMuboatV1Port string
 var smsMuboatV1Timeout int
-
 
 var smsj311Address string
 var smsj311Port string
@@ -69,7 +68,6 @@ func init() {
 	flag.StringVar(&smsMuboatV1Address, "sms.muboat_v1.address", "", "")
 	flag.StringVar(&smsMuboatV1Port, "sms.muboat_v1.port", "", "")
 	flag.IntVar(&smsMuboatV1Timeout, "sms.muboat_v1.timeout", 0, "")
-
 
 	flag.StringVar(&smsj311Address, "sms.j311.address", "", "")
 	flag.StringVar(&smsj311Port, "sms.j311.port", "", "")
@@ -376,13 +374,13 @@ func SendByMuboatv1(phone, content string) error {
 
 	conn, err := muboat.Connect(net.JoinHostPort(smsMuboatV1Address, smsMuboatV1Port))
 	if err != nil {
-		return errors.New("连接短信猫失败, "+err.Error())
+		return errors.New("连接短信猫失败, " + err.Error())
 	}
 	defer conn.Close()
 
 	log.Println("sms connect ok")
 
-	return muboat.SendMessage(conn, false, true, true, time.Duration(smsMuboatV1Timeout) * time.Second, phone, content)
+	return muboat.SendMessage(conn, false, true, true, time.Duration(smsMuboatV1Timeout)*time.Second, phone, content)
 }
 
 func SendByJ311(phone, content string) error {
@@ -397,8 +395,8 @@ func SendByJ311(phone, content string) error {
 	}
 
 	return j311.SendMessage(net.JoinHostPort(smsj311Address, smsj311Port),
-			time.Duration(smsj311Timeout)*time.Second,
-			j311.SMS,	smsj311Charset, phone, content)
+		time.Duration(smsj311Timeout)*time.Second,
+		j311.SMS, smsj311Charset, phone, content)
 }
 
 func SendByF405(phone, content string) error {

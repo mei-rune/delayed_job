@@ -3,6 +3,8 @@ package delayed_job
 import (
 	"errors"
 	"fmt"
+	"net"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -243,4 +245,65 @@ func stringsWithDefault(args map[string]interface{}, key, sep string, defaultVal
 
 func SplitLines(s string) []string {
 	return strings.Split(s, "\n")
+}
+
+// ReplaceIPs 从文本中解析出IP地址并按自定义规则替换
+func ReplaceIPs(text string, replaceFunc func(ip string) string) (string, error) {
+	// 匹配IPv4地址的正则表达式[1,6](@ref)
+	ipRegex := `(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`
+
+	// 编译正则表达式[1,11](@ref)
+	reg, err := regexp.Compile(ipRegex)
+	if err != nil {
+		return "", fmt.Errorf("正则表达式编译失败: %v", err)
+	}
+
+	// 使用ReplaceAllStringFunc进行替换[9,11](@ref)
+	result := reg.ReplaceAllStringFunc(text, replaceFunc)
+
+	return result, nil
+}
+
+// FormatIP 根据格式化字符串转换IP地址
+// formatStr: 格式化字符串，如"1100"表示保留前两个字节，丢弃后两个字节
+// ip: 要处理的IP地址字符串
+// 返回值: 转换后的字符串和错误信息
+func FormatIP(formatStr, ip string) (int64, error) {
+	// 验证格式化字符串
+	if len(formatStr) != 4 {
+		return 0, fmt.Errorf("格式化字符串长度必须为4，当前长度为%d", len(formatStr))
+	}
+
+	for _, char := range formatStr {
+		if char != '0' && char != '1' {
+			return 0, fmt.Errorf("格式化字符串只能包含'0'或'1'，包含非法字符: %c", char)
+		}
+	}
+
+	// 解析IP地址
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return 0, fmt.Errorf("无效的IP地址: %s", ip)
+	}
+
+	// 转换为IPv4格式
+	ipv4 := parsedIP.To4()
+	if ipv4 == nil {
+		return 0, fmt.Errorf("不支持IPv6地址: %s", ip)
+	}
+
+	// 处理IP地址的每个字节
+	var result int64
+
+	for i, action := range formatStr {
+		if i >= len(ipv4) {
+			break // 防止索引越界
+		}
+
+		if action == '1' {
+			result = result*1000 + int64(ipv4[i])
+		}
+	}
+
+	return result, nil
 }

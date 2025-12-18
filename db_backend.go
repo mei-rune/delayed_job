@@ -407,7 +407,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 	//buffer.WriteString("SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM "+ *table_name+"")
 	//buffer.WriteString(select_sql_string)
 	if self.isNumericParams {
-		if self.dbType == POSTGRESQL || self.dbType == KINGBASE || self.dbType == OPENGAUSS || self.dbType == GAUSSDB{
+		if self.dbType == POSTGRESQL || self.dbType == KINGBASE || self.dbType == OPENGAUSS || self.dbType == GAUSSDB {
 			buffer.WriteString(" WHERE ((run_at IS NULL OR run_at <= $3) AND (locked_at IS NULL OR locked_at < $4) OR locked_by = $5) AND failed_at IS NULL")
 		} else {
 			buffer.WriteString(" WHERE ((run_at IS NULL OR run_at <= $1) AND (locked_at IS NULL OR locked_at < $2) OR locked_by = $3) AND failed_at IS NULL")
@@ -842,10 +842,10 @@ func buildSQL(dbType int, params map[string]interface{}) (string, []interface{},
 		limit := fmt.Sprint(limit_v)
 		i, e := strconv.ParseInt(limit, 10, 64)
 		if nil != e {
-			return "", nil, fmt.Errorf("limit is not a number, actual value is '" + limit + "'")
+			return "", nil, errors.New("limit is not a number, actual value is '" + limit + "'")
 		}
 		if i <= 0 {
-			return "", nil, fmt.Errorf("limit must is geater zero, actual value is '" + limit + "'")
+			return "", nil, errors.New("limit must is geater zero, actual value is '" + limit + "'")
 		}
 
 		if offset_v, ok := params["offset"]; ok {
@@ -855,11 +855,11 @@ func buildSQL(dbType int, params map[string]interface{}) (string, []interface{},
 			offset := fmt.Sprint(offset_v)
 			i, e = strconv.ParseInt(offset, 10, 64)
 			if nil != e {
-				return "", nil, fmt.Errorf("offset is not a number, actual value is '" + offset + "'")
+				return "", nil, errors.New("offset is not a number, actual value is '" + offset + "'")
 			}
 
 			if i < 0 {
-				return "", nil, fmt.Errorf("offset must is geater(or equals) zero, actual value is '" + offset + "'")
+				return "", nil, errors.New("offset must is geater(or equals) zero, actual value is '" + offset + "'")
 			}
 
 			buffer.WriteString(" LIMIT ")

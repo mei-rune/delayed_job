@@ -11,17 +11,17 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/microsoft/go-mssqldb"
+	_ "gitee.com/chunanyong/dm"                       // 达梦
+	_ "gitee.com/opengauss/openGauss-connector-go-pq" // openGauss
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	_ "github.com/microsoft/go-mssqldb"
 	_ "github.com/sijms/go-ora/v2"
 	_ "github.com/ziutek/mymysql/godrv"
-	_ "gitee.com/chunanyong/dm" // 达梦
-	_ "gitee.com/opengauss/openGauss-connector-go-pq" // openGauss
 )
 
 var (
-	OpenGaussUrl      = "host=192.168.1.202 port=8888 user=golang password=123456_go dbname=golang sslmode=disable"
+	OpenGaussUrl  = "host=192.168.1.202 port=8888 user=golang password=123456_go dbname=golang sslmode=disable"
 	PostgreSQLUrl = "host=127.0.0.1 user=golang password=123456 dbname=golang sslmode=disable"
 	MySQLUrl      = "golang:123456@tcp(localhost:3306)/golang?autocommit=true&parseTime=true&multiStatements=true"
 	MsSqlUrl      = "sqlserver://golang:123456@127.0.0.1?database=golang&connection+timeout=30"
@@ -368,10 +368,10 @@ func TestGetWithFailed(t *testing.T) {
 func TestLockedJobInGet(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
 		if "postgres" == backend.drv ||
-		"kingbase" == backend.drv ||
-		"opengauss" == backend.drv ||
-		"pgx" == backend.drv ||
-		"pgx/v5" == backend.drv {
+			"kingbase" == backend.drv ||
+			"opengauss" == backend.drv ||
+			"pgx" == backend.drv ||
+			"pgx/v5" == backend.drv {
 			t.Skip("postgres is skipped.")
 		}
 

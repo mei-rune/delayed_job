@@ -590,7 +590,7 @@ var Funcs = template.FuncMap{
 		return now.Format(format)
 	},
 	"timeNow": func() time.Time {
-			return time.Now()
+		return time.Now()
 	},
 	"now": func(format ...string) interface{} {
 		if len(format) == 0 {
@@ -689,6 +689,20 @@ var Funcs = template.FuncMap{
 
 	"decrypt": func(s string) string {
 		return Decrypt(s)
+	},
+
+	"ipFormat": func(fmtStr, text string) string {
+		replaced, err := ReplaceIPs(text, func(ip string) string {
+			a, err := FormatIP(fmtStr, ip)
+			if err != nil {
+				return ip
+			}
+			return strconv.FormatInt(a, 10)
+		})
+		if err != nil {
+			return text
+		}
+		return replaced
 	},
 }
 
