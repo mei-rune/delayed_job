@@ -704,6 +704,45 @@ var Funcs = template.FuncMap{
 		}
 		return replaced
 	},
+	"read_access_url": func(values map[string]interface{}) interface{} {
+	  return "__read_access_url__"
+	},
+	"fetch": func(values map[string]interface{}, field, exp string) interface{} {
+	  return "__fetch__"
+	},
+	"readMoSetting": func(values map[string]interface{}, keyname string) interface{} {
+	  return "__readMoSetting__"
+	},
+	"type_to_humanize_string": func(value interface{}) interface{} {
+	  return "__type_to_humanize_string__"
+	},
+	"u": func(name string) interface{} {
+	  return "__u__"
+	},
+	"readUser": func(name string) interface{} {
+	  return "__readUser__"
+	},
+	"phone": func(interface{}) interface{} {
+	  return "__phone__"
+	},
+	"mail": func(interface{}) interface{} {
+	  return "__mail__"
+	},
+	"field": func(name string, v interface{}) interface{} {
+	  return "__field__"
+	},
+	"params": func(mo interface{}, nm string) interface{} {
+	  return "__params__"
+	},
+	"sparams": func(mo interface{}, nm string) interface{} {
+	  return "__sparams__"
+	},
+	"generateDefault": func(values map[string]interface{}) interface{} {
+	  return "__generateDefault__"
+	},
+	"levelString": func(level int) string {
+	  return "__levelString__"
+	},
 }
 
 func genText(content string, args interface{}) (string, error) {
