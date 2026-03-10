@@ -750,7 +750,7 @@ func substring(start, length int, s string) string {
 	if start < 0 {
 		return s[:length]
 	}
-	if length < 0 {
+	if length <= 0 {
 		return s[start:]
 	}
 	return s[start:length]
