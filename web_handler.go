@@ -743,6 +743,17 @@ var Funcs = template.FuncMap{
 	"levelString": func(level int) string {
 	  return "__levelString__"
 	},
+	"substr": substring,
+}
+
+func substring(start, length int, s string) string {
+	if start < 0 {
+		return s[:length]
+	}
+	if length < 0 {
+		return s[start:]
+	}
+	return s[start:length]
 }
 
 func genText(content string, args interface{}) (string, error) {
