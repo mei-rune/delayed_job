@@ -748,12 +748,30 @@ var Funcs = template.FuncMap{
 
 func substring(start, length int, s string) string {
 	if start < 0 {
-		return s[:length]
+		runes := []rune(s)
+		if len(runes) > length {
+			return string(runes[:length])
+		}
+		return s
 	}
 	if length <= 0 {
-		return s[start:]
+		runes := []rune(s)
+		if len(runes) <= start {
+			return ""
+		}
+		return string(runes[start:])
 	}
-	return s[start:length]
+
+	runes := []rune(s)
+	if len(runes) <= start {
+			return ""
+	}
+
+	if len(runes) >= length {
+		return string(runes[start:])
+	}
+
+	return string(runes[start:length])
 }
 
 func genText(content string, args interface{}) (string, error) {
