@@ -717,11 +717,12 @@ var Funcs = template.FuncMap{
 	  return "__type_to_humanize_string__"
 	},
 	"u": func(name string) interface{} {
-	  return "__u__"
+	  return ReadUserFunc(name)
 	},
 	"readUser": func(name string) interface{} {
-	  return "__readUser__"
+	  return ReadUserFunc(name)
 	},
+	"readUserField": ReadUserFieldFunc,
 	"phone": func(interface{}) interface{} {
 	  return "__phone__"
 	},

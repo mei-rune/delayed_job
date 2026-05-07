@@ -41,6 +41,14 @@ var (
 		return s
 	}
 	GetUserMail func(id string) (string, error)
+
+	ReadUserFunc = func(username string) interface{} {
+		return "__u__"
+	}
+
+	ReadUserFieldFunc = func(username, field string) interface{} {
+		return "__"+field+"__"
+	}
 )
 
 func SetMailLogger(logger *log.Logger) {
