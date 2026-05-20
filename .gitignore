@@ -11,6 +11,7 @@ out/
 *.lib
 *.a
 *.db
+*.log
 
 /build
 /out

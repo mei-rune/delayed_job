@@ -28,6 +28,7 @@ const (
 	KINGBASE   = 8
 	OPENGAUSS  = 9
 	GAUSSDB    = 10
+	MariaDB    = 11
 )
 
 var (
@@ -61,6 +62,8 @@ func ToDbType(drv string) int {
 		return OPENGAUSS
 	case "gaussdb":
 		return GAUSSDB
+	case "mariadb":
+		return MariaDB
 	case "mysql", "mymysql":
 		return MYSQL
 	case "odbc_with_mssql", "mssql", "sqlserver":
@@ -276,7 +279,14 @@ func newBackend(drvName, dbURL string, ctx map[string]interface{}) (*dbBackend, 
 
 	db, e := sql.Open(drv, dbURL)
 	if nil != e {
-		return nil, e
+		if !strings.Contains(e.Error(), "sql: unknown driver \"mariadb\" (forgotten import?)") {
+			return nil, e
+		}
+
+		db, e = sql.Open("mysql", dbURL)
+		if nil != e {
+			return nil, e
+		}
 	}
 	dbType := ToDbType(drv)
 	return &dbBackend{ctx: ctx, drv: drv, db: db, dbType: dbType, isNumericParams: IsNumericParams(dbType)}, nil

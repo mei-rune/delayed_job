@@ -363,11 +363,18 @@ func (self *dbHandler) Perform() (err error) {
 
 	db, e := sql.Open(drv, self.urlStr)
 	if nil != e {
-		return i18n(dbType, self.drv, e)
+		if !strings.Contains(e.Error(), "sql: unknown driver \"mariadb\" (forgotten import?)") {	
+			return i18n(dbType, self.drv, e)
+		}
+
+		db, e = sql.Open("mysql", self.urlStr)
+		if nil != e {
+			return i18n(dbType, self.drv, e)
+		}
 	}
 	defer db.Close()
 
-	if MYSQL == dbType || ORACLE == dbType {
+	if MariaDB == dbType || MYSQL == dbType || ORACLE == dbType {
 		tx, e := db.Begin()
 		if nil != e {
 			return errors.New("open transaction failed, " + i18nString(dbType, self.drv, e))

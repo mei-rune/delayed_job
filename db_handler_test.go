@@ -62,8 +62,8 @@ func TestDbHandlerParameterIsError(t *testing.T) {
 	_, e = newDbHandler(map[string]interface{}{}, map[string]interface{}{})
 	if nil == e {
 		t.Error("excepted error is not nil, but actual is nil")
-	} else if "'script' is required" != e.Error() {
-		t.Error("excepted error is ['script' is required.], but actual is", e)
+	} else if "'drv' is required" != e.Error() {
+		t.Error("excepted error is ['drv' is required], but actual is", e)
 	}
 }
 
@@ -88,7 +88,7 @@ func TestDbHandlerConnectError(t *testing.T) {
 			if !strings.Contains(e.Error(), "dial tcp") {
 				t.Error("test[", test.drv, "] excepted error contains [dial tcp], but actual is", e)
 			}
-		case MYSQL:
+		case MYSQL, MariaDB:
 			if "mymysql" == test.drv {
 				if !strings.Contains(e.Error(), "bad connection") {
 					t.Error("test[", test.drv, "] excepted error contains [bad connection], but actual is", e)
@@ -245,7 +245,7 @@ func TestDbHandlerScriptError(t *testing.T) {
 		if !strings.Contains(e.Error(), "SQLExecute: {42000} [Microsoft]") {
 			t.Error("excepted error contains [[Microsoft]], but actual is", e)
 		}
-	case MYSQL:
+	case MYSQL, MariaDB:
 		if !strings.Contains(e.Error(), "Error 1064:") &&
 			!strings.Contains(e.Error(), "#1064 error from MySQL server:") {
 			t.Error("excepted error contains [Error 1064:], but actual is", e)

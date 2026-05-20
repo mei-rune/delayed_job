@@ -24,6 +24,7 @@ var (
 	OpenGaussUrl  = "host=192.168.1.202 port=8888 user=golang password=123456_go dbname=golang sslmode=disable"
 	PostgreSQLUrl = "host=127.0.0.1 user=golang password=123456 dbname=golang sslmode=disable"
 	MySQLUrl      = "golang:123456@tcp(localhost:3306)/golang?autocommit=true&parseTime=true&multiStatements=true"
+	MariaDbUrl      = "golang:123456@tcp(localhost:3306)/golang?autocommit=true&parseTime=true&multiStatements=true"
 	MsSqlUrl      = "sqlserver://golang:123456@127.0.0.1?database=golang&connection+timeout=30"
 	DMSqlUrl      = "dm://" + os.Getenv("dm_username") + ":" + os.Getenv("dm_password") + "@" + os.Getenv("dm_host") + "?noConvertToHex=true"
 )
@@ -53,6 +54,8 @@ func GetTestConnURL() string {
 			return PostgreSQLUrl
 		case "mysql":
 			return MySQLUrl
+		case "mariadb":
+			return MariaDbUrl
 		case "sqlserver", "mssql":
 			return MsSqlUrl
 		case "dm":
