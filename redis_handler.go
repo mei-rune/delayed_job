@@ -1,13 +1,14 @@
 package delayed_job
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/fd/go-shellwords/shellwords"
-	"github.com/gomodule/redigo/redis"
+	"github.com/go-redis/redis/v8"
 )
 
 type redisHandler struct {
@@ -220,26 +221,29 @@ func (self *redisHandler) Perform() error {
 	}
 
 	if self.client == nil {
-		dialOpts := []redis.DialOption{
-			redis.DialWriteTimeout(1 * time.Second),
-			redis.DialReadTimeout(1 * time.Second),
-		}
-		if self.password != "" {
-			dialOpts = append(dialOpts, redis.DialPassword(self.password))
-		}
-		c, err := redis.Dial("tcp", self.address, dialOpts...)
-		if err != nil {
-			return fmt.Errorf("[redis] connect to '%s' failed, %v", self.address, err)
-		}
-		defer c.Close()
+		ctx := context.Background()
 
+		rdb := redis.NewClient(&redis.Options{
+			Addr:         self.address,
+			Password:     self.password,
+			DialTimeout:  1 * time.Second,
+			ReadTimeout:  1 * time.Second,
+			WriteTimeout: 1 * time.Second,
+		})
+		defer rdb.Close()
+
+		pipe := rdb.Pipeline()
 		for _, command := range self.commands {
-			var args = make([]interface{}, len(command)-1)
-			for idx := range command[1:] {
-				args[idx] = command[idx+1]
+			args := make([]interface{}, len(command))
+			for i, arg := range command {
+				args[i] = arg
 			}
+			pipe.Do(ctx, args...)
+		}
 
-			c.Send(command[0], args...)
+		_, err := pipe.Exec(ctx)
+		if err != nil {
+			return fmt.Errorf("[redis] execute commands failed, %v", err)
 		}
 		return nil
 	}

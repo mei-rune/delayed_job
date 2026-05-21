@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gomodule/redigo/redis"
+	"github.com/go-redis/redis/v8"
 )
 
 func TestRedisHandlerParameterError(t *testing.T) {
@@ -49,7 +49,7 @@ func TestRedisHandlerParameterError(t *testing.T) {
 		t.Error("excepted error is ''redis' in the ctx is nil', but actual is", e)
 	}
 
-	redisTest(t, func(client *redis_gateway, c redis.Conn) {
+	redisTest(t, func(client *redis_gateway, c *redis.Client) {
 		_, e := newRedisHandler(map[string]interface{}{"redis": client},
 			map[string]interface{}{"rules": []interface{}{}})
 		if nil == e {
@@ -120,7 +120,7 @@ func TestRedisHandler(t *testing.T) {
 				[]string{"SET", "a4", "1226"},
 				[]string{"SET", "a5", "1227"}}}}} {
 
-		redisTest(t, func(client *redis_gateway, c redis.Conn) {
+		redisTest(t, func(client *redis_gateway, c *redis.Client) {
 			for _, args := range test {
 				handler, e := newRedisHandler(map[string]interface{}{"redis": client}, args)
 				if nil != e {
@@ -135,11 +135,11 @@ func TestRedisHandler(t *testing.T) {
 				}
 			}
 
-			checkResult(t, c, "GET", "a1", "1223")
-			checkResult(t, c, "GET", "a2", "1224")
-			checkResult(t, c, "GET", "a3", "1225")
-			checkResult(t, c, "GET", "a4", "1226")
-			checkResult(t, c, "GET", "a5", "1227")
+			checkResult(t, c, "a1", "1223")
+			checkResult(t, c, "a2", "1224")
+			checkResult(t, c, "a3", "1225")
+			checkResult(t, c, "a4", "1226")
+			checkResult(t, c, "a5", "1227")
 		})
 	}
 }
@@ -182,7 +182,7 @@ func TestRedisHandlerFailed(t *testing.T) {
 			[]interface{}{"SET", "a4", "1226"},
 			[]interface{}{"SET", "a5", "1227"}}}} {
 
-		redisTest(t, func(client *redis_gateway, c redis.Conn) {
+		redisTest(t, func(client *redis_gateway, c *redis.Client) {
 			handler, e := newRedisHandler(map[string]interface{}{"redis": client}, test)
 			if nil != e {
 				t.Error(e)

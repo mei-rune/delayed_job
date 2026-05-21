@@ -2,6 +2,7 @@ package delayed_job
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"expvar"
 	"flag"
@@ -13,7 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gomodule/redigo/redis"
+	"github.com/go-redis/redis/v8"
 )
 
 var redisAddress = flag.String("redis.address", "127.0.0.1:36379", "the address of redis")
@@ -28,6 +29,8 @@ type redis_request struct {
 type redis_gateway struct {
 	Address   string
 	Password  string
+	client    *redis.Client
+	ctx       context.Context
 	c         chan *redis_request
 	is_closed int32
 	wait      sync.WaitGroup
@@ -90,16 +93,19 @@ func (self *redis_gateway) runOnce(error_count *uint) {
 		}
 	}()
 
-	dialOpts := []redis.DialOption{
-		redis.DialWriteTimeout(1 * time.Second),
-		redis.DialReadTimeout(1 * time.Second),
-	}
-	if self.Password != "" {
-		dialOpts = append(dialOpts, redis.DialPassword(self.Password))
-	}
-	c, err := redis.Dial("tcp", self.Address, dialOpts...)
-	// c, err := redis.DialTimeout("tcp", self.Address, 1*time.Second, 1*time.Second, 1*time.Second)
-	if err != nil {
+	self.ctx = context.Background()
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:         self.Address,
+		Password:     self.Password,
+		DialTimeout:  1 * time.Second,
+		ReadTimeout:  1 * time.Second,
+		WriteTimeout: 1 * time.Second,
+	})
+
+	status := rdb.Ping(self.ctx)
+	if status.Err() != nil {
+		err := status.Err()
 		msg := fmt.Sprintf("[redis] connect to '%s' failed, %v", self.Address, err)
 		redis_error.Set(msg)
 		*error_count++
@@ -125,12 +131,13 @@ func (self *redis_gateway) runOnce(error_count *uint) {
 				}
 			}
 		}
-
+		rdb.Close()
 		return
 	}
 
 	*error_count = 0
 	redis_error.Set("")
+	self.client = rdb
 
 	for self.isRunning() {
 		req, ok := <-self.c
@@ -147,87 +154,59 @@ func (self *redis_gateway) runOnce(error_count *uint) {
 			}
 		}
 
-		e := self.execute(c, req.commands)
+		e := self.execute(req.commands)
 		if nil != req.c {
 			req.c <- e
 		}
 		if nil != e {
 			redis_error.Set(e.Error())
+			fmt.Println("[redis_gateway]", e)
 			break
 		}
 	}
+
+	rdb.Close()
 }
 
-func (self *redis_gateway) execute(c redis.Conn, commands [][]string) error {
+func (self *redis_gateway) execute(commands [][]string) error {
 	switch len(commands) {
 	case 0:
 		return nil
 	case 1:
-		e := self.redis_do(c, commands[0])
+		e := self.redis_do(commands[0])
 		if nil != e {
 			return errors.New("execute `" + strings.Join(commands[0], " ") + "` failed, " + e.Error())
 		}
 		return nil
 	default:
+		pipe := self.client.Pipeline()
+
 		for _, command := range commands {
-			e := self.redis_send(c, command)
-			if nil != e {
-				return errors.New("execute `" + strings.Join(command, " ") + "` failed, " + e.Error())
+			args := make([]interface{}, len(command))
+			for i, arg := range command {
+				args[i] = arg
 			}
+			pipe.Do(self.ctx, args...)
 		}
 
-		e := c.Flush()
+		_, e := pipe.Exec(self.ctx)
 		if nil != e {
 			return e
-		}
-
-		for i := 0; i < len(commands); i++ {
-			_, e = c.Receive()
-			if nil != e {
-				return errors.New("execute `" + strings.Join(commands[i], " ") + "` failed, " + e.Error())
-			}
 		}
 		return nil
 	}
 }
 
-func (self *redis_gateway) redis_send(c redis.Conn, cmd []string) (err error) {
-	switch len(cmd) {
-	case 1:
-		err = c.Send(cmd[0])
-	case 2:
-		err = c.Send(cmd[0], cmd[1])
-	case 3:
-		err = c.Send(cmd[0], cmd[1], cmd[2])
-	case 4:
-		err = c.Send(cmd[0], cmd[1], cmd[2], cmd[3])
-	case 5:
-		err = c.Send(cmd[0], cmd[1], cmd[2], cmd[3], cmd[4])
-	case 6:
-		err = c.Send(cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5])
-	default:
-		err = errors.New("argument length is error")
+func (self *redis_gateway) redis_do(cmd []string) error {
+	if len(cmd) == 0 {
+		return nil
 	}
-	return err
-}
+	args := make([]interface{}, len(cmd))
+	for i, arg := range cmd {
+		args[i] = arg
+	}
 
-func (self *redis_gateway) redis_do(c redis.Conn, cmd []string) (err error) {
-	switch len(cmd) {
-	case 1:
-		_, err = c.Do(cmd[0])
-	case 2:
-		_, err = c.Do(cmd[0], cmd[1])
-	case 3:
-		_, err = c.Do(cmd[0], cmd[1], cmd[2])
-	case 4:
-		_, err = c.Do(cmd[0], cmd[1], cmd[2], cmd[3])
-	case 5:
-		_, err = c.Do(cmd[0], cmd[1], cmd[2], cmd[3], cmd[4])
-	case 6:
-		_, err = c.Do(cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5])
-	default:
-		err = errors.New("argument length is error")
-	}
+	_, err := self.client.Do(self.ctx, args...).Result()
 	return err
 }
 
