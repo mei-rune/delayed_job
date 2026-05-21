@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"tech.hengwei.com.cn/go/goutils/as"
 )
 
 var (
@@ -88,7 +86,7 @@ func BatchSendByWebSvc(args interface{}, phones []string, content string) error 
 		responseCode = i
 	}
 
-	batchSupport := readStringWith(args, "sms.web.batch_support", smsWebBatchSupport)
+	batchSupport := strings.ToLower(readStringWith(args, "sms.web.batch_support", smsWebBatchSupport))
 	method := readStringWith(args, "sms.web.method", smsWebMethod)
 
 	handler := webHandler{
@@ -103,7 +101,7 @@ func BatchSendByWebSvc(args interface{}, phones []string, content string) error 
 		responseContent: responseContent,
 		args:            params,
 		phoneNumbers:    phones,
-		supportBatch:    as.BoolWithDefault(batchSupport, false),
+		supportBatch:    batchSupport=="true" || batchSupport=="1" || batchSupport=="on" || batchSupport=="yes", 
 		isWebSMS:        true,
 	}
 	return handler.Perform()
