@@ -64,7 +64,7 @@ func ToDbType(drv string) int {
 		return GAUSSDB
 	case "mariadb":
 		return MariaDB
-	case "mysql", "mymysql":
+	case "mysql", "mymysql", "oceanbase_mysql":
 		return MYSQL
 	case "odbc_with_mssql", "mssql", "sqlserver":
 		return MSSQL
@@ -279,7 +279,8 @@ func newBackend(drvName, dbURL string, ctx map[string]interface{}) (*dbBackend, 
 
 	db, e := sql.Open(drv, dbURL)
 	if nil != e {
-		if !strings.Contains(e.Error(), "sql: unknown driver \"mariadb\" (forgotten import?)") {
+		if !strings.Contains(e.Error(), "sql: unknown driver \"mariadb\" (forgotten import?)") &&
+		!strings.Contains(e.Error(), "sql: unknown driver \"oceanbase_mysql\" (forgotten import?)")  {
 			return nil, e
 		}
 

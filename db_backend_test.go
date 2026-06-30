@@ -50,9 +50,9 @@ func GetTestConnURL() string {
 		switch TestDrv {
 		case "opengauss":
 			return OpenGaussUrl
-		case "postgres", "":
+		case "postgres", "pgx", "pgx/v5", "":
 			return PostgreSQLUrl
-		case "mysql":
+		case "mysql", "oceanbase_mysql":
 			return MySQLUrl
 		case "mariadb":
 			return MariaDbUrl
@@ -274,7 +274,8 @@ func TestGetSimple(t *testing.T) {
 			t.Error("excepted failed_at is invalid, actual is ", job.failed_at)
 		}
 
-		if "postgres" != backend.drv {
+
+		if backend.dbType != POSTGRESQL {
 			if !job.locked_at.IsZero() {
 				t.Error("excepted locked_at is invalid actual is ", job.locked_at)
 			}
@@ -370,11 +371,10 @@ func TestGetWithFailed(t *testing.T) {
 
 func TestLockedJobInGet(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
-		if "postgres" == backend.drv ||
-			"kingbase" == backend.drv ||
-			"opengauss" == backend.drv ||
-			"pgx" == backend.drv ||
-			"pgx/v5" == backend.drv {
+		if backend.dbType == POSTGRESQL ||
+		backend.dbType == KINGBASE ||
+		backend.dbType == OPENGAUSS ||
+		backend.dbType == GAUSSDB {
 			t.Skip("postgres is skipped.")
 		}
 
@@ -420,7 +420,7 @@ func TestLockedJobInGet(t *testing.T) {
 
 func TestFailedJobInGet(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
-		if "postgres" == backend.drv {
+		if backend.dbType == POSTGRESQL {
 			t.Skip("postgres is skipped.")
 		}
 

@@ -363,7 +363,8 @@ func (self *dbHandler) Perform() (err error) {
 
 	db, e := sql.Open(drv, self.urlStr)
 	if nil != e {
-		if !strings.Contains(e.Error(), "sql: unknown driver \"mariadb\" (forgotten import?)") {	
+		if !strings.Contains(e.Error(), "sql: unknown driver \"mariadb\" (forgotten import?)") &&
+		!strings.Contains(e.Error(), "sql: unknown driver \"oceanbase_mysql\" (forgotten import?)")  {	
 			return i18n(dbType, self.drv, e)
 		}
 
