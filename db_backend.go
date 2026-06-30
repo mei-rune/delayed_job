@@ -68,7 +68,7 @@ func ToDbType(drv string) int {
 		return MYSQL
 	case "odbc_with_mssql", "mssql", "sqlserver":
 		return MSSQL
-	case "oci8", "odbc_with_oracle", "oracle", "ora":
+	case "oci8", "odbc_with_oracle", "oracle", "ora", "oceanbase_oracle":
 		return ORACLE
 	default:
 		if strings.Contains(drv, "oracle") {
