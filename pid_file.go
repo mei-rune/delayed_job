@@ -18,9 +18,9 @@ var pidFile *string
 
 func init() {
 	if "windows" == runtime.GOOS {
-		pidFile = flag.String("pid_file", "delayed_job.pid", "File containing process PID")
+		pidFile = flag.String("job_pid_file", "delayed_job.pid", "File containing process PID")
 	} else {
-		pidFile = flag.String("pid_file", "/var/run/delayed_job.pid", "File containing process PID")
+		pidFile = flag.String("job_pid_file", "/var/run/delayed_job.pid", "File containing process PID")
 	}
 }
 
