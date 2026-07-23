@@ -269,13 +269,18 @@ func newBackend(drvName, dbURL string, ctx map[string]interface{}) (*dbBackend, 
 
 	db, e := sql.Open(drv, dbURL)
 	if nil != e {
-		if !strings.Contains(e.Error(), "sql: unknown driver \"mariadb\" (forgotten import?)") &&
-			!strings.Contains(e.Error(), "sql: unknown driver \"oceanbase_mysql\" (forgotten import?)") {
-			return nil, e
-		}
-
-		db, e = sql.Open("mysql", dbURL)
-		if nil != e {
+		if strings.Contains(e.Error(), "sql: unknown driver \"mariadb\" (forgotten import?)") ||
+			strings.Contains(e.Error(), "sql: unknown driver \"oceanbase_mysql\" (forgotten import?)") {
+			db, e = sql.Open("mysql", dbURL)
+			if nil != e {
+				return nil, e
+			}
+		} else if strings.Contains(e.Error(), "sql: unknown driver \"shengtong_oscar\" (forgotten import?)") {
+			db, e = sql.Open("aci", dbURL)
+			if nil != e {
+				return nil, e
+			}
+		} else {
 			return nil, e
 		}
 	}
@@ -475,8 +480,8 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 		}
 		return nil, nil
 	default:
-		fmt.Println("=====", select_sql_string+buffer.String())
-		fmt.Println(buffer.String(), ",", now, now.Truncate(w.max_run_time), w.name)
+		// fmt.Println("=====", select_sql_string+buffer.String())
+		// fmt.Println(buffer.String(), ",", now, now.Truncate(w.max_run_time), w.name)
 		rows, e := self.db.Query(select_sql_string+buffer.String(), now, now.Truncate(w.max_run_time), w.name)
 		if nil != e {
 			if sql.ErrNoRows == e {
