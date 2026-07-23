@@ -123,8 +123,8 @@ func Main(runMode, dbDrv, dbURL string, runHttp func(http.Handler)) error {
 		switch ToDbType(dbDrv) {
 		case MSSQL:
 			script := `if object_id('dbo.` + *table_name + `', 'U') is not null
-				BEGIN 
-							 DROP TABLE ` + *table_name + `; 
+				BEGIN
+							 DROP TABLE ` + *table_name + `;
 				END
 				if object_id('dbo.` + *table_name + `', 'U') is null
 				BEGIN
@@ -145,7 +145,7 @@ func Main(runMode, dbDrv, dbURL string, runHttp func(http.Handler)) error {
 						  locked_by         varchar(200),
 						  created_at        DATETIME2 NOT NULL,
 						  updated_at        DATETIME2 NOT NULL
-						); 
+						);
 				END`
 			fmt.Println(script)
 			_, e = backend.db.Exec(script)
@@ -177,7 +177,51 @@ func Main(runMode, dbDrv, dbURL string, runHttp func(http.Handler)) error {
 			if nil != e {
 				return e
 			}
-		case ORACLE, DM:
+		case ORACLE:
+			for _, script := range []string{
+				`BEGIN
+   EXECUTE IMMEDIATE 'DROP TABLE ` + *table_name + `';
+EXCEPTION
+   WHEN OTHERS THEN
+      IF SQLCODE != -942 THEN
+         RAISE;
+      END IF;
+END;`,
+				`BEGIN
+   EXECUTE IMMEDIATE 'DROP SEQUENCE seq_` + *table_name + `';
+EXCEPTION
+   WHEN OTHERS THEN
+      IF SQLCODE != -2289 THEN
+         RAISE;
+      END IF;
+END;`,
+				`CREATE SEQUENCE seq_` + *table_name,
+				`CREATE TABLE ` + *table_name + ` (
+					  id                INTEGER DEFAULT seq_` + *table_name + `.NEXTVAL PRIMARY KEY,
+					  priority          NUMBER(10) DEFAULT 0,
+					  repeat_count      NUMBER(10) DEFAULT 0,
+					  repeat_interval   varchar2(20) DEFAULT '',
+					  attempts          NUMBER(10) DEFAULT 0,
+					  max_attempts      NUMBER(10) DEFAULT 0,
+					  queue             varchar2(200 BYTE),
+					  handler           clob,--  NOT NULL,
+					  handler_id        varchar2(200 BYTE),
+					  last_error        VARCHAR2(2000 BYTE),
+					  run_at            timestamp with time zone,
+					  locked_at         timestamp with time zone,
+					  failed_at         timestamp with time zone,
+					  locked_by         varchar2(200 BYTE),
+					  created_at        timestamp with time zone NOT NULL,
+					  updated_at        timestamp with time zone NOT NULL
+					)`,
+			} {
+				fmt.Println(script)
+				_, e = backend.db.Exec(script)
+				if nil != e {
+					return i18n(ORACLE, "oci8", e)
+				}
+			}
+		case DM:
 			for _, script := range []string{
 				`DROP TABLE IF EXISTS ` + *table_name,
 				`CREATE TABLE ` + *table_name + ` (
@@ -202,7 +246,7 @@ func Main(runMode, dbDrv, dbURL string, runHttp func(http.Handler)) error {
 				fmt.Println(script)
 				_, e = backend.db.Exec(script)
 				if nil != e {
-					return i18n(ORACLE, "oci8", e)
+					return i18n(DM, "dm", e)
 				}
 			}
 		default:

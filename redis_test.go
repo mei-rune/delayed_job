@@ -17,7 +17,7 @@ import (
 	"github.com/tidwall/redcon"
 )
 
-var redisSim = flag.Bool("redis_sim", false, "")
+var redisSim = flag.Bool("redis_sim", true, "")
 
 var addr = ":6380"
 
@@ -94,7 +94,6 @@ func StartRedis(addr string) (*redcon.Server, int, error) {
 				mu.RLock()
 				val, ok := items[string(cmd.Args[1])]
 				mu.RUnlock()
-
 
 				fmt.Println("[server] get", string(cmd.Args[1]), string(val), ok)
 				if !ok {

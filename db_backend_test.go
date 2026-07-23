@@ -24,7 +24,7 @@ var (
 	OpenGaussUrl  = "host=192.168.1.202 port=8888 user=golang password=123456_go dbname=golang sslmode=disable"
 	PostgreSQLUrl = "host=127.0.0.1 user=golang password=123456 dbname=golang sslmode=disable"
 	MySQLUrl      = "golang:123456@tcp(localhost:3306)/golang?autocommit=true&parseTime=true&multiStatements=true"
-	MariaDbUrl      = "golang:123456@tcp(localhost:3306)/golang?autocommit=true&parseTime=true&multiStatements=true"
+	MariaDbUrl    = "golang:123456@tcp(localhost:3306)/golang?autocommit=true&parseTime=true&multiStatements=true"
 	MsSqlUrl      = "sqlserver://golang:123456@127.0.0.1?database=golang&connection+timeout=30"
 	DMSqlUrl      = "dm://" + os.Getenv("dm_username") + ":" + os.Getenv("dm_password") + "@" + os.Getenv("dm_host") + "?noConvertToHex=true"
 )
@@ -274,7 +274,6 @@ func TestGetSimple(t *testing.T) {
 			t.Error("excepted failed_at is invalid, actual is ", job.failed_at)
 		}
 
-
 		if backend.dbType != POSTGRESQL {
 			if !job.locked_at.IsZero() {
 				t.Error("excepted locked_at is invalid actual is ", job.locked_at)
@@ -313,9 +312,13 @@ func TestGetWithLocked(t *testing.T) {
 			return
 		}
 
-		if strings.Contains(GetTestConnDrv(), "odbc_with_mssql") {
+		dbID := ToDbType(GetTestConnDrv())
+		switch dbID {
+		case MSSQL:
 			_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = SYSUTCDATETIME(), locked_by = 'aa'")
-		} else {
+		case ORACLE, DM, MariaDB, MYSQL:
+			_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = CURRENT_TIMESTAMP, locked_by = 'aa'")
+		default:
 			_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = now(), locked_by = 'aa'")
 		}
 		if nil != e {
@@ -345,9 +348,13 @@ func TestGetWithFailed(t *testing.T) {
 			return
 		}
 
-		if strings.Contains(GetTestConnDrv(), "odbc_with_mssql") {
+		dbID := ToDbType(GetTestConnDrv())
+		switch dbID {
+		case MSSQL:
 			_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = SYSUTCDATETIME(), last_error = 'aa'")
-		} else {
+		case ORACLE, DM, MariaDB, MYSQL:
+			_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = CURRENT_TIMESTAMP, last_error = 'aa'")
+		default:
 			_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = now(), last_error = 'aa'")
 		}
 		if nil != e {
@@ -372,9 +379,9 @@ func TestGetWithFailed(t *testing.T) {
 func TestLockedJobInGet(t *testing.T) {
 	backendTest(t, func(backend *dbBackend) {
 		if backend.dbType == POSTGRESQL ||
-		backend.dbType == KINGBASE ||
-		backend.dbType == OPENGAUSS ||
-		backend.dbType == GAUSSDB {
+			backend.dbType == KINGBASE ||
+			backend.dbType == OPENGAUSS ||
+			backend.dbType == GAUSSDB {
 			t.Skip("postgres is skipped.")
 		}
 
@@ -393,9 +400,13 @@ func TestLockedJobInGet(t *testing.T) {
 			<-test_ch_for_lock
 
 			var e error
-			if strings.Contains(GetTestConnDrv(), "odbc_with_mssql") {
+			dbID := ToDbType(GetTestConnDrv())
+			switch dbID {
+			case MSSQL:
 				_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = SYSUTCDATETIME(), locked_by = 'aa'")
-			} else {
+			case ORACLE, DM, MariaDB, MYSQL:
+				_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = CURRENT_TIMESTAMP, locked_by = 'aa'")
+			default:
 				_, e = backend.db.Exec("UPDATE " + *table_name + " SET locked_at = now(), locked_by = 'aa'")
 			}
 			if nil != e {
@@ -439,9 +450,13 @@ func TestFailedJobInGet(t *testing.T) {
 			<-test_ch_for_lock
 
 			var e error
-			if strings.Contains(GetTestConnDrv(), "odbc_with_mssql") {
+			dbID := ToDbType(GetTestConnDrv())
+			switch dbID {
+			case MSSQL:
 				_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = SYSUTCDATETIME(), last_error = 'aa'")
-			} else {
+			case ORACLE, DM, MariaDB, MYSQL:
+				_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = CURRENT_TIMESTAMP, last_error = 'aa'")
+			default:
 				_, e = backend.db.Exec("UPDATE " + *table_name + " SET failed_at = now(), last_error = 'aa'")
 			}
 

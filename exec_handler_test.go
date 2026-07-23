@@ -144,7 +144,7 @@ func TestExecHandlerWorkdirectory(t *testing.T) {
 	// }()
 	var args map[string]interface{}
 	if "windows" == runtime.GOOS {
-		args = map[string]interface{}{"command": "cmd /c echo %%cd%%", "prompt": "window", "work_directory": "c:\\windows\\"}
+		args = map[string]interface{}{"command": "cmd /c echo %%cd%%", "prompt": "Window", "work_directory": "c:\\Windows\\"}
 	} else {
 		args = map[string]interface{}{"command": "pwd", "prompt": "usr", "work_directory": "/usr/"}
 	}

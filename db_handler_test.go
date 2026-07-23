@@ -260,7 +260,8 @@ func TestDbHandlerScriptError(t *testing.T) {
 		}
 	case POSTGRESQL, KINGBASE, OPENGAUSS, GAUSSDB:
 		if !strings.Contains(e.Error(), "scanner_yyerror") &&
-			!strings.Contains(e.Error(), "syntax error at or near \"aa\"") {
+			!strings.Contains(e.Error(), "syntax error at or near \"aa\"") &&
+			!strings.Contains(e.Error(), "语法错误 在 \"aa\" 或附近的") {
 			t.Error("excepted error contains [scanner_yyerror], but actual is", e)
 		}
 	default:

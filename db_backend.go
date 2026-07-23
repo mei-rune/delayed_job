@@ -68,7 +68,7 @@ func ToDbType(drv string) int {
 		return MYSQL
 	case "odbc_with_mssql", "mssql", "sqlserver":
 		return MSSQL
-	case "oci8", "odbc_with_oracle", "oracle", "ora", "oceanbase_oracle", "shengtong_oscar":
+	case "oci8", "odbc_with_oracle", "oracle", "ora", "oceanbase_oracle", "shengtong_oscar", "aci":
 		return ORACLE
 	default:
 		if strings.Contains(drv, "oracle") {
@@ -138,15 +138,6 @@ func i18nString(dbType int, drv string, e error) string {
 	// 	return decoder.ConvertString(e.Error())
 	// }
 	// return e.Error()
-}
-
-func IsNumericParams(dbType int) bool {
-	switch dbType {
-	case ORACLE, DM, POSTGRESQL, KINGBASE, OPENGAUSS, GAUSSDB:
-		return true
-	default:
-		return false
-	}
 }
 
 // NullTime represents an time that may be null.
@@ -257,11 +248,10 @@ func (n NullString) Value() (driver.Value, error) {
 // A job object that is persisted to the database.
 // Contains the work object as a YAML field.
 type dbBackend struct {
-	ctx             map[string]interface{}
-	drv             string
-	dbType          int
-	db              *sql.DB
-	isNumericParams bool
+	ctx    map[string]interface{}
+	drv    string
+	dbType int
+	db     *sql.DB
 }
 
 func newBackend(drvName, dbURL string, ctx map[string]interface{}) (*dbBackend, error) {
@@ -280,7 +270,7 @@ func newBackend(drvName, dbURL string, ctx map[string]interface{}) (*dbBackend, 
 	db, e := sql.Open(drv, dbURL)
 	if nil != e {
 		if !strings.Contains(e.Error(), "sql: unknown driver \"mariadb\" (forgotten import?)") &&
-		!strings.Contains(e.Error(), "sql: unknown driver \"oceanbase_mysql\" (forgotten import?)")  {
+			!strings.Contains(e.Error(), "sql: unknown driver \"oceanbase_mysql\" (forgotten import?)") {
 			return nil, e
 		}
 
@@ -290,7 +280,7 @@ func newBackend(drvName, dbURL string, ctx map[string]interface{}) (*dbBackend, 
 		}
 	}
 	dbType := ToDbType(drv)
-	return &dbBackend{ctx: ctx, drv: drv, db: db, dbType: dbType, isNumericParams: IsNumericParams(dbType)}, nil
+	return &dbBackend{ctx: ctx, drv: drv, db: db, dbType: dbType}, nil
 }
 
 func (self *dbBackend) Close() error {
@@ -314,9 +304,12 @@ func (self *dbBackend) enqueue(priority, repeat_count int, repeat_interval strin
 // When a worker is exiting, make sure we don't have any locked jobs.
 func (self *dbBackend) clearLocks(worker_name string) error {
 	var e error
-	if self.isNumericParams {
+	switch self.dbType {
+	case ORACLE, DM:
+		_, e = self.db.Exec("UPDATE "+*table_name+" SET locked_by = NULL, locked_at = NULL WHERE locked_by = :1", worker_name)
+	case POSTGRESQL, KINGBASE, OPENGAUSS, GAUSSDB:
 		_, e = self.db.Exec("UPDATE "+*table_name+" SET locked_by = NULL, locked_at = NULL WHERE locked_by = $1", worker_name)
-	} else {
+	default:
 		_, e = self.db.Exec("UPDATE "+*table_name+" SET locked_by = NULL, locked_at = NULL WHERE locked_by = ?", worker_name)
 	}
 	return i18n(self.dbType, self.drv, e)
@@ -417,13 +410,12 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 
 	//buffer.WriteString("SELECT id, priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, failed_at, locked_by, created_at, updated_at FROM "+ *table_name+"")
 	//buffer.WriteString(select_sql_string)
-	if self.isNumericParams {
-		if self.dbType == POSTGRESQL || self.dbType == KINGBASE || self.dbType == OPENGAUSS || self.dbType == GAUSSDB {
-			buffer.WriteString(" WHERE ((run_at IS NULL OR run_at <= $3) AND (locked_at IS NULL OR locked_at < $4) OR locked_by = $5) AND failed_at IS NULL")
-		} else {
-			buffer.WriteString(" WHERE ((run_at IS NULL OR run_at <= $1) AND (locked_at IS NULL OR locked_at < $2) OR locked_by = $3) AND failed_at IS NULL")
-		}
-	} else {
+	switch self.dbType {
+	case ORACLE, DM:
+		buffer.WriteString(" WHERE ((run_at IS NULL OR run_at <= :1) AND (locked_at IS NULL OR locked_at < :2) OR locked_by = :3) AND failed_at IS NULL")
+	case POSTGRESQL, KINGBASE, OPENGAUSS, GAUSSDB:
+		buffer.WriteString(" WHERE ((run_at IS NULL OR run_at <= $3) AND (locked_at IS NULL OR locked_at < $4) OR locked_by = $5) AND failed_at IS NULL")
+	default:
 		buffer.WriteString(" WHERE ((run_at IS NULL OR run_at <= ?) AND (locked_at IS NULL OR locked_at < ?) OR locked_by = ?) AND failed_at IS NULL")
 	}
 
@@ -483,6 +475,7 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 		}
 		return nil, nil
 	default:
+		fmt.Println("=====", select_sql_string+buffer.String())
 		fmt.Println(buffer.String(), ",", now, now.Truncate(w.max_run_time), w.name)
 		rows, e := self.db.Query(select_sql_string+buffer.String(), now, now.Truncate(w.max_run_time), w.name)
 		if nil != e {
@@ -506,9 +499,12 @@ func (self *dbBackend) reserve(w *worker) (*Job, error) {
 
 			var c int64
 			var result sql.Result
-			if self.isNumericParams {
+			switch self.dbType {
+			case ORACLE, DM:
+				result, e = self.db.Exec("UPDATE "+*table_name+" SET locked_at = :1, locked_by = :2 WHERE id = :3 AND (locked_at IS NULL OR locked_at < :4 OR locked_by = :5) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
+			case POSTGRESQL, KINGBASE, OPENGAUSS, GAUSSDB:
 				result, e = self.db.Exec("UPDATE "+*table_name+" SET locked_at = $1, locked_by = $2 WHERE id = $3 AND (locked_at IS NULL OR locked_at < $4 OR locked_by = $5) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
-			} else {
+			default:
 				result, e = self.db.Exec("UPDATE "+*table_name+" SET locked_at = ?, locked_by = ? WHERE id = ? AND (locked_at IS NULL OR locked_at < ? OR locked_by = ?) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
 				// fmt.Println("UPDATE "+*table_name+" SET locked_at = ?, locked_by = ? WHERE id = ? AND (locked_at IS NULL OR locked_at < ? OR locked_by = ?) AND failed_at IS NULL", now, w.name, job.id, now.Truncate(w.max_run_time), w.name)
 			}
@@ -623,7 +619,7 @@ func (self *dbBackend) create(jobs ...*Job) (e error) {
 		//priority, attempts, queue, handler, handler_id, last_error, run_at, locked_at, locked_by, failed_at, created_at, updated_at
 		switch self.dbType {
 		case ORACLE, DM:
-			_, e = tx.Exec("DELETE FROM "+*table_name+" WHERE handler_id = ?", job.handler_id)
+			_, e = tx.Exec("DELETE FROM "+*table_name+" WHERE handler_id = :1", job.handler_id)
 			if nil != e {
 				break
 			}
@@ -748,9 +744,13 @@ func (self *dbBackend) update(id int64, attributes map[string]interface{}) error
 
 func (self *dbBackend) destroy(id int64) error {
 	var e error
-	if self.isNumericParams {
+
+	switch self.dbType {
+	case ORACLE, DM:
+		_, e = self.db.Exec("DELETE FROM "+*table_name+" WHERE id = :1", id)
+	case POSTGRESQL, KINGBASE, OPENGAUSS, GAUSSDB:
 		_, e = self.db.Exec("DELETE FROM "+*table_name+" WHERE id = $1", id)
-	} else {
+	default:
 		_, e = self.db.Exec("DELETE FROM "+*table_name+" WHERE id = ?", id)
 	}
 
