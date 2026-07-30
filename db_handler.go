@@ -152,6 +152,26 @@ func transformUrl(drv, urlStr string) (string, error) {
 			RawQuery: query.Encode(),
 		}
 		return u.String(), nil
+	case "shengtong_oscar", "aci":
+		host, port, dbname, user, password, args, e := fetchArguments(options)
+		if nil != e {
+			return "", e
+		}
+		var ss = []string{
+			"dbtext_max_len=100000",
+			"fetch_size=100",
+		}
+		for key, value := range args {
+			if key == "dbtext_max_len" {
+				ss[0] = key + "="+value
+			} else if key == "fetch_size" {
+				ss[1] = key + "="+value
+			} else {
+				ss = append(ss, key + "="+value)
+			}
+		}
+		return fmt.Sprintf("%s/%s@%s/%s?"+strings.Join(ss, ";"),
+			user, password, net.JoinHostPort(host, port), dbname), nil
 	case "oracle":
 		host, port, dbname, user, password, args, e := fetchArguments(options)
 		if nil != e {
@@ -181,7 +201,7 @@ func transformUrl(drv, urlStr string) (string, error) {
 		}
 		return fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
 			host, port, dbname, user, password), nil
-	case "mysql":
+	case "mysql", "oceanbase_mysql":
 		host, port, dbname, user, password, args, e := fetchArguments(options)
 		if nil != e {
 			return "", e
@@ -363,14 +383,19 @@ func (self *dbHandler) Perform() (err error) {
 
 	db, e := sql.Open(drv, self.urlStr)
 	if nil != e {
-		if !strings.Contains(e.Error(), "sql: unknown driver \"mariadb\" (forgotten import?)") &&
-		!strings.Contains(e.Error(), "sql: unknown driver \"oceanbase_mysql\" (forgotten import?)")  {	
-			return i18n(dbType, self.drv, e)
-		}
-
-		db, e = sql.Open("mysql", self.urlStr)
-		if nil != e {
-			return i18n(dbType, self.drv, e)
+		if strings.Contains(e.Error(), "sql: unknown driver \"mariadb\" (forgotten import?)") ||
+			strings.Contains(e.Error(), "sql: unknown driver \"oceanbase_mysql\" (forgotten import?)") {
+			db, e = sql.Open("mysql", self.urlStr)
+			if nil != e {
+				return e
+			}
+		} else if strings.Contains(e.Error(), "sql: unknown driver \"shengtong_oscar\" (forgotten import?)") {
+			db, e = sql.Open("aci", self.urlStr)
+			if nil != e {
+				return e
+			}
+		} else {
+			return e
 		}
 	}
 	defer db.Close()

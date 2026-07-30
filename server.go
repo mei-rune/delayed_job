@@ -180,25 +180,25 @@ func Main(runMode, dbDrv, dbURL string, runHttp func(http.Handler)) error {
 		case ORACLE:
 			for _, script := range []string{
 				`DECLARE
-   v_count INTEGER;
-BEGIN
-   SELECT COUNT(*) INTO v_count
-   FROM user_tables
-   WHERE table_name = UPPER('` + *table_name + `');
-   IF v_count > 0 THEN
-      EXECUTE IMMEDIATE 'DROP TABLE ` + *table_name + ` CASCADE CONSTRAINTS';
-   END IF;
-END;`,
+					   v_count INTEGER;
+					BEGIN
+					   SELECT COUNT(*) INTO v_count
+					   FROM user_tables
+					   WHERE table_name = UPPER('` + *table_name + `');
+					   IF v_count > 0 THEN
+					      EXECUTE IMMEDIATE 'DROP TABLE ` + *table_name + ` CASCADE CONSTRAINTS';
+					   END IF;
+					END;`,
 				`DECLARE
-   v_count INTEGER;
-BEGIN
-   SELECT COUNT(*) INTO v_count
-   FROM user_sequences
-   WHERE sequence_name = UPPER('` + *table_name + `_seq');
-   IF v_count = 0 THEN
-      EXECUTE IMMEDIATE 'CREATE SEQUENCE ` + *table_name + `_seq';
-   END IF;
-END;`,
+					   v_count INTEGER;
+					BEGIN
+					   SELECT COUNT(*) INTO v_count
+					   FROM user_sequences
+					   WHERE sequence_name = UPPER('` + *table_name + `_seq');
+					   IF v_count > 0 THEN
+					      EXECUTE IMMEDIATE 'DROP SEQUENCE ` + *table_name + `_seq';
+					   END IF;
+					END;`,
 
 				`CREATE SEQUENCE ` + *table_name + "_seq",
 				`CREATE TABLE ` + *table_name + ` (

@@ -164,8 +164,25 @@ func dbTest(t *testing.T, cb func(backend *sql.DB)) {
 	}
 	db, e := sql.Open(drv, *test_db_url)
 	if nil != e {
-		t.Error(i18nString(dbType, drv, e))
-		return
+		if strings.Contains(e.Error(), "sql: unknown driver \"mariadb\" (forgotten import?)") ||
+			strings.Contains(e.Error(), "sql: unknown driver \"oceanbase_mysql\" (forgotten import?)") {
+			db, e = sql.Open("mysql", *test_db_url)
+			if nil != e {
+			t.Error(e)
+			return
+			}
+		} else if strings.Contains(e.Error(), "sql: unknown driver \"shengtong_oscar\" (forgotten import?)") {
+			db, e = sql.Open("aci", *test_db_url)
+			if nil != e {
+			t.Error(e)
+			return
+			}
+		} else {
+			t.Error(e)
+			return
+		}
+		// t.Error(i18nString(dbType, drv, e))
+		// return
 	}
 	defer db.Close()
 
