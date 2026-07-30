@@ -179,25 +179,30 @@ func Main(runMode, dbDrv, dbURL string, runHttp func(http.Handler)) error {
 			}
 		case ORACLE:
 			for _, script := range []string{
-				`BEGIN
-   EXECUTE IMMEDIATE 'DROP TABLE ` + *table_name + `';
-EXCEPTION
-   WHEN OTHERS THEN
-      IF SQLCODE != -942 THEN
-         RAISE;
-      END IF;
+				`DECLARE
+   v_count INTEGER;
+BEGIN
+   SELECT COUNT(*) INTO v_count
+   FROM user_tables
+   WHERE table_name = UPPER('` + *table_name + `');
+   IF v_count > 0 THEN
+      EXECUTE IMMEDIATE 'DROP TABLE ` + *table_name + ` CASCADE CONSTRAINTS';
+   END IF;
 END;`,
-				`BEGIN
-   EXECUTE IMMEDIATE 'DROP SEQUENCE seq_` + *table_name + `';
-EXCEPTION
-   WHEN OTHERS THEN
-      IF SQLCODE != -2289 THEN
-         RAISE;
-      END IF;
+				`DECLARE
+   v_count INTEGER;
+BEGIN
+   SELECT COUNT(*) INTO v_count
+   FROM user_sequences
+   WHERE sequence_name = UPPER('` + *table_name + `_seq');
+   IF v_count = 0 THEN
+      EXECUTE IMMEDIATE 'CREATE SEQUENCE ` + *table_name + `_seq';
+   END IF;
 END;`,
-				`CREATE SEQUENCE seq_` + *table_name,
+
+				`CREATE SEQUENCE ` + *table_name + "_seq",
 				`CREATE TABLE ` + *table_name + ` (
-					  id                INTEGER DEFAULT seq_` + *table_name + `.NEXTVAL PRIMARY KEY,
+					  id                INTEGER DEFAULT ` + *table_name + `_seq.NEXTVAL PRIMARY KEY,
 					  priority          NUMBER(10) DEFAULT 0,
 					  repeat_count      NUMBER(10) DEFAULT 0,
 					  repeat_interval   varchar2(20) DEFAULT '',
@@ -215,9 +220,9 @@ END;`,
 					  updated_at        timestamp with time zone NOT NULL
 					)`,
 			} {
-				fmt.Println(script)
 				_, e = backend.db.Exec(script)
 				if nil != e {
+					fmt.Println(script)
 					return i18n(ORACLE, "oci8", e)
 				}
 			}
