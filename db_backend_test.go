@@ -18,7 +18,6 @@ import (
 	_ "github.com/microsoft/go-mssqldb"
 	_ "github.com/sijms/go-ora/v2"
 	_ "github.com/ziutek/mymysql/godrv"
-	_ "gitee.com/shentongdata/go-aci"
 )
 
 var (
