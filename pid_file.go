@@ -27,11 +27,25 @@ func init() {
 func isPidInitialize() bool {
 	ret := false
 	flag.Visit(func(f *flag.Flag) {
-		if "pid_file" == f.Name {
+		if "job_pid_file" == f.Name {
 			ret = true
 		}
 	})
 	return ret
+}
+
+func EnsureDefaultPidFile(filename string) {
+	if !isPidInitialize() {
+		flag.Set("job_pid_file", filename)
+	}
+}
+
+func ensureProcessFile(nm string) {
+	if "windows" == runtime.GOOS {
+		EnsureDefaultPidFile(nm+".pid")
+	} else {
+		EnsureDefaultPidFile("/var/run/tpt/"+nm+".pid")
+	}
 }
 
 func createPidFile(pidFile, image string) error {

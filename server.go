@@ -289,14 +289,9 @@ func Main(runMode, dbDrv, dbURL string, runHttp func(http.Handler)) error {
 			return e
 		}
 
+		
 		nm := filepath.Base(os.Args[0])
-		if !isPidInitialize() {
-			if "windows" == runtime.GOOS {
-				flag.Set("pid_file", nm+".pid")
-			} else {
-				flag.Set("pid_file", "/var/run/tpt/"+nm+".pid")
-			}
-		}
+		ensureProcessFile(nm)
 		if err := createPidFile(*pidFile, nm); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -313,13 +308,7 @@ func Main(runMode, dbDrv, dbURL string, runHttp func(http.Handler)) error {
 		}
 
 		nm := filepath.Base(os.Args[0])
-		if !isPidInitialize() {
-			if "windows" == runtime.GOOS {
-				flag.Set("pid_file", nm+".pid")
-			} else {
-				flag.Set("pid_file", "/var/run/tpt/"+nm+".pid")
-			}
-		}
+		ensureProcessFile(nm)
 		if err := createPidFile(*pidFile, nm); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -337,13 +326,7 @@ func Main(runMode, dbDrv, dbURL string, runHttp func(http.Handler)) error {
 		}
 
 		nm := filepath.Base(os.Args[0])
-		if !isPidInitialize() {
-			if "windows" == runtime.GOOS {
-				flag.Set("pid_file", nm+".pid")
-			} else {
-				flag.Set("pid_file", "/var/run/tpt/"+nm+".pid")
-			}
-		}
+		ensureProcessFile(nm)
 		if err := createPidFile(*pidFile, nm); err != nil {
 			fmt.Println(err)
 			os.Exit(1)

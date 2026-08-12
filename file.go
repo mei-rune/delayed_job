@@ -54,7 +54,7 @@ func newWriteFileHandler(ctx, params map[string]interface{}) (Handler, error) {
 
 func (h *writefileHandler) Perform() error {
 	filename := filepath.Join(h.workDirectory, h.filename)
-	if err := os.MkdirAll(filename, 0777); err != nil && os.IsExist(err) {
+	if err := os.MkdirAll(filepath.Dir(filename), 0777); err != nil && os.IsExist(err) {
 		return err
 	}
 	return ioutil.WriteFile(filename, []byte(h.content), 0666)

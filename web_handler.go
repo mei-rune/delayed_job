@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"golang.org/x/text/transform"
+	"github.com/google/uuid"
 )
 
 type WebSMS struct {
@@ -570,6 +571,9 @@ func parseInterval(s string, defValue time.Duration) time.Duration {
 }
 
 var Funcs = template.FuncMap{
+	"uuid": func() string {
+		return uuid.New().String()
+	},
 	"timeFormat": func(format string, t interface{}) string {
 		now := asTimeWithDefault(t, time.Time{})
 		if strings.HasPrefix(format, "unix_ms") {
