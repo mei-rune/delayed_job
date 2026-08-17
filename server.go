@@ -82,17 +82,22 @@ func Main(runMode, dbDrv, dbURL string, runHttp func(http.Handler)) error {
 	default_actuals = loadActualFlags(nil)
 	initDB()
 
-	if *config_file == "" {
+	file := *config_file
+	if file == "" {
 		file, found := searchFile()
-		flag.Set("delayed-config", file)
-		fmt.Println("[info] config file is '" + file + "'")
-
 		if found {
-			fmt.Println("[warn] load file '" + file + "'.")
-			e := loadConfig(file, nil, false)
-			if nil != e {
-				return errors.New("load file '" + file + "' failed, " + e.Error())
-			}
+			flag.Set("delayed-config", file)
+			fmt.Println("[info] config file is '" + file + "'")
+		} else {
+			file = ""
+		}
+	}
+	if file != "" {
+		fmt.Println("[warn] load file '" + file + "'.")
+		e := loadConfig(file, nil, false)
+	
+		if nil != e {
+			return errors.New("load file '" + file + "' failed, " + e.Error())
 		}
 	}
 
