@@ -26,6 +26,9 @@ func loadActualFlags(flagSet *flag.FlagSet) map[string]string {
 func loadConfig(nm string, flagSet *flag.FlagSet, isOverride bool) error {
 	f, e := os.Open(nm)
 	if nil != e {
+		if os.IsNotExist(e) {
+			return nil
+		}
 		return fmt.Errorf("load config '%s' failed, %v", nm, e)
 	}
 
