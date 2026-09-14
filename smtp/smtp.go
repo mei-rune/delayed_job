@@ -94,6 +94,7 @@ func Dial(addr string, useTLS TLSMethod, useFQDN bool, output io.Writer) (*Clien
 				client.tls = true
 				return client, nil
 			}
+			conn.Close()
 		}
 	}
 
@@ -102,10 +103,12 @@ func Dial(addr string, useTLS TLSMethod, useFQDN bool, output io.Writer) (*Clien
 		return nil, err
 	}
 	client, err := NewClient(conn, host, output, useFQDN)
-	if err == nil {
-		client.useTLS = useTLS
+	if err != nil {
+		conn.Close()
+		return
 	}
-	return client, err
+	client.useTLS = useTLS
+	return client, nil
 }
 
 // NewClient returns a new Client using an existing connection and host as a
